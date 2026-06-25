@@ -1,6 +1,6 @@
 {
   "name": "luuku-ai",
-  "version": "0.7.1",
+  "version": "0.7.2",
   "description": "Luuku AI internal operating system",
   "main": "index.js",
   "scripts": {

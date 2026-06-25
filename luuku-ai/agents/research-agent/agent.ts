@@ -36,6 +36,31 @@ type OutreachReadiness = {
   reasons: string[];
 };
 
+type ConfidenceLevel = {
+  level: "High" | "Moderate" | "Low";
+  reason: string;
+};
+
+type ProspectMemory = {
+  found: boolean;
+  summaryLines: string[];
+};
+
+type SectorHeuristics = {
+  painPoints: string[];
+  opportunities: OpportunityAngle[];
+  offer: OfferRecommendation;
+  tags: string[];
+  outreachBoost: number;
+  knowledgeBoost: number;
+  workflowBoost: number;
+  aiNeedBoost: number;
+  readinessUnknowns: string[];
+  nextActions: string[];
+  decisionMakers: string[];
+  pilotShape: string[];
+};
+
 const openai = config.openaiApiKey
   ? new OpenAI({ apiKey: config.openaiApiKey })
   : null;
@@ -76,15 +101,13 @@ function titleCase(value: string) {
 async function collectResearchInput(): Promise<ResearchInput> {
   const rl = readline.createInterface({ input, output });
 
-  console.log("=== Luuku AI Research Agent v0.7.1 ===");
+  console.log("=== Luuku AI Research Agent v0.7.2 ===");
   console.log("Enter the prospect details below.\n");
 
   const business = (await rl.question("Business name: ")).trim();
   const sector = (await rl.question("Sector: ")).trim();
   const region = (await rl.question("Region / country: ")).trim();
-  const researchGoal = (
-    await rl.question("Research goal: ")
-  ).trim();
+  const researchGoal = (await rl.question("Research goal: ")).trim();
   const notes = (await rl.question("Extra notes (optional): ")).trim();
 
   rl.close();
@@ -102,7 +125,7 @@ function normalizeSector(sector: string) {
   return sector.trim().toLowerCase();
 }
 
-function getSectorHeuristics(sectorRaw: string) {
+function getSectorHeuristics(sectorRaw: string): SectorHeuristics {
   const sector = normalizeSector(sectorRaw);
 
   if (
@@ -154,6 +177,19 @@ function getSectorHeuristics(sectorRaw: string) {
         "Visit the business website and identify operations, digital transformation, customer service, or process-improvement functions.",
         "Look for signs of documentation-heavy internal workflows, policy-heavy operations, or recurring approval chains.",
         "Find one Rwanda-specific operational pain angle before outreach so the first message feels grounded rather than generic.",
+      ],
+      decisionMakers: [
+        "Head of Operations / Operations Excellence",
+        "Head of Digital Transformation / Innovation",
+        "Customer Experience or Service Delivery Lead",
+        "COO / Senior Operations Leader",
+        "Process Improvement / Transformation Manager",
+      ],
+      pilotShape: [
+        "Run a 2-week workflow and knowledge audit focused on one internal banking operations workflow.",
+        "Map where staff currently lose time searching for procedures, compliance guidance, and operational instructions.",
+        "Prototype one internal AI knowledge assistant for a targeted team or workflow.",
+        "Define success metrics such as faster policy access, fewer repetitive internal support questions, and reduced workflow delay.",
       ],
     };
   }
@@ -208,6 +244,19 @@ function getSectorHeuristics(sectorRaw: string) {
         "Look for signs of operational complexity: multiple services, multiple locations, or strong reliance on staff coordination.",
         "Identify whether the first Luuku angle should be guest support automation or internal operations support.",
       ],
+      decisionMakers: [
+        "General Manager / Hotel Manager",
+        "Operations Manager",
+        "Reservations / Front Office Lead",
+        "Guest Experience Lead",
+        "Commercial / Revenue Operations Lead",
+      ],
+      pilotShape: [
+        "Run a small workflow discovery sprint around guest inquiries and operational coordination.",
+        "Identify the top repetitive guest-facing questions and one internal handoff workflow to improve.",
+        "Prototype a guest support assistant or internal SOP assistant depending on the stronger pain point.",
+        "Measure response speed, reduction in repetitive staff effort, and smoother coordination between teams.",
+      ],
     };
   }
 
@@ -261,6 +310,19 @@ function getSectorHeuristics(sectorRaw: string) {
         "Map which non-clinical workflows Luuku AI could help without entering regulated clinical decision territory.",
         "Identify an admin, operations, or digital lead rather than approaching the organization too broadly.",
       ],
+      decisionMakers: [
+        "Hospital / Clinic Administrator",
+        "Operations Manager",
+        "Head of Front Desk / Patient Services",
+        "Digital Health / IT Lead",
+        "Quality or Process Improvement Lead",
+      ],
+      pilotShape: [
+        "Run a focused admin workflow discovery sprint rather than touching clinical workflows.",
+        "Choose one non-clinical workflow such as appointment support, internal admin guidance, or document follow-up.",
+        "Prototype an administrative knowledge assistant or workflow support assistant.",
+        "Measure time saved in repetitive admin questions, staff coordination, or process turnaround.",
+      ],
     };
   }
 
@@ -313,6 +375,19 @@ function getSectorHeuristics(sectorRaw: string) {
         "Check the institution website for admissions, student support, ICT, and administrative service workflows.",
         "Look for recurring information-heavy processes like registration, fee guidance, and policy interpretation.",
         "Decide whether the first Luuku pitch should focus on staff productivity or student-facing support.",
+      ],
+      decisionMakers: [
+        "Registrar / Academic Administration Lead",
+        "ICT / Digital Systems Lead",
+        "Head of Student Services",
+        "Administrative Director / COO equivalent",
+        "Admissions or Enrollment Lead",
+      ],
+      pilotShape: [
+        "Run a discovery sprint around one information-heavy institutional workflow such as admissions or registration support.",
+        "Map repeated student/staff questions and where institutional guidance currently lives.",
+        "Prototype a student FAQ assistant or internal staff knowledge assistant depending on the strongest pain point.",
+        "Measure faster access to information, fewer repetitive inquiries, and reduced administrative workload.",
       ],
     };
   }
@@ -368,6 +443,19 @@ function getSectorHeuristics(sectorRaw: string) {
         "Identify whether inventory/ops coordination or customer support should be the first Luuku angle.",
         "Find a decision-maker responsible for operations, digital, or customer experience.",
       ],
+      decisionMakers: [
+        "Operations Manager",
+        "Customer Experience Lead",
+        "E-commerce / Digital Commerce Lead",
+        "Branch Operations Leader",
+        "Commercial Manager",
+      ],
+      pilotShape: [
+        "Run a short workflow review around customer support and internal operations coordination.",
+        "Choose one workflow such as order inquiry handling, stock follow-up, or issue escalation.",
+        "Prototype a support assistant or ops coordination assistant for that workflow.",
+        "Measure reduced repetitive support effort, faster response time, and smoother operational follow-up.",
+      ],
     };
   }
 
@@ -414,6 +502,18 @@ function getSectorHeuristics(sectorRaw: string) {
       "Look for signs of repetitive support work, internal knowledge dependence, or approval-heavy processes.",
       "Decide which single Luuku AI offer angle feels most concrete before outreach.",
     ],
+    decisionMakers: [
+      "Operations Lead",
+      "Digital / Innovation Lead",
+      "Customer Experience or Service Lead",
+      "Process Improvement / Transformation Owner",
+    ],
+    pilotShape: [
+      "Run a short workflow and knowledge discovery sprint before proposing a larger automation engagement.",
+      "Identify one repetitive workflow and one knowledge-access bottleneck worth testing first.",
+      "Prototype a small assistant or workflow support layer around the chosen pain point.",
+      "Measure time saved, reduced repetitive effort, and better access to operational knowledge.",
+    ],
   };
 }
 
@@ -423,7 +523,7 @@ function dedupe(items: string[]) {
 
 function scoreProspect(
   input: ResearchInput,
-  heuristics: ReturnType<typeof getSectorHeuristics>
+  heuristics: SectorHeuristics
 ): ProspectScore {
   const notes = (input.notes || "").toLowerCase();
   const goal = input.researchGoal.toLowerCase();
@@ -494,7 +594,7 @@ function scoreProspect(
 
 function buildResearchTags(
   input: ResearchInput,
-  heuristics: ReturnType<typeof getSectorHeuristics>,
+  heuristics: SectorHeuristics,
   score: ProspectScore
 ) {
   const tags = [...heuristics.tags];
@@ -522,7 +622,7 @@ function buildResearchTags(
 }
 
 function assessOutreachReadiness(
-  heuristics: ReturnType<typeof getSectorHeuristics>,
+  heuristics: SectorHeuristics,
   score: ProspectScore
 ): OutreachReadiness {
   const reasons: string[] = [];
@@ -554,7 +654,7 @@ function assessOutreachReadiness(
 }
 
 function buildImmediateNextResearchActions(
-  heuristics: ReturnType<typeof getSectorHeuristics>,
+  heuristics: SectorHeuristics,
   readiness: OutreachReadiness
 ) {
   const actions = [...heuristics.nextActions];
@@ -568,7 +668,104 @@ function buildImmediateNextResearchActions(
   return dedupe(actions).slice(0, 4);
 }
 
+function assessConfidence(
+  input: ResearchInput,
+  score: ProspectScore,
+  memory: ProspectMemory
+): ConfidenceLevel {
+  let points = 0;
+  const notesLength = (input.notes || "").trim().length;
+  const goalLength = input.researchGoal.trim().length;
+
+  if (score.overall >= 8.2) points += 2;
+  else if (score.overall >= 7.2) points += 1;
+
+  if (notesLength >= 40) points += 1;
+  if (goalLength >= 35) points += 1;
+  if (memory.found) points += 1;
+
+  if (points >= 5) {
+    return {
+      level: "High",
+      reason:
+        "The fit score is strong and Luuku AI has enough supporting context to treat this as a higher-confidence prospect hypothesis.",
+      };
+  }
+
+if (points >= 3) {
+  return {
+    level: "Moderate",
+    reason:
+      "The prospect looks promising, but the current assessment still leans partly on sector heuristics and should be sharpened with more business-specific validation.",
+  };
+}
+
+  return {
+    level: "Low",
+    reason:
+      "The current hypothesis is still thin and needs more business-specific evidence before Luuku AI should rely on it heavily.",
+    };
+  };
+
+function findProspectMemory(business: string): ProspectMemory {
+  const logsDir = ensureLogsDir();
+  const businessSlug = sanitizeFileName(business);
+  const prefix = `research-${businessSlug}-`;
+
+  const files = fs
+    .readdirSync(logsDir)
+    .filter((file) => file.startsWith(prefix) && file.endsWith(".md"))
+    .sort();
+
+  if (files.length === 0) {
+    return {
+      found: false,
+      summaryLines: ["- No prior research log found for this prospect."],
+    };
+  }
+
+  const latestFile = files[files.length - 1];
+  const latestPath = path.join(logsDir, latestFile);
+
+  try {
+    const content = fs.readFileSync(latestPath, "utf8");
+
+    const scoreMatch = content.match(
+      /\*\*Overall Luuku Fit Score:\*\*\s*([0-9.]+)\/10/i
+    );
+    const offerMatch = content.match(/\*\*Recommended offer:\*\*\s*(.+)/i);
+
+    const lines: string[] = [];
+    lines.push(`- Prior research log found: **${latestFile}**`);
+
+    if (scoreMatch?.[1]) {
+      lines.push(`- Previous recorded Luuku Fit Score: **${scoreMatch[1]}/10**`);
+    }
+
+    if (offerMatch?.[1]) {
+      lines.push(`- Previous recommended offer: **${offerMatch[1].trim()}**`);
+    }
+
+    lines.push(
+      "- Use the prior log as context to refine the pitch rather than treating this prospect as completely new."
+    );
+
+    return {
+      found: true,
+      summaryLines: lines,
+    };
+  } catch {
+    return {
+      found: true,
+      summaryLines: [
+        `- Prior research log found for ${business}, but it could not be parsed cleanly.`,
+      ],
+    };
+  }
+}
+
 function buildFallbackResearch(input: ResearchInput) {
+  const memory = findProspectMemory(input.business);
   const heuristics = getSectorHeuristics(input.sector);
   const score = scoreProspect(input, heuristics);
   const tags = buildResearchTags(input, heuristics, score);
@@ -577,6 +774,7 @@ function buildFallbackResearch(input: ResearchInput) {
     heuristics,
     readiness
   );
+  const confidence = assessConfidence(input, score, memory);
 
   const lines: string[] = [];
 
@@ -641,9 +839,26 @@ function buildFallbackResearch(input: ResearchInput) {
   nextActions.forEach((action) => lines.push(`- ${action}`));
   lines.push("");
 
+  lines.push("### 11) Likely Decision-Maker Targets");
+  heuristics.decisionMakers.forEach((person) => lines.push(`- ${person}`));
+  lines.push("");
+
+  lines.push("### 12) Suggested Pilot Shape");
+  heuristics.pilotShape.forEach((item) => lines.push(`- ${item}`));
+  lines.push("");
+
+  lines.push("### 13) Confidence Level");
+  lines.push(`- **Confidence:** ${confidence.level}`);
+  lines.push(`- ${confidence.reason}`);
+  lines.push("");
+
+  lines.push("### 14) Prospect Memory Note");
+  memory.summaryLines.forEach((line) => lines.push(line));
+  lines.push("");
+
   lines.push("### Research Mode Note");
   lines.push(
-    "- This response was generated in **fallback mode** using Luuku AI research heuristics, prospect scoring logic, and offer-matching rules."
+    "- This response was generated in **fallback mode** using Luuku AI research heuristics, prospect scoring logic, offer-matching rules, and lightweight prospect memory from local logs."
   );
 
   return lines.join("\n");
@@ -669,6 +884,10 @@ Return a structured research brief in markdown using EXACTLY these sections:
 ### 8) Research Tags
 ### 9) Outreach Readiness
 ### 10) Immediate Next Research Action
+### 11) Likely Decision-Maker Targets
+### 12) Suggested Pilot Shape
+### 13) Confidence Level
+### 14) Prospect Memory Note
 
 Rules:
 - Be practical, not fluffy.
@@ -680,10 +899,13 @@ Rules:
   - Knowledge assistant fit
   - Outreach attractiveness
   - Overall Luuku Fit Score
-- Research Tags should be concise, reusable pipeline tags like:
-  high-support-volume, internal-knowledge-fit, workflow-automation-fit, enterprise-target
+- Research Tags should be concise, reusable pipeline tags.
 - Outreach Readiness must say either "Ready now" or "Needs validation first" and explain why.
 - Immediate Next Research Action must be concrete and operational.
+- Likely Decision-Maker Targets should name roles/functions, not fake person names.
+- Suggested Pilot Shape should describe the likely first engagement Luuku AI could propose.
+- Confidence Level must be High, Moderate, or Low with a short reason.
+- Prospect Memory Note should summarize whether this prospect appears to have been researched before and what that implies for Luuku AI.
 - Make the output useful for a founder doing prospect research in Rwanda / Africa, not a generic consultant memo.
 
 Prospect input:
