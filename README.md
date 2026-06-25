@@ -56,14 +56,17 @@ In practical terms, this repository is where Luuku AI is building:
 ---
 
 ## Current Version
+**v0.7.1 — Research Agent Prospect Intelligence Patch**
 
-**v0.7.0 — Internal AI Workforce Foundation**
+Live internal components:
+- Executive Assistant Agent
+- Research Agent
 
-Current state of the system:
-- Executive Assistant Agent is working with fallback mode and execution logging
-- Research Agent is working with fallback mode and research brief generation
-- logs and profile-driven context are active
-- GitHub repository and internal project structure are now live
+Latest upgrade in v0.7.1:
+- Prospect scoring
+- Research tags
+- Outreach readiness assessment
+- Immediate next research actions
 
 ---
 

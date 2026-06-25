@@ -1,66 +1,52 @@
+import readline from "node:readline/promises";
+import { stdin as input, stdout as output } from "node:process";
 import fs from "node:fs";
 import path from "node:path";
 import OpenAI from "openai";
 import { config } from "../../shared/config/env";
 
-const SYSTEM_PROMPT = `
-You are the Research Agent of Luuku AI.
-
-Your job is to analyze a target business or organization and identify where Luuku AI could help with AI systems architecture, internal AI assistants, and workflow automation.
-
-Rules:
-1. Be practical and commercially useful.
-2. Focus on operational pain points, internal knowledge problems, repetitive workflows, and customer-facing bottlenecks.
-3. Suggest realistic Luuku AI opportunity angles, not fantasy transformations.
-4. Prefer concrete business usefulness over generic AI hype.
-5. Keep the output structured and readable.
-6. If information is missing, make reasonable hypotheses but clearly label them as likely assumptions.
-7. Optimize for founder action and outreach preparation.
-
-Return answers in this exact structure:
-
-## Research Brief
-
-### 1) Business Snapshot
-- what the business likely does
-- who it serves
-- any useful context from the input
-
-### 2) Likely Operational Pain Points
-- likely bottlenecks, repetitive work, knowledge gaps, coordination issues, support load, reporting pain, etc.
-
-### 3) Luuku AI Opportunity Angles
-- where Luuku AI could help
-- possible AI assistant / workflow automation / internal knowledge use cases
-
-### 4) Recommended First Offer
-Pick the best first Luuku AI offer to pitch:
-- AI Workflow Audit
-- AI Knowledge Assistant
-- AI Workflow Automation Stack
-
-Explain why.
-
-### 5) Outreach Hook
-Write a short practical outreach angle Luuku AI could use when approaching this business.
-
-### 6) Unknowns / What to Validate
-List what Luuku AI still needs to learn before pitching confidently.
-`;
-
-const client = new OpenAI({
-  apiKey: config.openaiApiKey,
-});
-
-type AgentMode = "openai" | "fallback";
-
 type ResearchInput = {
   business: string;
-  sector?: string;
-  region?: string;
-  goal?: string;
-  notes?: string[];
+  sector: string;
+  region: string;
+  researchGoal: string;
+  notes?: string;
 };
+
+type OpportunityAngle = {
+  title: string;
+  why: string;
+};
+
+type OfferRecommendation = {
+  name: string;
+  why: string;
+};
+
+type ProspectScore = {
+  aiNeed: number;
+  workflowPotential: number;
+  knowledgeFit: number;
+  outreachAttractiveness: number;
+  overall: number;
+};
+
+type OutreachReadiness = {
+  status: "Ready now" | "Needs validation first";
+  reasons: string[];
+};
+
+const openai = config.openaiApiKey
+  ? new OpenAI({ apiKey: config.openaiApiKey })
+  : null;
+
+function sanitizeFileName(value: string) {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/gi, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 60);
+}
 
 function ensureLogsDir() {
   const logsDir = path.resolve(process.cwd(), "logs");
@@ -70,432 +56,692 @@ function ensureLogsDir() {
   return logsDir;
 }
 
-function makeTimestamp() {
-  const now = new Date();
-  const yyyy = now.getFullYear();
-  const mm = String(now.getMonth() + 1).padStart(2, "0");
-  const dd = String(now.getDate()).padStart(2, "0");
-  const hh = String(now.getHours()).padStart(2, "0");
-  const min = String(now.getMinutes()).padStart(2, "0");
-  const ss = String(now.getSeconds()).padStart(2, "0");
-
-  return {
-    iso: now.toISOString(),
-    fileSafe: `${yyyy}-${mm}-${dd}_${hh}-${min}-${ss}`,
-  };
-}
-
-function loadResearchProfile(): string {
-  const profilePath = path.resolve(process.cwd(), "data", "research-agent-profile.md");
-
-  if (!fs.existsSync(profilePath)) {
-    return "Research profile not found.";
-  }
-
-  return fs.readFileSync(profilePath, "utf-8");
-}
-
-function parseResearchInput(raw: string): ResearchInput {
-  const lines = raw
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean);
-
-  const result: ResearchInput = {
-    business: "",
-    notes: [],
-  };
-
-  for (const line of lines) {
-    const lower = line.toLowerCase();
-
-    if (lower.startsWith("business:")) {
-      result.business = line.slice("business:".length).trim();
-      continue;
-    }
-
-    if (lower.startsWith("sector:")) {
-      result.sector = line.slice("sector:".length).trim();
-      continue;
-    }
-
-    if (lower.startsWith("region:")) {
-      result.region = line.slice("region:".length).trim();
-      continue;
-    }
-
-    if (lower.startsWith("goal:")) {
-      result.goal = line.slice("goal:".length).trim();
-      continue;
-    }
-
-    result.notes?.push(line);
-  }
-
-  return result;
-}
-
-function buildFallbackResearch(input: ResearchInput, researchProfile: string): string {
-  const business = input.business || "Unknown business";
-  const sector = input.sector?.toLowerCase() || "";
-  const goal = input.goal || "Identify Luuku AI opportunities";
-
-  const painPoints: string[] = [];
-  const opportunities: string[] = [];
-  let recommendedOffer = "AI Workflow Audit";
-  let offerReason =
-    "An audit is the safest first offer when business operations are not yet deeply understood, because it helps Luuku AI map pain points, prioritize use cases, and create an implementation roadmap.";
-
-  // sector-based heuristics
-  if (
-    sector.includes("bank") ||
-    sector.includes("finance") ||
-    sector.includes("fintech")
-  ) {
-    painPoints.push(
-      "High volume of customer inquiries, service requests, and repetitive support questions."
-    );
-    painPoints.push(
-      "Internal policy / compliance knowledge may be scattered across teams and documents."
-    );
-    painPoints.push(
-      "Operational reporting, approvals, and follow-up workflows may create delays."
-    );
-
-    opportunities.push(
-      "Internal AI knowledge assistant for staff to access policies, procedures, and operational guidance faster."
-    );
-    opportunities.push(
-      "Workflow automation for customer inquiry routing, repetitive support tasks, and internal approvals."
-    );
-    opportunities.push(
-      "Management / operations copilot for reporting summaries, recurring coordination tasks, and workflow monitoring."
-    );
-
-    recommendedOffer = "AI Knowledge Assistant";
-    offerReason =
-      "A knowledge assistant is a strong first angle for finance-related organizations because internal policies, procedures, and repetitive staff questions often create friction that AI can reduce quickly.";
-  } else if (
-    sector.includes("school") ||
-    sector.includes("education") ||
-    sector.includes("university") ||
-    sector.includes("training")
-  ) {
-    painPoints.push(
-      "Staff and students may repeatedly ask the same administrative or academic questions."
-    );
-    painPoints.push(
-      "Policies, schedules, guidelines, and operational documents may be scattered across files and staff members."
-    );
-    painPoints.push(
-      "Admissions, reporting, and internal coordination workflows may be slow and repetitive."
-    );
-
-    opportunities.push(
-      "AI knowledge assistant for internal policies, academic procedures, and staff FAQs."
-    );
-    opportunities.push(
-      "Workflow automation for inquiry handling, admissions-related follow-up, and reporting support."
-    );
-    opportunities.push(
-      "Operations assistant for recurring coordination, reminders, and administrative follow-up."
-    );
-
-    recommendedOffer = "AI Knowledge Assistant";
-    offerReason =
-      "Education institutions often benefit quickly from an internal knowledge assistant because repeated questions, scattered documents, and administrative friction are common.";
-  } else if (
-    sector.includes("clinic") ||
-    sector.includes("hospital") ||
-    sector.includes("health")
-  ) {
-    painPoints.push(
-      "Appointment coordination, service inquiries, and administrative follow-up may consume staff time."
-    );
-    painPoints.push(
-      "Protocols, internal procedures, and service information may not be easily accessible to all staff."
-    );
-    painPoints.push(
-      "Front-desk, reporting, and patient communication workflows may be repetitive."
-    );
-
-    opportunities.push(
-      "AI service / FAQ assistant for common patient-facing inquiries."
-    );
-    opportunities.push(
-      "Internal knowledge assistant for protocols, procedures, and admin guidance."
-    );
-    opportunities.push(
-      "Workflow automation for appointment reminders, repetitive admin coordination, and reporting support."
-    );
-
-    recommendedOffer = "AI Workflow Automation Stack";
-    offerReason =
-      "Healthcare operations often contain repetitive admin workflows, appointment coordination, and staff information needs that make automation plus assistant support valuable.";
-  } else if (
-    sector.includes("logistics") ||
-    sector.includes("transport") ||
-    sector.includes("delivery")
-  ) {
-    painPoints.push(
-      "Operational coordination, dispatch updates, customer follow-up, and reporting can become fragmented."
-    );
-    painPoints.push(
-      "Teams may rely heavily on WhatsApp, calls, and manual coordination for recurring updates."
-    );
-    painPoints.push(
-      "Internal operational knowledge and process clarity may be inconsistent."
-    );
-
-    opportunities.push(
-      "Workflow automation for dispatch updates, internal follow-ups, and recurring coordination."
-    );
-    opportunities.push(
-      "Customer update assistant for repetitive shipment / service inquiries."
-    );
-    opportunities.push(
-      "Internal knowledge assistant for SOPs, operational processes, and reporting guidance."
-    );
-
-    recommendedOffer = "AI Workflow Automation Stack";
-    offerReason =
-      "Logistics and transport businesses often suffer from repetitive coordination work, fragmented updates, and follow-up overload, making workflow automation a strong first offer.";
-  } else if (
-    sector.includes("ngo") ||
-    sector.includes("nonprofit") ||
-    sector.includes("foundation")
-  ) {
-    painPoints.push(
-      "Reporting, proposal support, knowledge access, and cross-team coordination may be time-consuming."
-    );
-    painPoints.push(
-      "Institutional knowledge may be buried in documents, donor reports, and staff memory."
-    );
-    painPoints.push(
-      "Operations and program teams may repeat the same administrative and information tasks."
-    );
-
-    opportunities.push(
-      "Internal knowledge assistant for proposals, reports, policies, and SOPs."
-    );
-    opportunities.push(
-      "Workflow automation for recurring reporting support, follow-up, and admin coordination."
-    );
-    opportunities.push(
-      "Operations assistant for internal process guidance and document retrieval."
-    );
-
-    recommendedOffer = "AI Knowledge Assistant";
-    offerReason =
-      "NGOs often have heavy document-based workflows and repeated knowledge retrieval needs, which makes a knowledge assistant a strong first offer.";
-  } else {
-    painPoints.push(
-      "The business may have repetitive administrative work, scattered internal knowledge, and slow coordination workflows."
-    );
-    painPoints.push(
-      "Customer support or internal operations may depend too much on manual follow-up."
-    );
-    painPoints.push(
-      "Important information may live across documents, messages, and staff memory rather than in an accessible system."
-    );
-
-    opportunities.push(
-      "AI workflow audit to identify the highest-value automation opportunities."
-    );
-    opportunities.push(
-      "Internal knowledge assistant if the business depends on many documents, SOPs, or repeated staff questions."
-    );
-    opportunities.push(
-      "Workflow automation stack if recurring requests, approvals, follow-ups, or support tasks are major pain points."
-    );
-  }
-
-  const notesText =
-    input.notes && input.notes.length > 0
-      ? input.notes.map((n) => `- ${n}`).join("\n")
-      : "- No additional notes provided.";
-
-  return `## Research Brief
-
-### 1) Business Snapshot
-- **Business:** ${business}
-- **Sector:** ${input.sector || "Not specified"}
-- **Region:** ${input.region || "Not specified"}
-- **Research goal:** ${goal}
-- This brief is a **founder-side research hypothesis** based on the information currently provided, not a fully validated field assessment.
-
-### 2) Likely Operational Pain Points
-${painPoints.map((item) => `- ${item}`).join("\n")}
-
-### 3) Luuku AI Opportunity Angles
-${opportunities.map((item) => `- ${item}`).join("\n")}
-
-### 4) Recommended First Offer
-- **Recommended offer:** ${recommendedOffer}
-- **Why:** ${offerReason}
-
-### 5) Outreach Hook
-Luuku AI could approach **${business}** by offering to review how repetitive operational work, internal knowledge access, and workflow coordination are currently handled, then propose a practical AI solution that reduces staff time, improves response speed, and makes business knowledge easier to access.
-
-### 6) Unknowns / What to Validate
-- What tools the organization currently uses for communication, reporting, and knowledge storage.
-- Which workflows are most repetitive, slow, or frustrating for staff.
-- Whether the business has strong internal documentation that could power a knowledge assistant.
-- Who inside the organization owns operations, digital transformation, or process improvement decisions.
-- Whether the strongest pain point is customer-facing support, internal knowledge access, or back-office workflow coordination.
-
-### Input Notes
-${notesText}
-
-### Research Mode Note
-- This response was generated in **fallback mode** using Luuku AI research heuristics and offer-matching logic.`;
-}
-
-async function getResearchResponse(input: ResearchInput, researchProfile: string) {
-  if (!config.openaiApiKey) {
-    throw new Error("Missing OPENAI_API_KEY. Add it to your .env file.");
-  }
-
-  const userPrompt = `
-## Luuku AI Research Agent Profile
-${researchProfile}
-
----
-
-## Target Business Input
-Business: ${input.business || "Not provided"}
-Sector: ${input.sector || "Not provided"}
-Region: ${input.region || "Not provided"}
-Goal: ${input.goal || "Not provided"}
-
-Additional Notes:
-${input.notes && input.notes.length > 0 ? input.notes.map((n) => `- ${n}`).join("\n") : "- none"}
-`;
-
-  const response = await client.responses.create({
-    model: config.openaiModel,
-    input: [
-      {
-        role: "system",
-        content: SYSTEM_PROMPT,
-      },
-      {
-        role: "user",
-        content: userPrompt,
-      },
-    ],
-  });
-
-  return response.output_text;
-}
-
-function saveResearchLog(
-  mode: AgentMode,
-  rawInput: string,
-  outputText: string,
-  profileUsed: boolean
-) {
+function saveLog(filePrefix: string, content: string) {
   const logsDir = ensureLogsDir();
-  const timestamp = makeTimestamp();
-
-  const content = `# Luuku AI Research Agent Log
-
-**Timestamp:** ${timestamp.iso}  
-**Mode:** ${mode}  
-**Research Profile Used:** ${profileUsed ? "yes" : "no"}
-
----
-
-## Raw Input
-${rawInput}
-
----
-
-## Research Output
-${outputText}
-`;
-
-  const filePath = path.join(logsDir, `research-${timestamp.fileSafe}.md`);
-  fs.writeFileSync(filePath, content, "utf-8");
+  const now = new Date();
+  const timestamp = now.toISOString().replace(/[:.]/g, "-");
+  const filePath = path.join(logsDir, `${filePrefix}-${timestamp}.md`);
+  fs.writeFileSync(filePath, content, "utf8");
   return filePath;
 }
 
-async function collectMultilineInput(): Promise<string> {
-  console.log(
-    "Paste research input lines like:\nBusiness: ...\nSector: ...\nRegion: ...\nGoal: ...\nWhen done, type DONE on its own line.\n"
+function titleCase(value: string) {
+  return value
+    .split(" ")
+    .filter(Boolean)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+}
+
+async function collectResearchInput(): Promise<ResearchInput> {
+  const rl = readline.createInterface({ input, output });
+
+  console.log("=== Luuku AI Research Agent v0.7.1 ===");
+  console.log("Enter the prospect details below.\n");
+
+  const business = (await rl.question("Business name: ")).trim();
+  const sector = (await rl.question("Sector: ")).trim();
+  const region = (await rl.question("Region / country: ")).trim();
+  const researchGoal = (
+    await rl.question("Research goal: ")
+  ).trim();
+  const notes = (await rl.question("Extra notes (optional): ")).trim();
+
+  rl.close();
+
+  return {
+    business,
+    sector,
+    region,
+    researchGoal,
+    notes: notes || undefined,
+  };
+}
+
+function normalizeSector(sector: string) {
+  return sector.trim().toLowerCase();
+}
+
+function getSectorHeuristics(sectorRaw: string) {
+  const sector = normalizeSector(sectorRaw);
+
+  if (
+    sector.includes("bank") ||
+    sector.includes("finance") ||
+    sector.includes("microfinance") ||
+    sector.includes("insurance")
+  ) {
+    return {
+      painPoints: [
+        "High volume of repetitive customer inquiries, service requests, and internal support questions.",
+        "Internal policies, compliance procedures, and operational knowledge are likely spread across teams and documents.",
+        "Approval-heavy workflows, reporting cycles, and coordination between front-office and back-office teams may create delays.",
+      ],
+      opportunities: [
+        {
+          title: "Internal AI Knowledge Assistant",
+          why: "Staff in finance-heavy environments often need quick access to procedures, product rules, compliance guidance, and operational policies.",
+        },
+        {
+          title: "Workflow Automation Copilot",
+          why: "Approval chains, repetitive service requests, and recurring operational follow-ups are strong automation targets.",
+        },
+        {
+          title: "Reporting / Operations Copilot",
+          why: "Management reporting, recurring summaries, and workflow monitoring can often be streamlined with AI support.",
+        },
+      ],
+      offer: {
+        name: "AI Knowledge Assistant + Workflow Audit",
+        why: "This gives Luuku AI a practical first wedge: reduce friction around policy access, repetitive internal questions, and workflow bottlenecks before pitching broader automation.",
+      },
+      tags: [
+        "compliance-knowledge-heavy",
+        "internal-knowledge-fit",
+        "workflow-automation-fit",
+        "enterprise-target",
+      ],
+      outreachBoost: 7,
+      knowledgeBoost: 9,
+      workflowBoost: 8,
+      aiNeedBoost: 8,
+      readinessUnknowns: [
+        "Need confirmation of documentation-heavy internal workflows and how staff currently access operational guidance.",
+        "Need to identify who owns operations, digital transformation, service delivery, or process improvement.",
+        "Need evidence of repetitive internal support or approval bottlenecks worth automating first.",
+      ],
+      nextActions: [
+        "Visit the business website and identify operations, digital transformation, customer service, or process-improvement functions.",
+        "Look for signs of documentation-heavy internal workflows, policy-heavy operations, or recurring approval chains.",
+        "Find one Rwanda-specific operational pain angle before outreach so the first message feels grounded rather than generic.",
+      ],
+    };
+  }
+
+  if (
+    sector.includes("hotel") ||
+    sector.includes("hospitality") ||
+    sector.includes("restaurant") ||
+    sector.includes("tourism")
+  ) {
+    return {
+      painPoints: [
+        "Guest-facing teams may spend time answering repetitive booking, pricing, service, and support questions.",
+        "Operational coordination across reservations, front desk, housekeeping, and management may be manual or fragmented.",
+        "Reporting, shift handoffs, and internal SOP access may create avoidable friction.",
+      ],
+      opportunities: [
+        {
+          title: "Guest Support / Booking Assistant",
+          why: "A hospitality business often benefits from automating repetitive guest inquiries and booking-related communication.",
+        },
+        {
+          title: "Operations Coordination Assistant",
+          why: "Internal handoffs, issue tracking, and recurring operational coordination can often be simplified.",
+        },
+        {
+          title: "Internal SOP Knowledge Assistant",
+          why: "Hotels and hospitality businesses rely on repeatable procedures that staff should access quickly and consistently.",
+        },
+      ],
+      offer: {
+        name: "Guest Support Workflow Assistant",
+        why: "A hospitality offer can start with guest inquiry handling and operational coordination before expanding into broader internal automation.",
+      },
+      tags: [
+        "guest-support-volume",
+        "ops-coordination-fit",
+        "workflow-automation-fit",
+        "service-business",
+      ],
+      outreachBoost: 8,
+      knowledgeBoost: 6,
+      workflowBoost: 8,
+      aiNeedBoost: 7,
+      readinessUnknowns: [
+        "Need to understand whether guest inquiry volume is high enough to justify automation.",
+        "Need to know what booking, communication, and operational tools the business already uses.",
+        "Need confirmation of the most painful cross-team coordination workflow.",
+      ],
+      nextActions: [
+        "Review the website, booking channels, and customer contact flows to see how guest communication is handled.",
+        "Look for signs of operational complexity: multiple services, multiple locations, or strong reliance on staff coordination.",
+        "Identify whether the first Luuku angle should be guest support automation or internal operations support.",
+      ],
+    };
+  }
+
+  if (
+    sector.includes("hospital") ||
+    sector.includes("clinic") ||
+    sector.includes("health") ||
+    sector.includes("medical")
+  ) {
+    return {
+      painPoints: [
+        "Administrative staff may handle repetitive appointment, patient, and internal coordination questions.",
+        "Clinical and non-clinical workflows may rely on fragmented documents, approvals, and handoffs.",
+        "Patient support and internal knowledge access may both be time-consuming.",
+      ],
+      opportunities: [
+        {
+          title: "Patient / Front Desk FAQ Assistant",
+          why: "Healthcare organizations often receive repetitive appointment and service questions that can be partially automated.",
+        },
+        {
+          title: "Internal Knowledge Assistant",
+          why: "Policy access, internal procedures, and staff guidance are common friction points in healthcare operations.",
+        },
+        {
+          title: "Admin Workflow Automation",
+          why: "Scheduling, document follow-up, and internal approvals may offer high-value workflow automation opportunities.",
+        },
+      ],
+      offer: {
+        name: "Administrative Knowledge + Workflow Assistant",
+        why: "A practical first healthcare offer is to reduce administrative friction rather than trying to touch clinical workflows too early.",
+      },
+      tags: [
+        "admin-heavy-operations",
+        "internal-knowledge-fit",
+        "patient-support-fit",
+        "workflow-automation-fit",
+      ],
+      outreachBoost: 6,
+      knowledgeBoost: 8,
+      workflowBoost: 8,
+      aiNeedBoost: 8,
+      readinessUnknowns: [
+        "Need to confirm whether the organization is more constrained by patient-facing admin work or internal staff workflow friction.",
+        "Need clarity on document handling, approvals, and staff support processes.",
+        "Need to identify a non-clinical decision-maker who could sponsor an initial pilot.",
+      ],
+      nextActions: [
+        "Look for evidence of appointment-heavy, admin-heavy, or support-heavy operations.",
+        "Map which non-clinical workflows Luuku AI could help without entering regulated clinical decision territory.",
+        "Identify an admin, operations, or digital lead rather than approaching the organization too broadly.",
+      ],
+    };
+  }
+
+  if (
+    sector.includes("school") ||
+    sector.includes("education") ||
+    sector.includes("university") ||
+    sector.includes("college")
+  ) {
+    return {
+      painPoints: [
+        "Staff may repeatedly answer admissions, registration, fee, scheduling, and policy questions.",
+        "Institutional knowledge may be spread across departments, notices, documents, and staff memory.",
+        "Administrative workflows and approvals may be repetitive and slow.",
+      ],
+      opportunities: [
+        {
+          title: "Admissions / Student FAQ Assistant",
+          why: "Educational institutions often face repetitive inquiry loads that are good automation candidates.",
+        },
+        {
+          title: "Internal Staff Knowledge Assistant",
+          why: "Policies, forms, academic procedures, and administrative guidance can be centralized through an internal assistant.",
+        },
+        {
+          title: "Administrative Workflow Copilot",
+          why: "Routine document handling, approvals, and communication workflows can often be improved.",
+        },
+      ],
+      offer: {
+        name: "Institutional Knowledge Assistant",
+        why: "Education organizations often get quick value from making internal and student-facing information easier to access.",
+      },
+      tags: [
+        "faq-volume",
+        "internal-knowledge-fit",
+        "admin-workflow-fit",
+        "institutional-target",
+      ],
+      outreachBoost: 7,
+      knowledgeBoost: 9,
+      workflowBoost: 7,
+      aiNeedBoost: 7,
+      readinessUnknowns: [
+        "Need to know whether the stronger angle is student-facing support or internal administrative support.",
+        "Need visibility into where institutional knowledge currently lives.",
+        "Need to identify a likely sponsor in administration, ICT, or student services.",
+      ],
+      nextActions: [
+        "Check the institution website for admissions, student support, ICT, and administrative service workflows.",
+        "Look for recurring information-heavy processes like registration, fee guidance, and policy interpretation.",
+        "Decide whether the first Luuku pitch should focus on staff productivity or student-facing support.",
+      ],
+    };
+  }
+
+  if (
+    sector.includes("retail") ||
+    sector.includes("shop") ||
+    sector.includes("ecommerce") ||
+    sector.includes("e-commerce") ||
+    sector.includes("supermarket")
+  ) {
+    return {
+      painPoints: [
+        "Teams may handle repetitive product, order, stock, and support questions.",
+        "Inventory, customer communication, and internal coordination may rely on manual follow-up.",
+        "Operational reporting and issue tracking may be inconsistent or time-consuming.",
+      ],
+      opportunities: [
+        {
+          title: "Customer Support Assistant",
+          why: "Retail environments often benefit from automating repetitive customer questions and support triage.",
+        },
+        {
+          title: "Inventory / Ops Workflow Assistant",
+          why: "Internal follow-ups around stock, order status, and issue escalation can often be streamlined.",
+        },
+        {
+          title: "Management Reporting Copilot",
+          why: "Retail operations generate recurring operational summaries and coordination work that AI can support.",
+        },
+      ],
+      offer: {
+        name: "Customer Support + Ops Workflow Assistant",
+        why: "Retail businesses often get early value from reducing repetitive customer support load while improving internal coordination.",
+      },
+      tags: [
+        "customer-support-fit",
+        "ops-workflow-fit",
+        "service-volume",
+        "workflow-automation-fit",
+      ],
+      outreachBoost: 8,
+      knowledgeBoost: 5,
+      workflowBoost: 8,
+      aiNeedBoost: 7,
+      readinessUnknowns: [
+        "Need to understand whether customer support or internal operations is the more painful first wedge.",
+        "Need visibility into current order, stock, and customer service workflows.",
+        "Need to know whether the business has enough scale to justify an initial AI automation pilot.",
+      ],
+      nextActions: [
+        "Look for signs of multi-branch operations, online ordering, or high customer communication volume.",
+        "Identify whether inventory/ops coordination or customer support should be the first Luuku angle.",
+        "Find a decision-maker responsible for operations, digital, or customer experience.",
+      ],
+    };
+  }
+
+  return {
+    painPoints: [
+      "The organization likely has repetitive internal coordination, support, or reporting work that may be handled manually.",
+      "Operational knowledge, procedures, or business information may be fragmented across documents and people.",
+      "Follow-up workflows, approvals, and recurring communication tasks may create avoidable friction.",
+    ],
+    opportunities: [
+      {
+        title: "Internal AI Knowledge Assistant",
+        why: "A knowledge assistant is often a strong first offer where staff repeatedly need access to internal procedures or business information.",
+      },
+      {
+        title: "Workflow Automation Assistant",
+        why: "If the business has repetitive requests, follow-ups, approvals, or reporting cycles, there may be automation value.",
+      },
+      {
+        title: "Operations / Reporting Copilot",
+        why: "AI can often support recurring coordination, summaries, and operational monitoring tasks.",
+      },
+    ],
+    offer: {
+      name: "AI Workflow & Knowledge Audit",
+      why: "When the sector fit is still broad, a workflow and knowledge audit is a safe first Luuku AI entry point that can uncover the highest-value pilot.",
+    },
+    tags: [
+      "general-prospect",
+      "knowledge-assistant-fit",
+      "workflow-automation-fit",
+    ],
+    outreachBoost: 6,
+    knowledgeBoost: 7,
+    workflowBoost: 7,
+    aiNeedBoost: 7,
+    readinessUnknowns: [
+      "Need to identify the most repetitive workflow or knowledge-access bottleneck before outreach.",
+      "Need to identify who owns operations, digital transformation, or process improvement.",
+      "Need to validate whether the strongest first angle is internal knowledge access, customer support, or workflow automation.",
+    ],
+    nextActions: [
+      "Review the business website and public materials to understand its operating model and likely workflow complexity.",
+      "Look for signs of repetitive support work, internal knowledge dependence, or approval-heavy processes.",
+      "Decide which single Luuku AI offer angle feels most concrete before outreach.",
+    ],
+  };
+}
+
+function dedupe(items: string[]) {
+  return Array.from(new Set(items.map((item) => item.trim()).filter(Boolean)));
+}
+
+function scoreProspect(
+  input: ResearchInput,
+  heuristics: ReturnType<typeof getSectorHeuristics>
+): ProspectScore {
+  const notes = (input.notes || "").toLowerCase();
+  const goal = input.researchGoal.toLowerCase();
+  const combined = `${notes} ${goal}`;
+
+  let aiNeed = heuristics.aiNeedBoost;
+  let workflowPotential = heuristics.workflowBoost;
+  let knowledgeFit = heuristics.knowledgeBoost;
+  let outreachAttractiveness = heuristics.outreachBoost;
+
+  if (
+    combined.includes("support") ||
+    combined.includes("customer inquiry") ||
+    combined.includes("faq")
+  ) {
+    aiNeed += 1;
+    workflowPotential += 1;
+  }
+
+  if (
+    combined.includes("workflow") ||
+    combined.includes("automation") ||
+    combined.includes("approval") ||
+    combined.includes("reporting")
+  ) {
+    workflowPotential += 1;
+  }
+
+  if (
+    combined.includes("knowledge") ||
+    combined.includes("policy") ||
+    combined.includes("documentation") ||
+    combined.includes("procedure")
+  ) {
+    knowledgeFit += 1;
+  }
+
+  if (
+    combined.includes("rwanda") ||
+    combined.includes("pitch") ||
+    combined.includes("offer") ||
+    combined.includes("outreach")
+  ) {
+    outreachAttractiveness += 0.5;
+  }
+
+  const clamp = (n: number) => Math.max(1, Math.min(10, n));
+
+  aiNeed = clamp(aiNeed);
+  workflowPotential = clamp(workflowPotential);
+  knowledgeFit = clamp(knowledgeFit);
+  outreachAttractiveness = clamp(outreachAttractiveness);
+
+  const overall =
+    aiNeed * 0.3 +
+    workflowPotential * 0.3 +
+    knowledgeFit * 0.25 +
+    outreachAttractiveness * 0.15;
+
+  return {
+    aiNeed,
+    workflowPotential,
+    knowledgeFit,
+    outreachAttractiveness,
+    overall: Number(overall.toFixed(1)),
+  };
+}
+
+function buildResearchTags(
+  input: ResearchInput,
+  heuristics: ReturnType<typeof getSectorHeuristics>,
+  score: ProspectScore
+) {
+  const tags = [...heuristics.tags];
+
+  if (score.aiNeed >= 8) tags.push("high-ai-need");
+  if (score.workflowPotential >= 8) tags.push("high-workflow-automation-fit");
+  if (score.knowledgeFit >= 8) tags.push("high-knowledge-assistant-fit");
+  if (score.outreachAttractiveness >= 8) tags.push("strong-outreach-target");
+
+  const sector = normalizeSector(input.sector);
+  if (sector.includes("bank") || sector.includes("finance")) {
+    tags.push("finance-ops-target");
+  }
+  if (sector.includes("hotel") || sector.includes("hospitality")) {
+    tags.push("hospitality-target");
+  }
+  if (sector.includes("health") || sector.includes("clinic")) {
+    tags.push("health-admin-target");
+  }
+  if (sector.includes("education") || sector.includes("university")) {
+    tags.push("education-admin-target");
+  }
+
+  return dedupe(tags);
+}
+
+function assessOutreachReadiness(
+  heuristics: ReturnType<typeof getSectorHeuristics>,
+  score: ProspectScore
+): OutreachReadiness {
+  const reasons: string[] = [];
+
+  if (score.overall < 7.5) {
+    reasons.push(
+      "The current research signal is still moderate rather than strong, so a bit more validation would improve pitch quality."
+    );
+  }
+
+  reasons.push(...heuristics.readinessUnknowns);
+
+  const uniqueReasons = dedupe(reasons);
+
+  if (score.overall >= 8.2 && uniqueReasons.length <= 3) {
+    return {
+      status: "Ready now",
+      reasons: [
+        "The prospect looks strong enough for a first outreach pass, but the validation points below can still sharpen the pitch.",
+        ...uniqueReasons,
+      ],
+    };
+  }
+
+  return {
+    status: "Needs validation first",
+    reasons: uniqueReasons,
+  };
+}
+
+function buildImmediateNextResearchActions(
+  heuristics: ReturnType<typeof getSectorHeuristics>,
+  readiness: OutreachReadiness
+) {
+  const actions = [...heuristics.nextActions];
+
+  if (readiness.status === "Needs validation first") {
+    actions.push(
+      "Do one focused validation pass before outreach so the first Luuku AI message is tied to a concrete operational pain point."
+    );
+  }
+
+  return dedupe(actions).slice(0, 4);
+}
+
+function buildFallbackResearch(input: ResearchInput) {
+  const heuristics = getSectorHeuristics(input.sector);
+  const score = scoreProspect(input, heuristics);
+  const tags = buildResearchTags(input, heuristics, score);
+  const readiness = assessOutreachReadiness(heuristics, score);
+  const nextActions = buildImmediateNextResearchActions(
+    heuristics,
+    readiness
   );
 
-  return new Promise((resolve) => {
-    const lines: string[] = [];
-    let buffer = "";
+  const lines: string[] = [];
 
-    process.stdin.setEncoding("utf8");
-    process.stdin.resume();
+  lines.push("## Research Brief\n");
 
-    const onData = (chunk: string) => {
-      buffer += chunk;
+  lines.push("### 1) Business Snapshot");
+  lines.push(`- **Business:** ${input.business}`);
+  lines.push(`- **Sector:** ${titleCase(input.sector)}`);
+  lines.push(`- **Region:** ${input.region}`);
+  lines.push(`- **Research goal:** ${input.researchGoal}`);
+  lines.push(
+    "- This brief is a **founder-side research hypothesis** based on the information currently provided, not a fully validated field assessment.\n"
+  );
 
-      const parts = buffer.split(/\r?\n/);
-      buffer = parts.pop() ?? "";
+  lines.push("### 2) Likely Operational Pain Points");
+  heuristics.painPoints.forEach((item) => lines.push(`- ${item}`));
+  lines.push("");
 
-      for (const rawLine of parts) {
-        const line = rawLine.trim();
-
-        if (line.toUpperCase() === "DONE") {
-          process.stdin.off("data", onData);
-          process.stdin.pause();
-          resolve(lines.join("\n"));
-          return;
-        }
-
-        if (line.length > 0) {
-          lines.push(line);
-        }
-      }
-    };
-
-    process.stdin.on("data", onData);
+  lines.push("### 3) Luuku AI Opportunity Angles");
+  heuristics.opportunities.forEach((item) => {
+    lines.push(`- **${item.title}** — ${item.why}`);
   });
+  lines.push("");
+
+  lines.push("### 4) Recommended First Offer");
+  lines.push(`- **Recommended offer:** ${heuristics.offer.name}`);
+  lines.push(`- **Why:** ${heuristics.offer.why}\n`);
+
+  lines.push("### 5) Outreach Hook");
+  lines.push(
+    `Luuku AI could approach **${input.business}** by offering to review how repetitive operational work, internal knowledge access, and workflow coordination are currently handled, then propose a practical AI solution that reduces staff time, improves response speed, and makes business knowledge easier to access.\n`
+  );
+
+  lines.push("### 6) Unknowns / What to Validate");
+  heuristics.readinessUnknowns.forEach((item) => lines.push(`- ${item}`));
+  if (input.notes) {
+    lines.push(`- Input notes provided: ${input.notes}`);
+  }
+  lines.push("");
+
+  lines.push("### 7) Prospect Score");
+  lines.push(`- **AI need / pain intensity:** ${score.aiNeed}/10`);
+  lines.push(
+    `- **Workflow automation potential:** ${score.workflowPotential}/10`
+  );
+  lines.push(`- **Knowledge assistant fit:** ${score.knowledgeFit}/10`);
+  lines.push(
+    `- **Outreach attractiveness:** ${score.outreachAttractiveness}/10`
+  );
+  lines.push(`- **Overall Luuku Fit Score:** ${score.overall}/10\n`);
+
+  lines.push("### 8) Research Tags");
+  tags.forEach((tag) => lines.push(`- ${tag}`));
+  lines.push("");
+
+  lines.push("### 9) Outreach Readiness");
+  lines.push(`- **Status:** ${readiness.status}`);
+  readiness.reasons.forEach((reason) => lines.push(`- ${reason}`));
+  lines.push("");
+
+  lines.push("### 10) Immediate Next Research Action");
+  nextActions.forEach((action) => lines.push(`- ${action}`));
+  lines.push("");
+
+  lines.push("### Research Mode Note");
+  lines.push(
+    "- This response was generated in **fallback mode** using Luuku AI research heuristics, prospect scoring logic, and offer-matching rules."
+  );
+
+  return lines.join("\n");
+}
+
+function buildPrompt(input: ResearchInput) {
+  return `
+You are Luuku AI's internal Research Agent.
+
+Your job is to help the founder identify AI workflow automation opportunities for a business prospect and prepare Luuku AI for high-quality outreach.
+
+Return a structured research brief in markdown using EXACTLY these sections:
+
+## Research Brief
+
+### 1) Business Snapshot
+### 2) Likely Operational Pain Points
+### 3) Luuku AI Opportunity Angles
+### 4) Recommended First Offer
+### 5) Outreach Hook
+### 6) Unknowns / What to Validate
+### 7) Prospect Score
+### 8) Research Tags
+### 9) Outreach Readiness
+### 10) Immediate Next Research Action
+
+Rules:
+- Be practical, not fluffy.
+- Focus on AI workflow automation, internal knowledge assistants, reporting copilots, support automation, and operational coordination use cases.
+- The Recommended First Offer should be a single best Luuku AI wedge, not a vague transformation pitch.
+- Prospect Score must include:
+  - AI need / pain intensity
+  - Workflow automation potential
+  - Knowledge assistant fit
+  - Outreach attractiveness
+  - Overall Luuku Fit Score
+- Research Tags should be concise, reusable pipeline tags like:
+  high-support-volume, internal-knowledge-fit, workflow-automation-fit, enterprise-target
+- Outreach Readiness must say either "Ready now" or "Needs validation first" and explain why.
+- Immediate Next Research Action must be concrete and operational.
+- Make the output useful for a founder doing prospect research in Rwanda / Africa, not a generic consultant memo.
+
+Prospect input:
+- Business: ${input.business}
+- Sector: ${input.sector}
+- Region: ${input.region}
+- Research goal: ${input.researchGoal}
+- Extra notes: ${input.notes || "none"}
+`.trim();
+}
+
+async function getOpenAIResearch(input: ResearchInput) {
+  if (!openai) {
+    throw new Error("Missing OpenAI client");
+  }
+
+  const response = await openai.responses.create({
+    model: config.openaiModel || "gpt-4.1-mini",
+    input: buildPrompt(input),
+  });
+
+  return response.output_text?.trim() || "";
 }
 
 async function run() {
-  console.log("=== Luuku AI Research Agent v0.7 ===");
+  const inputData = await collectResearchInput();
 
-  const rawInput = await collectMultilineInput();
-  const parsed = parseResearchInput(rawInput);
-  const researchProfile = loadResearchProfile();
+  console.log("\nThinking...\n");
 
-  if (!parsed.business) {
-    console.log("Missing required field: Business");
-    return;
-  }
-
-  console.log("\nResearching...\n");
-
-  let finalOutput = "";
-  let mode: AgentMode = "fallback";
+  let outputText = "";
+  let mode: "openai" | "fallback" = "fallback";
 
   try {
-    finalOutput = await getResearchResponse(parsed, researchProfile);
+    outputText = await getOpenAIResearch(inputData);
+
+    if (!outputText) {
+      throw new Error("Empty OpenAI response");
+    }
+
     mode = "openai";
-    console.log(finalOutput);
   } catch (error) {
     console.error("OpenAI unavailable. Switching to fallback mode...\n");
-    finalOutput = buildFallbackResearch(parsed, researchProfile);
+    outputText = buildFallbackResearch(inputData);
     mode = "fallback";
-    console.log(finalOutput);
-  } finally {
-    const logPath = saveResearchLog(
-      mode,
-      rawInput,
-      finalOutput,
-      researchProfile !== "Research profile not found."
-    );
-
-    console.log(`\nLog saved to: ${logPath}`);
   }
+
+  console.log(outputText);
+
+  const businessSlug = sanitizeFileName(inputData.business || "prospect");
+  const logContent =
+    `${outputText}\n\n---\n` +
+    `Generated at: ${new Date().toISOString()}\n` +
+    `Mode: ${mode}\n`;
+
+  const logPath = saveLog(`research-${businessSlug}`, logContent);
+  console.log(`\nLog saved to: ${logPath}`);
 }
 
-run().catch((err) => {
-  console.error("Unexpected error:", err);
+run().catch((error) => {
+  console.error("Research agent failed:", error);
 });
