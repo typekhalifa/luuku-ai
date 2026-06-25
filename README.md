@@ -56,18 +56,25 @@ In practical terms, this repository is where Luuku AI is building:
 ---
 
 ## Current Version
-**v0.7.1 — Research Agent Prospect Intelligence Patch**
 
-Live internal components:
-- Executive Assistant Agent
-- Research Agent
+**v0.7.2 — Research Agent Decision-Maker + Prospect Memory Patch**
 
-Latest upgrade in v0.7.1:
+### Live internal components
+- **Executive Assistant Agent** — prioritizes founder work, creates daily execution plans, tracks carryover and blocked tasks, and logs execution updates.
+- **Research Agent** — analyzes business prospects for Luuku AI, scores prospect fit, suggests likely AI workflow opportunities, recommends first offers, identifies likely decision-maker targets, proposes pilot shapes, and keeps lightweight memory from prior research logs.
+
+### Latest v0.7.2 upgrades
 - Prospect scoring
 - Research tags
 - Outreach readiness assessment
 - Immediate next research actions
+- Likely decision-maker targets
+- Suggested pilot shape
+- Confidence level
+- Prospect memory note from prior logs
 
+### Current Luuku AI direction
+Luuku AI is being built as an internal AI operating system for founder execution and AI workflow automation prospecting, with the long-term goal of becoming a client-facing AI systems and workflow automation company.
 ---
 
 # Current Agent Stack
