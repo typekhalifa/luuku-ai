@@ -1,3 +1,4 @@
+import { runPublicValidation } from "../../shared/services/validation";
 import readline from "node:readline/promises";
 import { stdin as input, stdout as output } from "node:process";
 import fs from "node:fs";
@@ -775,10 +776,28 @@ function buildFallbackResearch(input: ResearchInput) {
     readiness
   );
   const confidence = assessConfidence(input, score, memory);
+  
+  const validation = runPublicValidation(input.business);
 
   const lines: string[] = [];
 
   lines.push("## Research Brief\n");
+
+  lines.push("### Public Validation");
+
+  lines.push(`- Website: ${validation.website || "Unknown"}`);
+
+  lines.push(`- Summary: ${validation.summary}`);
+
+  if (validation.validationSignals.length) {
+    lines.push("- Validation Signals:");
+
+    validation.validationSignals.forEach(signal =>
+        lines.push(`  - ${signal}`)
+    );
+  }
+
+  lines.push("");
 
   lines.push("### 1) Business Snapshot");
   lines.push(`- **Business:** ${input.business}`);

@@ -1,0 +1,22 @@
+{
+  "industry": "Banking",
+
+  "painPoints": [
+    "Compliance",
+    "Customer Support",
+    "Knowledge Access",
+    "Approval Workflows",
+    "Risk Documentation"
+  ],
+
+  "recommendedOffers": [
+    "knowledge-assistant",
+    "workflow-audit"
+  ],
+
+  "decisionMakers": [
+    "COO",
+    "Head of Operations",
+    "Head of Digital Transformation"
+  ]
+}

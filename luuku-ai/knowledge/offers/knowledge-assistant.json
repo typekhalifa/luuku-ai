@@ -1,0 +1,12 @@
+{
+  "name": "AI Knowledge Assistant",
+
+  "purpose": "Help staff instantly access procedures, policies and operational knowledge.",
+
+  "bestFor": [
+    "Banking",
+    "Insurance",
+    "Healthcare",
+    "Government"
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "industry": "Telecommunications",
+
+  "painPoints": [
+    "Customer Support",
+    "Field Operations",
+    "Internal Knowledge",
+    "Reporting",
+    "Approvals"
+  ],
+
+  "recommendedOffers": [
+    "knowledge-assistant",
+    "workflow-audit"
+  ],
+
+  "decisionMakers": [
+    "Head of Operations",
+    "Customer Experience",
+    "Digital Transformation"
+  ]
+}
