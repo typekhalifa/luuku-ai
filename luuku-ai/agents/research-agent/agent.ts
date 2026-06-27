@@ -1,3 +1,6 @@
+import { validateBusiness } from "../../shared/services/public-validation";
+import { PublicValidation } from "../../shared/types/research";
+import { getPublicResearch } from "../../shared/services/research";
 import { runPublicValidation } from "../../shared/services/validation";
 import readline from "node:readline/promises";
 import { stdin as input, stdout as output } from "node:process";
@@ -765,7 +768,7 @@ function findProspectMemory(business: string): ProspectMemory {
   }
 }
 
-function buildFallbackResearch(input: ResearchInput) {
+function buildFallbackResearch(input: ResearchInput, validation: PublicValidation) {
   const memory = findProspectMemory(input.business);
   const heuristics = getSectorHeuristics(input.sector);
   const score = scoreProspect(input, heuristics);
@@ -777,17 +780,36 @@ function buildFallbackResearch(input: ResearchInput) {
   );
   const confidence = assessConfidence(input, score, memory);
   
-  const validation = runPublicValidation(input.business);
-
+  
   const lines: string[] = [];
-
-  lines.push("## Research Brief\n");
 
   lines.push("### Public Validation");
 
-  lines.push(`- Website: ${validation.website || "Unknown"}`);
+  lines.push(
+  `- Website: ${validation.website ?? "Unknown"}`
+  );
 
-  lines.push(`- Summary: ${validation.summary}`);
+  lines.push(
+  `- Summary: ${validation.summary}`
+  );
+
+  lines.push("");
+
+  lines.push("Evidence");
+
+  validation.evidence.forEach(item =>
+      lines.push(`- ${item}`)
+  );
+
+  lines.push("");
+
+  lines.push("Sources");
+
+  validation.validationSignals.forEach(item =>
+      lines.push(`- ${item}`)
+  );
+
+  lines.push("");
 
   if (validation.validationSignals.length) {
     lines.push("- Validation Signals:");
@@ -952,7 +974,32 @@ async function getOpenAIResearch(input: ResearchInput) {
 async function run() {
   const inputData = await collectResearchInput();
 
+  let validation: PublicValidation;
+
+  const publicResearch = await getPublicResearch(inputData.business);
+
+  console.log("\n=== LIVE PUBLIC RESEARCH ===\n");
+  console.log(publicResearch);
+
   console.log("\nThinking...\n");
+
+  try {
+    validation = await validateBusiness(inputData.business);
+
+    console.log("\n=== LIVE PUBLIC RESEARCH ===\n");
+    console.log(validation);
+
+  } catch {
+
+    validation = {
+        website: undefined,
+        summary: "Public validation unavailable.",
+        validationSignals: [],
+        evidence: [],
+        confidenceBoost: 0,
+    };
+
+  }
 
   let outputText = "";
   let mode: "openai" | "fallback" = "fallback";
@@ -967,7 +1014,10 @@ async function run() {
     mode = "openai";
   } catch (error) {
     console.error("OpenAI unavailable. Switching to fallback mode...\n");
-    outputText = buildFallbackResearch(inputData);
+    outputText = buildFallbackResearch(
+    inputData,
+    validation
+    );
     mode = "fallback";
   }
 
