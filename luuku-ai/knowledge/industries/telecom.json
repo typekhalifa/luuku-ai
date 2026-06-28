@@ -1,22 +1,24 @@
 {
-  "industry": "Telecommunications",
-
-  "painPoints": [
-    "Customer Support",
-    "Field Operations",
-    "Internal Knowledge",
-    "Reporting",
-    "Approvals"
-  ],
-
-  "recommendedOffers": [
-    "knowledge-assistant",
-    "workflow-audit"
-  ],
-
   "decisionMakers": [
-    "Head of Operations",
-    "Customer Experience",
-    "Digital Transformation"
+    {
+      "title": "Head of Digital Services",
+      "priority": 10,
+      "reason": "Drives digital products and AI-enabled customer experiences."
+    },
+    {
+      "title": "Head of Customer Experience",
+      "priority": 9,
+      "reason": "Responsible for customer satisfaction and support transformation."
+    },
+    {
+      "title": "Head of Operations",
+      "priority": 8,
+      "reason": "Owns operational efficiency across telecom services."
+    },
+    {
+      "title": "Chief Technology Officer",
+      "priority": 7,
+      "reason": "Provides executive sponsorship for technology initiatives."
+    }
   ]
 }

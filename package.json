@@ -6,6 +6,7 @@
   "scripts": {
     "dev:ea": "tsx luuku-ai/agents/executive-assistant/agent.ts",
     "dev:research": "tsx luuku-ai/agents/research-agent/agent.ts",
+    "dev:sales": "tsx luuku-ai/agents/sales-agent/agent.ts",
     "typecheck": "tsc --noEmit",
     "clean:logs": "powershell -Command \"if (Test-Path logs) { Remove-Item logs\\*.md -Force -ErrorAction SilentlyContinue }\""
   },

@@ -1,22 +1,24 @@
 {
-  "industry": "Banking",
-
-  "painPoints": [
-    "Compliance",
-    "Customer Support",
-    "Knowledge Access",
-    "Approval Workflows",
-    "Risk Documentation"
-  ],
-
-  "recommendedOffers": [
-    "knowledge-assistant",
-    "workflow-audit"
-  ],
-
   "decisionMakers": [
-    "COO",
-    "Head of Operations",
-    "Head of Digital Transformation"
+    {
+      "title": "Head of Digital Transformation",
+      "priority": 10,
+      "reason": "Owns digital modernization, AI adoption, and internal technology strategy."
+    },
+    {
+      "title": "Head of Operations",
+      "priority": 9,
+      "reason": "Responsible for workflow efficiency and operational improvements."
+    },
+    {
+      "title": "Customer Experience Lead",
+      "priority": 8,
+      "reason": "Owns customer journeys and service improvement initiatives."
+    },
+    {
+      "title": "Chief Operating Officer",
+      "priority": 7,
+      "reason": "Executive sponsor for organization-wide operational initiatives."
+    }
   ]
 }
