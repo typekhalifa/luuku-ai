@@ -1,3 +1,5 @@
+import crypto from "crypto";
+import { saveProspect } from "../../shared/services/memory";
 import { validateBusiness } from "../../shared/services/public-validation";
 import { PublicValidation } from "../../shared/types/research";
 import { getPublicResearch } from "../../shared/services/research";
@@ -768,7 +770,18 @@ function findProspectMemory(business: string): ProspectMemory {
   }
 }
 
-function buildFallbackResearch(input: ResearchInput, validation: PublicValidation) {
+type ResearchResult = {
+  markdown: string;
+  score: ProspectScore;
+  heuristics: SectorHeuristics;
+  tags: string[];
+  readiness: OutreachReadiness;
+  confidence: ConfidenceLevel;
+  nextActions: string[];
+  memory: ProspectMemory;
+};
+
+function buildFallbackResearch(input: ResearchInput, validation: PublicValidation): ResearchResult {
   const memory = findProspectMemory(input.business);
   const heuristics = getSectorHeuristics(input.sector);
   const score = scoreProspect(input, heuristics);
@@ -902,7 +915,25 @@ function buildFallbackResearch(input: ResearchInput, validation: PublicValidatio
     "- This response was generated in **fallback mode** using Luuku AI research heuristics, prospect scoring logic, offer-matching rules, and lightweight prospect memory from local logs."
   );
 
-  return lines.join("\n");
+  return {
+
+    markdown: lines.join("\n"),
+
+    score,
+
+    heuristics,
+
+    tags,
+
+    readiness,
+
+    confidence,
+
+    nextActions,
+
+    memory
+
+  };
 }
 
 function buildPrompt(input: ResearchInput) {
@@ -986,17 +1017,17 @@ async function run() {
   try {
     validation = await validateBusiness(inputData.business);
 
-    console.log("\n=== LIVE PUBLIC RESEARCH ===\n");
+    console.log("\n=== LIVE PUBLIC VALIDATION ===\n");
     console.log(validation);
 
   } catch {
 
     validation = {
-        website: undefined,
-        summary: "Public validation unavailable.",
-        validationSignals: [],
-        evidence: [],
-        confidenceBoost: 0,
+      website: undefined,
+      summary: "Public validation unavailable.",
+      validationSignals: [],
+      evidence: [],
+      confidenceBoost: 0,
     };
 
   }
@@ -1004,7 +1035,13 @@ async function run() {
   let outputText = "";
   let mode: "openai" | "fallback" = "fallback";
 
+  // NEW
+  let fallback:
+    | ReturnType<typeof buildFallbackResearch>
+    | undefined;
+
   try {
+
     outputText = await getOpenAIResearch(inputData);
 
     if (!outputText) {
@@ -1012,27 +1049,65 @@ async function run() {
     }
 
     mode = "openai";
-  } catch (error) {
+
+  } catch {
+
     console.error("OpenAI unavailable. Switching to fallback mode...\n");
-    outputText = buildFallbackResearch(
-    inputData,
-    validation
+
+    fallback = buildFallbackResearch(
+      inputData,
+      validation
     );
+
+    outputText = fallback.markdown;
+
     mode = "fallback";
   }
 
   console.log(outputText);
 
-  const businessSlug = sanitizeFileName(inputData.business || "prospect");
+  // Save memory only when fallback generated structured data
+  if (fallback) {
+
+    saveProspect({
+      id: crypto.randomUUID(),
+
+      business: inputData.business,
+
+      sector: inputData.sector,
+
+      region: inputData.region,
+
+      fitScore: fallback.score.overall,
+
+      recommendedOffer: fallback.heuristics.offer.name,
+
+      status: "researched",
+
+      createdAt: new Date().toISOString(),
+
+      updatedAt: new Date().toISOString()
+    });
+
+  }
+
+  const businessSlug = sanitizeFileName(
+    inputData.business || "prospect"
+  );
+
   const logContent =
     `${outputText}\n\n---\n` +
     `Generated at: ${new Date().toISOString()}\n` +
     `Mode: ${mode}\n`;
 
-  const logPath = saveLog(`research-${businessSlug}`, logContent);
+  const logPath = saveLog(
+    `research-${businessSlug}`,
+    logContent
+  );
+
   console.log(`\nLog saved to: ${logPath}`);
 }
 
-run().catch((error) => {
+  run().catch((error) => {
   console.error("Research agent failed:", error);
 });
