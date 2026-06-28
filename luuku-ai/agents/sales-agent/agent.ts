@@ -9,6 +9,8 @@ import {
     generateCallScript
 } from "./outreach";
 
+import { updateProspectStatus } from "./pipeline";
+
 const rl = readline.createInterface({
   input: process.stdin,
   output: process.stdout,
@@ -122,7 +124,27 @@ rl.question("Business: ", (business) => {
 
   console.log(generateCallScript(memory));
 
-  rl.close();
+  rl.question(
+    "\nUpdate status (contacted / meeting-booked / proposal-sent / won / lost / skip): ",
+    (status) => {
+
+      if (status !== "skip") {
+
+        const updated = updateProspectStatus(
+            memory.business,
+            status as any
+        );
+
+          console.log("\n====== UPDATED MEMORY ======\n");
+
+          console.log(updated);
+
+      }
+
+      rl.close();
+
+    }
+  );
 
 });
 
