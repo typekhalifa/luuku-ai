@@ -1,5 +1,6 @@
 import fs from "fs";
 import path from "path";
+import { addTimelineEvent } from "../../shared/services/timeline";
 
 export function updateProspectStatus(
   business: string,
@@ -32,14 +33,16 @@ export function updateProspectStatus(
     fs.readFileSync(file, "utf8")
   );
 
-  memory.status = status;
-  memory.updatedAt = new Date().toISOString();
+    addTimelineEvent(
 
-  fs.writeFileSync(
-    file,
-    JSON.stringify(memory, null, 2)
-  );
+    memory,
 
-  return memory;
+    "Sales Agent",
+
+    `Status updated to ${status}`,
+
+    `Pipeline moved to ${status}`
+
+    );
 
 }

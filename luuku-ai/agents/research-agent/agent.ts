@@ -10,6 +10,8 @@ import fs from "node:fs";
 import path from "node:path";
 import OpenAI from "openai";
 import { config } from "../../shared/config/env";
+import { addTimelineEvent } from "../../shared/services/timeline";
+import { ProspectMemory } from "../../shared/types/memory";
 
 type ResearchInput = {
   business: string;
@@ -47,7 +49,7 @@ type ConfidenceLevel = {
   reason: string;
 };
 
-type ProspectMemory = {
+type ProspectMemoryNote = {
   found: boolean;
   summaryLines: string[];
 };
@@ -677,7 +679,7 @@ function buildImmediateNextResearchActions(
 function assessConfidence(
   input: ResearchInput,
   score: ProspectScore,
-  memory: ProspectMemory
+  memory: ProspectMemoryNote
 ): ConfidenceLevel {
   let points = 0;
   const notesLength = (input.notes || "").trim().length;
@@ -713,7 +715,7 @@ if (points >= 3) {
     };
   };
 
-function findProspectMemory(business: string): ProspectMemory {
+function findProspectMemory(business: string): ProspectMemoryNote {
   const logsDir = ensureLogsDir();
   const businessSlug = sanitizeFileName(business);
   const prefix = `research-${businessSlug}-`;
@@ -778,7 +780,7 @@ type ResearchResult = {
   readiness: OutreachReadiness;
   confidence: ConfidenceLevel;
   nextActions: string[];
-  memory: ProspectMemory;
+  memory: ProspectMemoryNote;
 };
 
 function buildFallbackResearch(input: ResearchInput, validation: PublicValidation): ResearchResult {
@@ -1069,25 +1071,36 @@ async function run() {
   // Save memory only when fallback generated structured data
   if (fallback) {
 
-    saveProspect({
-      id: crypto.randomUUID(),
+    const prospect: ProspectMemory = {
 
-      business: inputData.business,
+        id: crypto.randomUUID(),
 
-      sector: inputData.sector,
+        business: inputData.business,
 
-      region: inputData.region,
+        sector: inputData.sector,
 
-      fitScore: fallback.score.overall,
+        region: inputData.region,
 
-      recommendedOffer: fallback.heuristics.offer.name,
+        fitScore: fallback.score.overall,
 
-      status: "researched",
+        recommendedOffer: fallback.heuristics.offer.name,
 
-      createdAt: new Date().toISOString(),
+        status: "researched",
 
-      updatedAt: new Date().toISOString()
-    });
+        createdAt: new Date().toISOString(),
+
+        updatedAt: new Date().toISOString()
+
+    };
+
+    addTimelineEvent(
+    prospect,
+    "Research Agent",
+    "Prospect researched",
+    "Initial business research completed"
+    );
+
+    saveProspect(prospect);
 
   }
 
