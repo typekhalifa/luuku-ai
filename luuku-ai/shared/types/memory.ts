@@ -1,3 +1,5 @@
+import { TimelineEvent } from "./timeline";
+
 export interface ProspectMemory {
 
     id: string;
@@ -23,4 +25,7 @@ export interface ProspectMemory {
     createdAt: string;
 
     updatedAt: string;
+
+    timeline?: TimelineEvent[];
+
 }
