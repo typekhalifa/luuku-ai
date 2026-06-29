@@ -1,6 +1,9 @@
 import fs from "fs";
 import path from "path";
 import { addTimelineEvent } from "../../shared/services/timeline";
+import { createFollowUpTask } from "../../shared/scheduler/followups";
+import { saveTask } from "../../shared/scheduler/tasks";
+import { updateProspect } from "../../shared/services/prospect";
 
 export function updateProspectStatus(
   business: string,
@@ -44,5 +47,25 @@ export function updateProspectStatus(
     `Pipeline moved to ${status}`
 
     );
+
+    if (status === "contacted") {
+
+        const task = createFollowUpTask(
+            memory.business,
+            3
+        );
+
+        saveTask(task);
+
+    }
+
+    const updated = updateProspect(
+        business,
+        {
+            status
+        }
+    );
+
+    return updated;
 
 }

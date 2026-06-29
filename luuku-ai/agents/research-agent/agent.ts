@@ -1085,7 +1085,11 @@ async function run() {
 
         recommendedOffer: fallback.heuristics.offer.name,
 
+        owner: "Research Agent",
+
         status: "researched",
+
+        archived: false,
 
         createdAt: new Date().toISOString(),
 

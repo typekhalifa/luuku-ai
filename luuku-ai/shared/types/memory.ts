@@ -14,6 +14,8 @@ export interface ProspectMemory {
 
     recommendedOffer: string;
 
+    owner: string;
+
     status:
         | "researched"
         | "contacted"
@@ -21,6 +23,8 @@ export interface ProspectMemory {
         | "proposal-sent"
         | "won"
         | "lost";
+
+    archived: boolean;
 
     createdAt: string;
 

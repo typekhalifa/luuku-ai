@@ -1,0 +1,27 @@
+{
+  "id": "4d01e6f1-778b-4661-9009-a3ec9caf98d0",
+  "business": "Bank of Kigali",
+  "sector": "Banking",
+  "region": "Rwanda",
+  "fitScore": 8.2,
+  "recommendedOffer": "AI Knowledge Assistant + Workflow Audit",
+  "status": "contacted",
+  "createdAt": "2026-06-29T11:26:05.762Z",
+  "updatedAt": "2026-06-29T12:35:44.113Z",
+  "timeline": [
+    {
+      "id": "b22e1880-6707-4570-ab96-850c24be812a",
+      "agent": "Research Agent",
+      "action": "Prospect researched",
+      "details": "Initial business research completed",
+      "timestamp": "2026-06-29T11:26:05.785Z"
+    },
+    {
+      "id": "78fc3823-0b2b-4e5a-b71a-d74adb0e6270",
+      "agent": "Sales Agent",
+      "action": "Status updated to contacted",
+      "details": "Pipeline moved to contacted",
+      "timestamp": "2026-06-29T12:35:44.108Z"
+    }
+  ]
+}
