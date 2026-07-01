@@ -2,11 +2,8 @@ import crypto from "crypto";
 import { Task } from "../types/task";
 
 export function createFollowUpTask(
-
     business: string,
-
     days: number
-
 ): Task {
 
     const due = new Date();
@@ -23,21 +20,19 @@ export function createFollowUpTask(
 
         title: "Follow-up",
 
-        description:
-            `Follow up with ${business}`,
+        description: `Follow up with ${business}`,
 
         assignedBy: "Sales Agent",
 
-        assignedTo: "Executive AI",
+        assignedAgent: "Executive AI",
 
         dueDate: due.toISOString(),
 
         priority: "medium",
 
-        status: "pending",
+        status: "created",
 
-        createdAt:
-            new Date().toISOString()
+        createdAt: new Date().toISOString()
 
     };
 

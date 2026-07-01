@@ -9,6 +9,7 @@
     "dev:sales": "tsx luuku-ai/agents/sales-agent/agent.ts",
     "dev:dashboard": "tsx luuku-ai/agents/dashboard/agent.ts",
     "dev:executive": "tsx luuku-ai/agents/executive-dashboard/agent.ts",
+    "dev:executive-ai": "tsx luuku-ai/agents/executive-ai/agent.ts",
     "typecheck": "tsc --noEmit",
     "clean:logs": "powershell -Command \"if (Test-Path logs) { Remove-Item logs\\*.md -Force -ErrorAction SilentlyContinue }\""
   },

@@ -1,5 +1,5 @@
-import { getTasks } from "../services/task";
-import { Task } from "../types/task";
+import { getTasks } from "../../shared/services/task";
+import { Task } from "../../shared/types/task";
 
 export function getHighestPriorityTask(): Task | null {
 

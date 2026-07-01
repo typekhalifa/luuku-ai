@@ -1,5 +1,5 @@
-import { getTasks } from "../services/task";
-import { loadTasks } from "../scheduler/tasks";
+import { getTasks } from "../../shared/services/task";
+import { loadTasks } from "../../shared/scheduler/tasks";
 
 export interface ExecutiveAnalytics {
 

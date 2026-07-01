@@ -1,11 +1,8 @@
-import { ExecutiveAnalytics } from "../../shared/executive/analytics";
-import { Task } from "../../shared/types/task";
-
 export function renderExecutiveDashboard(
 
-    analytics: ExecutiveAnalytics,
+    analytics: any,
 
-    priority: Task | null,
+    priority: any,
 
     insights: string[],
 
@@ -13,44 +10,84 @@ export function renderExecutiveDashboard(
 
 ) {
 
-    console.clear();
+    console.log("");
 
     console.log("==============================================");
+
     console.log("       LUUKU AI EXECUTIVE INTELLIGENCE");
-    console.log("==============================================\n");
+
+    console.log("==============================================");
+
+    console.log("");
 
     console.log("Analytics");
+
     console.log("----------------------------");
 
     console.log(`Total Tasks      : ${analytics.totalTasks}`);
-    console.log(`Completed        : ${analytics.completedTasks}`);
-    console.log(`Active           : ${analytics.activeTasks}`);
-    console.log(`Overdue          : ${analytics.overdueTasks}`);
 
-    console.log("\nPriority");
+    console.log(`Completed        : ${analytics.completed}`);
+
+    console.log(`Active           : ${analytics.active}`);
+
+    console.log(`Overdue          : ${analytics.overdue}`);
+
+    console.log("");
+
+    console.log("Priority");
+
     console.log("----------------------------");
 
     if (priority) {
 
         console.log(priority.title);
+
         console.log(priority.business);
 
     } else {
 
-        console.log("No priority task.");
+        console.log("No priority tasks.");
 
     }
 
-    console.log("\nInsights");
+    console.log("");
+
+    console.log("Insights");
+
     console.log("----------------------------");
 
-    insights.forEach(i => console.log("• " + i));
+    if (insights.length === 0) {
 
-    console.log("\nRecommendations");
+        console.log("No insights available.");
+
+    } else {
+
+        insights.forEach(i => console.log(`• ${i}`));
+
+    }
+
+    console.log("");
+
+    console.log("Recommendations");
+
     console.log("----------------------------");
 
-    recommendations.forEach(r => console.log("✓ " + r));
+    if (recommendations.length === 0) {
 
-    console.log("\n==============================================");
+        console.log("No recommendations.");
+
+    } else {
+
+        recommendations.forEach(r =>
+
+            console.log(`✓ ${r}`)
+
+        );
+
+    }
+
+    console.log("");
+
+    console.log("==============================================");
 
 }
