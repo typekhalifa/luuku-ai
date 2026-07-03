@@ -4,6 +4,8 @@ export interface Agent {
 
     name: string;
 
+    role: string;
+
     version: string;
 
     description: string;
@@ -20,16 +22,20 @@ export const registry: Agent[] = [
 
         name: "Research Agent",
 
-        version: "0.7.5",
+        role: "Research",
+
+        version: "0.9.9",
 
         description:
-            "Researches businesses and validates opportunities.",
+            "Researches businesses, validates opportunities, and generates intelligence.",
 
         capabilities: [
 
             "research",
 
-            "validation"
+            "validation",
+
+            "prospecting"
 
         ]
 
@@ -41,16 +47,20 @@ export const registry: Agent[] = [
 
         name: "Sales Agent",
 
-        version: "0.9",
+        role: "Sales",
+
+        version: "0.9.9",
 
         description:
-            "Handles prospect outreach and pipeline updates.",
+            "Handles outreach, pipeline updates, and follow-ups.",
 
         capabilities: [
 
             "sales",
 
-            "follow-up"
+            "follow-up",
+
+            "outreach"
 
         ]
 
