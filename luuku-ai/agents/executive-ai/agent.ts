@@ -1,3 +1,5 @@
+import { bootstrap } from "../../shared/kernel/bootstrap";
+
 import { requestExecutiveReasoning } from "../../shared/ai/executive";
 
 import { runExecutiveReview } from "../../shared/executive/review";
@@ -6,7 +8,9 @@ import { parseDecision } from "./parser";
 
 import { validateDecision } from "./decision";
 
-import { delegateDecision } from "./delegate";
+import crypto from "crypto";
+
+import { runAgent } from "../../shared/agents/runner";
 
 import { saveExecutiveDecision } from "../../shared/executive/history";
 
@@ -15,6 +19,8 @@ import { buildFounderNotifications } from "../../shared/executive/notifications"
 import { notifyFounder } from "../../shared/executive/notify";
 
 async function runExecutiveAI() {
+
+    await bootstrap();
 
     try {
 
@@ -66,7 +72,35 @@ async function runExecutiveAI() {
 
         console.log(decision);
 
-        delegateDecision(decision);
+        const result = await runAgent(
+
+            decision.assignedAgentId,
+
+            {
+
+                id: crypto.randomUUID(),
+
+                title: decision.task.title,
+
+                description: decision.task.description,
+
+                priority: decision.task.priority
+
+            }
+
+        );
+
+        console.log("");
+
+        console.log("========================================");
+
+        console.log("      AGENT RESULT");
+
+        console.log("========================================");
+
+        console.log("");
+
+        console.log(result);
 
         console.log("");
 

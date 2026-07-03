@@ -1,21 +1,39 @@
+export interface ExecutiveTask {
+
+    title: string;
+
+    description: string;
+
+    priority:
+        | "low"
+        | "medium"
+        | "high";
+
+}
+
 export interface ExecutiveDecision {
 
     summary: string;
 
-    priority: string;
+    priority:
+        | "low"
+        | "medium"
+        | "high";
 
     reasoning: string;
 
-    recommendedAction: string;
-
-    assignedAgent: string;
+    assignedAgentId: string;
 
     confidence: number;
+
+    task: ExecutiveTask;
 
 }
 
 export function validateDecision(
+
     decision: ExecutiveDecision
+
 ): boolean {
 
     return (
@@ -26,15 +44,21 @@ export function validateDecision(
 
         typeof decision.reasoning === "string" &&
 
-        typeof decision.recommendedAction === "string" &&
-
-        typeof decision.assignedAgent === "string" &&
+        typeof decision.assignedAgentId === "string" &&
 
         typeof decision.confidence === "number" &&
 
         decision.confidence >= 0 &&
 
-        decision.confidence <= 1
+        decision.confidence <= 1 &&
+
+        typeof decision.task === "object" &&
+
+        typeof decision.task.title === "string" &&
+
+        typeof decision.task.description === "string" &&
+
+        typeof decision.task.priority === "string"
 
     );
 

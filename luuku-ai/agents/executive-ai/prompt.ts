@@ -22,17 +22,38 @@ Use previous decisions when appropriate to avoid unnecessary repetition.
 
 ${JSON.stringify(context, null, 2)}
 
-Return ONLY valid JSON.
+The "task" object represents the executable work that will be delegated to the selected agent.
+
+Use lowercase agent IDs.
+
+Current IDs:
+
+- sales
+- research
 
 Schema:
 
 {
   "summary": "string",
-  "priority": "string",
+
+  "priority": "high | medium | low",
+
   "reasoning": "string",
-  "recommendedAction": "string",
-  "assignedAgent": "Research | Sales",
-  "confidence": 0.95
+
+  "assignedAgentId": "sales | research",
+
+  "confidence": 0.95,
+
+  "task": {
+
+      "title": "string",
+
+      "description": "string",
+
+      "priority": "high | medium | low"
+
+    }
+
 }
 
 Do not return markdown.
