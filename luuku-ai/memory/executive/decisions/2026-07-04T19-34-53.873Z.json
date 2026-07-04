@@ -1,0 +1,13 @@
+{
+  "timestamp": "2026-07-04T19:34:53.873Z",
+  "summary": "Execute immediate RRA follow-up to book a 30-minute discovery/demo this week and log outcomes.",
+  "priority": "high",
+  "reasoning": "Highest-impact overdue sales action; agents are idle; prior plan exists but is not yet executed/logged—act now to drive revenue and clear backlog.",
+  "assignedAgentId": "sales",
+  "confidence": 0.95,
+  "task": {
+    "title": "RRA follow-up: call now and email to book 30-minute discovery/demo this week",
+    "description": "1) Review CRM/account notes and last correspondence; verify primary and alternate contacts.\n2) Call the primary contact now; if unavailable, attempt an alternate via the RRA switchboard within 10 minutes.\n3) Send a concise follow-up email proposing three time slots within the next 3 business days.\n4) On contact, confirm needs, stakeholders, decision process, timeline, and any procurement/compliance requirements; offer a one-pager and a relevant case study.\n5) Log all attempts and outcomes in the CRM; either book the meeting or schedule the next follow-up within 48 hours with blockers noted.\n6) If contact details are stale/incorrect, escalate immediately for correction.\n7) Complete initial outreach and CRM logging within 2 hours and post a brief summary update upon completion.",
+    "priority": "high"
+  }
+}

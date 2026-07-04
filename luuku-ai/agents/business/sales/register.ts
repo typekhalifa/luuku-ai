@@ -1,4 +1,4 @@
-import { registerAgent } from "../../shared/agents/registry";
+import { registerAgent } from "../../../shared/agents/registry";
 
 import { SalesAgent } from "./sales-agent";
 

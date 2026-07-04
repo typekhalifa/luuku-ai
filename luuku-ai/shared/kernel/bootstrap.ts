@@ -1,6 +1,10 @@
 import "../../agents/register";
 
+import { getAgents } from "../agents/registry";
+
 export async function bootstrap() {
+
+    const agents = getAgents();
 
     console.log("");
 
@@ -14,13 +18,15 @@ export async function bootstrap() {
 
     console.log("");
 
-    console.log("✓ Sales Agent");
+    for (const agent of agents) {
 
-    console.log("✓ Research Agent");
+        console.log(`✓ ${agent.name}`);
+
+    }
 
     console.log("");
 
-    console.log("Registered Agents : 2");
+    console.log(`Registered Agents : ${agents.length}`);
 
     console.log("");
 
@@ -29,15 +35,10 @@ export async function bootstrap() {
     console.log("");
 
     console.log("✓ Intelligence");
-
     console.log("✓ Memory");
-
     console.log("✓ Health");
-
     console.log("✓ Objectives");
-
     console.log("✓ Scheduler");
-
     console.log("✓ Notifications");
 
     console.log("");
@@ -50,7 +51,17 @@ export async function bootstrap() {
 
     console.log("");
 
-    console.log("System Ready.");
+    console.log("System Status...");
+
+    console.log("");
+
+    console.log("✓ Ready");
+
+    console.log("");
+
+    console.log("==============================================");
+    console.log("            LUUKU AI READY");
+    console.log("==============================================");
 
     console.log("");
 

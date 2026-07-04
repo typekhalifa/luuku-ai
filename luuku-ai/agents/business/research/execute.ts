@@ -4,7 +4,7 @@ import {
 
     AgentResult
 
-} from "../../shared/agents/interface";
+} from "../../../shared/agents/interface";
 
 export async function executeResearchTask(
 

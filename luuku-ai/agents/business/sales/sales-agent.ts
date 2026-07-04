@@ -1,4 +1,4 @@
-import { BaseAgent } from "../../shared/agents/base";
+import { BaseAgent } from "../../../shared/agents/base";
 
 import {
 
@@ -6,7 +6,7 @@ import {
 
     AgentResult
 
-} from "../../shared/agents/interface";
+} from "../../../shared/agents/interface";
 
 import {
 

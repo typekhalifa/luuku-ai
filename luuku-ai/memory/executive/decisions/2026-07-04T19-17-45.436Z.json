@@ -1,0 +1,13 @@
+{
+  "timestamp": "2026-07-04T19:17:45.436Z",
+  "summary": "Execute immediate follow-up with Rwanda Revenue Authority to secure a 30-minute discovery/demo meeting this week.",
+  "priority": "high",
+  "reasoning": "This is the most impactful overdue sales action, directly supporting revenue and backlog reduction. The sales agent is idle, and a clear plan already exists—execute now and log outcomes.",
+  "assignedAgentId": "sales",
+  "confidence": 0.95,
+  "task": {
+    "title": "RRA follow-up: call and email to book 30-minute discovery/demo",
+    "description": "Execute the previously defined RRA follow-up plan: 1) Review CRM notes and last correspondence. 2) Call the primary contact now; if unavailable, attempt an alternate via the RRA switchboard. 3) Send a concise follow-up email proposing three time slots within the next 3 business days. 4) On contact, confirm needs, stakeholders, decision process, timeline, and any procurement/compliance requirements; offer a one-pager and a relevant case study. 5) Log outcomes in the CRM; either book the meeting or schedule the next follow-up within 48 hours and note blockers. 6) Escalate if contact details are stale or incorrect. Complete outreach and logging by EOD today.",
+    "priority": "high"
+  }
+}

@@ -1,5 +1,5 @@
-import "./sales/register";
-import "./research/register";
+import "./business/register";
+import "./communication/register";
 
 // Future
 

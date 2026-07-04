@@ -1,6 +1,6 @@
 import { registerAgent }
 
-from "../../shared/agents/registry";
+from "../../../shared/agents/registry";
 
 import {
 

@@ -1,0 +1,13 @@
+{
+  "timestamp": "2026-07-04T19:53:40.805Z",
+  "summary": "Execute Rwanda Revenue Authority follow-up now to secure a 30-minute discovery/demo this week; use prior plan; adjust for after-hours; report status within 2 hours.",
+  "priority": "high",
+  "reasoning": "Highest-impact overdue sales action with idle agents; previous decision remains unexecuted/logged. Acting now advances revenue and clears backlog while reusing the existing playbook to avoid repetition.",
+  "assignedAgentId": "sales",
+  "confidence": 0.95,
+  "task": {
+    "title": "RRA follow-up: call (next Kigali business hours) and email now to book 30-minute discovery/demo this week",
+    "description": "Use the previously defined RRA follow-up plan with these constraints: 1) Review CRM/account notes and last correspondence; verify primary and alternate contacts. 2) If within Kigali business hours (08:30–17:30 CAT), call the primary contact now; if unavailable, leave voicemail and try an alternate via the RRA switchboard within 10 minutes. If outside business hours, skip calling for now. 3) Send a concise follow-up email immediately proposing three time slots within the next 3 business days; offer a one-pager and a relevant case study. 4) On contact, confirm needs, stakeholders, decision process, timeline, and any procurement/compliance requirements; capture objections. 5) Log all attempts and outcomes in the CRM; either book the meeting or schedule the next follow-up within 48 hours with blockers noted. 6) If numbers are invalid or email bounces, immediately flag specific gaps for research enrichment. 7) If a call was skipped due to after-hours, schedule it for 08:30 CAT next business day. 8) Post a brief status update upon completion—deadline: within 2 hours.",
+    "priority": "high"
+  }
+}
