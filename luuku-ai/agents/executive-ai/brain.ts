@@ -1,8 +1,7 @@
 import { buildAgentHealth } from "../../shared/executive/health";
 import { buildExecutiveIntelligence } from "../../shared/executive/intelligence";
 import { buildExecutiveMemory } from "../../shared/executive/memory";
-import { registry } from "./registry";
-
+import { getAgents } from "../../shared/agents/registry";
 import { buildExecutiveObjectives } from "../../shared/executive/objectives";
 import { buildExecutiveSchedule } from "../../shared/executive/scheduler";
 
@@ -95,7 +94,7 @@ export function buildExecutiveContext(): ExecutiveContext {
     schedule,
 
     availableAgents:
-        registry.map(agent => agent.name),
+        getAgents().map(agent => agent.name),
 
     systemHealth
 

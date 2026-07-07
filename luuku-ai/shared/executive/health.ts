@@ -1,4 +1,4 @@
-import { registry } from "../../agents/executive-ai/registry";
+import { getAgents } from "../agents/registry";
 import { getTasks } from "../services/task";
 
 export interface AgentHealth {
@@ -18,11 +18,13 @@ export interface AgentHealth {
 
 }
 
-export function buildAgentHealth() {
+export function buildAgentHealth(): AgentHealth[] {
+
+    const agents = getAgents();
 
     const tasks = getTasks();
 
-    return registry.map(agent => {
+    return agents.map(agent => {
 
         const activeTasks = tasks.filter(task =>
 

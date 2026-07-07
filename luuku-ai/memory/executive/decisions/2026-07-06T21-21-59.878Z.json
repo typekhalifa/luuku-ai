@@ -1,0 +1,13 @@
+{
+  "timestamp": "2026-07-06T21:21:59.878Z",
+  "summary": "Execute RRA follow-up now: email immediately and schedule 08:30 CAT call next business day to secure a 30-minute discovery/demo this week.",
+  "priority": "high",
+  "reasoning": "Highest-impact overdue revenue task with idle sales capacity; prior decisions remain unexecuted. It is after-hours in Kigali, so email now and call at 08:30 CAT next business day to advance the deal and reduce backlog.",
+  "assignedAgentId": "sales",
+  "confidence": 0.95,
+  "task": {
+    "title": "RRA follow-up: email now; schedule 08:30 CAT call next business day to book 30-minute discovery/demo",
+    "description": "- Reuse the existing RRA follow-up playbook with these constraints.\n1) Review CRM/account notes and last correspondence; verify primary and alternate contacts and any procurement/compliance context.\n2) Because it is outside Kigali business hours (08:30–17:30 CAT), do not call now. Create a call task for 08:30 CAT next business day with reminder and call script ready.\n3) Send a concise follow-up email immediately to the primary contact (cc known stakeholders) proposing three 30-minute time slots within the next 3 business days (Kigali time); include a one-pager and a relevant case study; state a clear agenda and value.\n4) On live contact (tomorrow’s call or email reply), confirm needs, stakeholders, decision process, timeline, and any procurement/compliance requirements; capture objections; aim to book the 30-minute discovery/demo.\n5) If the primary is unreachable at 08:30 CAT, leave voicemail (if available) and attempt an alternate via the RRA switchboard within 10 minutes.\n6) Log all attempts, emails, and outcomes in the CRM; either book the meeting or schedule the next follow-up within 48 hours with blockers noted.\n7) If numbers are invalid or email bounces, immediately flag specific gaps for enrichment and hand off to the research agent.\n8) Deadlines: send the email and set the call task/reminder within 60 minutes and post a brief status update; after the 08:30 CAT call attempt, post a second status update.",
+    "priority": "high"
+  }
+}

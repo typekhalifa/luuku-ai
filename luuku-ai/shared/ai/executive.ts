@@ -12,6 +12,12 @@ export async function requestExecutiveReasoning(
 
         buildExecutivePrompt(context);
 
-    return requestAI(prompt);
+    return requestAI({
+
+        prompt,
+
+        temperature: 0.2
+
+    });
 
 }

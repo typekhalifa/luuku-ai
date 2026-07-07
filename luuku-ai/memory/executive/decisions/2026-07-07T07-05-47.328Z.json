@@ -1,0 +1,13 @@
+{
+  "timestamp": "2026-07-07T07:05:47.328Z",
+  "summary": "Immediate RRA call now to recover missed 08:30 CAT and book a 30-minute discovery/demo this week.",
+  "priority": "high",
+  "reasoning": "This is the highest-impact overdue revenue task; it is within Kigali business hours and the scheduled 08:30 CAT call was missed. The sales agent is idle—execute the call now to advance the deal.",
+  "assignedAgentId": "sales",
+  "confidence": 0.95,
+  "task": {
+    "title": "RRA follow-up: call now (Kigali business hours) and secure 30-minute discovery/demo",
+    "description": "1) Review CRM/account notes and verify whether last night's follow-up email was sent; if not, send it now to the primary contact (cc known stakeholders) proposing three 30-minute Kigali-time slots within the next 3 business days, with a clear agenda, one-pager, and relevant case study.\n2) Call the primary contact immediately; if unreachable, leave voicemail (if available) and within 10 minutes attempt an alternate via the RRA switchboard.\n3) On live contact, confirm needs, stakeholders, decision process, timeline, and any procurement/compliance requirements; handle objections; aim to book the 30-minute discovery/demo and send a calendar invite.\n4) Log all attempts, emails, and outcomes in the CRM; either book the meeting or schedule the next follow-up within 48 hours with blockers noted.\n5) If numbers are invalid or email bounces, flag specific gaps for enrichment and hand off to the research agent.\n6) Post a brief status update immediately after the call attempts; deadline: within 60 minutes.",
+    "priority": "high"
+  }
+}

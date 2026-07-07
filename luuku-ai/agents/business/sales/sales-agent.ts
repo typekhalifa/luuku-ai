@@ -14,6 +14,8 @@ import {
 
 } from "./execute";
 
+import { executeSalesWorkflow } from "./workflow";
+
 export class SalesAgent extends BaseAgent {
 
     id = "sales";
@@ -28,7 +30,31 @@ export class SalesAgent extends BaseAgent {
 
     ): Promise<AgentResult> {
 
-        return executeSalesTask(task);
+        console.log("");
+
+        console.log("========================================");
+
+        console.log("         SALES AGENT");
+
+        console.log("========================================");
+
+        console.log("");
+
+        await executeSalesWorkflow(task);
+
+        return {
+
+            success: true,
+
+            summary:
+
+                `Sales workflow completed "${task.title}".`,
+
+            completedAt:
+
+                new Date().toISOString()
+
+        };
 
     }
 
