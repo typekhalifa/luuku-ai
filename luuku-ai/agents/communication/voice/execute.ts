@@ -1,52 +1,47 @@
 import {
-
     AgentTask,
-
     AgentResult
-
 } from "../../../shared/agents/interface";
 
 import {
-
     placeVoiceCall
-
 } from "../../../shared/voice/call";
 
 import {
-
     resolveContact
-
 } from "../../../shared/crm/resolver";
 
 import {
-
     buildCommunicationBrief
-
 } from "../../../shared/communication/brief";
 
 import {
-
     FollowUpObjective
-
 } from "../../../shared/context/objectives";
 
 import {
-
     resolveTaskContext
-
 } from "../../../shared/context/resolver";
 
 import {
-
     buildConversationPlan
-
 } from "../../../shared/conversation/engine";
 
 import {
-
     requestConversation
-
 } from "../../../shared/ai/conversation";
+
+import {
+    logActivity
+} from "../../../shared/crm/activities/logger";
+
+import {
+    Activity
+} from "../../../shared/crm/activities/types";
+
+import {
+    updateDealsAfterCall
+} from "../../../shared/crm/deals/workflow";
 
 export async function executeVoiceTask(
 
@@ -62,7 +57,7 @@ export async function executeVoiceTask(
 
         resolveContact(
 
-            context.company
+            context.companyName
 
         );
 
@@ -223,6 +218,76 @@ export async function executeVoiceTask(
                 brief.tone
 
         });
+
+    const activity: Activity = {
+
+        id:
+
+            crypto.randomUUID(),
+
+        company:
+
+            brief.company,
+
+        contact:
+
+            brief.contactName,
+
+        type:
+
+            "call",
+
+        title:
+
+            "Sales Follow-up Call",
+
+        description:
+
+            result.summary,
+
+        outcome:
+
+            result.success
+
+                ? "Completed"
+
+                : "Failed",
+
+        createdBy:
+
+            "Voice Agent",
+
+        createdAt:
+
+            new Date().toISOString()
+
+    };
+
+    logActivity(
+
+        activity
+
+    );
+
+    console.log("");
+
+    console.log("========================================");
+
+    console.log("      ACTIVITY LOGGED");
+
+    console.log("========================================");
+
+    console.log("");
+
+    console.log(activity);
+
+    updateDealsAfterCall(
+
+        contact.company,
+
+        result.summary
+
+    );
 
     return {
 

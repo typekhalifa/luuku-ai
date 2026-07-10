@@ -1,0 +1,13 @@
+{
+  "timestamp": "2026-07-10T12:55:55.342Z",
+  "summary": "Execute Rwanda Revenue Authority follow-up call now to secure a 30-minute discovery/demo; email if no connect; fully log in CRM within 60 minutes.",
+  "priority": "high",
+  "reasoning": "This is the highest-impact overdue revenue task. It is currently within Kigali business hours, the sales agent is idle, and CRM lacks company/deal records. Acting now advances pipeline and clears backlog; prior identical directives remain unexecuted.",
+  "assignedAgentId": "sales",
+  "confidence": 0.95,
+  "task": {
+    "title": "RRA follow-up: call now (Kigali/CAT) to book 30-minute discovery/demo; email if no connect; log in CRM",
+    "description": "Use the existing RRA follow-up playbook and execute immediately. 1) CRM prep (5–10 min): Create the Rwanda Revenue Authority company and a new deal (stage: Discovery/Qualification); link the existing contact; attach prior notes. 2) Call now (08:30–17:30 CAT): Dial the primary contact immediately. If no answer, leave voicemail (if available) and within 10 minutes attempt an alternate via the RRA switchboard. 3) On live connect: Confirm needs, stakeholders, decision process, timeline, and any procurement/compliance steps; handle objections; secure a 30-minute discovery/demo this week and send the calendar invite before ending the call. 4) If no connect: Send a concise follow-up email within 10 minutes proposing three 30-minute Kigali-time slots over the next 3 business days; include a clear agenda, a one-pager, and a relevant case study; cc known stakeholders. 5) CRM logging: Record all call attempts, voicemail, and the email with outcomes. If the meeting is booked, update the deal to Discovery Scheduled and attach the invite. If not booked, schedule the next follow-up within 48 hours with blockers noted. 6) Data gaps: If numbers are invalid or email bounces, list exact gaps and hand off to the research agent for enrichment. 7) Status update: Post a brief summary of attempts, outcomes, and next steps within 60 minutes.",
+    "priority": "high"
+  }
+}

@@ -1,15 +1,21 @@
 import { buildAnalytics } from "./analytics";
 import { getHighestPriorityTask } from "./priorities";
-import { generateInsights } from "./insights";
+import { buildExecutiveInsights } from "./insights";
 import { generateRecommendations } from "./recommendations";
 
 export interface ExecutiveIntelligence {
 
-    analytics: ReturnType<typeof buildAnalytics>;
+    analytics: ReturnType<
+        typeof buildAnalytics
+    >;
 
-    priority: ReturnType<typeof getHighestPriorityTask>;
+    priority: ReturnType<
+        typeof getHighestPriorityTask
+    >;
 
-    insights: string[];
+    insights: ReturnType<
+        typeof buildExecutiveInsights
+    >;
 
     recommendations: string[];
 
@@ -19,13 +25,17 @@ export function buildExecutiveIntelligence(): ExecutiveIntelligence {
 
     return {
 
-        analytics: buildAnalytics(),
+        analytics:
+            buildAnalytics(),
 
-        priority: getHighestPriorityTask(),
+        priority:
+            getHighestPriorityTask(),
 
-        insights: generateInsights(),
+        insights:
+            buildExecutiveInsights(),
 
-        recommendations: generateRecommendations()
+        recommendations:
+            generateRecommendations()
 
     };
 

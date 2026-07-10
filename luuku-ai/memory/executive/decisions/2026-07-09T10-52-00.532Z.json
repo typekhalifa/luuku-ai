@@ -1,0 +1,13 @@
+{
+  "timestamp": "2026-07-09T10:52:00.532Z",
+  "summary": "Execute RRA follow-up call now (within Kigali business hours) to secure a 30-minute discovery/demo; if no connect, email immediately; log and post status within 60 minutes.",
+  "priority": "high",
+  "reasoning": "Highest-impact overdue revenue task with idle sales capacity; it is currently within Kigali business hours and prior directives remain unexecuted—this action directly advances pipeline and clears backlog.",
+  "assignedAgentId": "sales",
+  "confidence": 0.95,
+  "task": {
+    "title": "RRA follow-up: call now and book 30-minute discovery/demo (Kigali/CAT)",
+    "description": "Use the existing RRA follow-up playbook and execute now:\n1) Prep: Open CRM. If RRA company and deal records are missing, create them; link the existing contact and attach notes.\n2) Call the primary contact immediately (08:30–17:30 CAT). If unreachable, leave voicemail (if available) and within 10 minutes attempt an alternate via the RRA switchboard.\n3) On live contact: confirm needs, stakeholders, decision process, timeline, and any procurement/compliance requirements; handle objections; aim to book a 30-minute discovery/demo this week and send the calendar invite before ending the call.\n4) If no connect, email the primary contact (cc known stakeholders) within 10 minutes proposing three 30-minute slots within the next 3 business days (Kigali/CAT) with a clear agenda, one-pager, and relevant case study.\n5) Log all call attempts, emails, and outcomes in the CRM; if the meeting is not booked, schedule the next follow-up within 48 hours with blockers noted.\n6) If numbers are invalid or email bounces, flag specific gaps and hand off to the research agent for enrichment.\n7) Post a brief status update within 60 minutes summarizing attempts, outcomes, and next steps.",
+    "priority": "high"
+  }
+}

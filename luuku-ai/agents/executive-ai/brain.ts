@@ -1,9 +1,11 @@
+import { buildExecutiveInsights } from "../../shared/executive/insights";
 import { buildAgentHealth } from "../../shared/executive/health";
 import { buildExecutiveIntelligence } from "../../shared/executive/intelligence";
 import { buildExecutiveMemory } from "../../shared/executive/memory";
 import { getAgents } from "../../shared/agents/registry";
 import { buildExecutiveObjectives } from "../../shared/executive/objectives";
 import { buildExecutiveSchedule } from "../../shared/executive/scheduler";
+import { buildExecutiveCRM } from "../../shared/executive/crm";
 
 export interface ExecutiveContext {
 
@@ -25,8 +27,16 @@ export interface ExecutiveContext {
         typeof buildExecutiveObjectives
     >;
 
+    crm: ReturnType<
+        typeof buildExecutiveCRM
+    >;
+
     schedule: ReturnType<
         typeof buildExecutiveSchedule
+    >;
+
+    insights: ReturnType<
+        typeof buildExecutiveInsights
     >;
 
     availableAgents: string[];
@@ -74,8 +84,14 @@ export function buildExecutiveContext(): ExecutiveContext {
     const objectives =
     buildExecutiveObjectives();
 
+    const crm =
+    buildExecutiveCRM();
+
     const schedule =
     buildExecutiveSchedule();
+
+    const insights =
+    buildExecutiveInsights();
 
 
 
@@ -91,7 +107,11 @@ export function buildExecutiveContext(): ExecutiveContext {
 
     agentHealth,
 
+    crm,
+
     schedule,
+
+    insights,
 
     availableAgents:
         getAgents().map(agent => agent.name),

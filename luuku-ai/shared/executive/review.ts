@@ -24,6 +24,52 @@ export function runExecutiveReview() {
 
     console.log("");
 
+    console.log("CRM");
+
+    console.log("");
+
+    console.log(`Companies   : ${context.crm.companies}`);
+
+    console.log(`Contacts    : ${context.crm.contacts}`);
+
+    console.log(`Deals       : ${context.crm.deals}`);
+
+    console.log(`Activities  : ${context.crm.activities}`);
+
+    console.log(`Timeline    : ${context.crm.timeline}`);
+
+    console.log("");
+
+    console.log("BUSINESS INSIGHTS");
+
+    console.log("");
+
+    console.log(
+
+        `Pipeline Value     : $${context.insights.pipelineValue}`
+
+    );
+
+    console.log(
+
+        `Active Deals       : ${context.insights.activeDeals}`
+
+    );
+
+    console.log(
+
+        `Overdue Activities : ${context.insights.overdueActivities}`
+
+    );
+
+    console.log(
+
+        `Top Priority       : ${context.insights.topPriorityCompany ?? "None"}`
+
+    );
+
+    console.log("");
+
     console.log("Available Agents:");
 
     console.log(context.availableAgents.join(", "));

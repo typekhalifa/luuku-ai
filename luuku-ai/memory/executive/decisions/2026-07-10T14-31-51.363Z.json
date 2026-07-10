@@ -1,0 +1,13 @@
+{
+  "timestamp": "2026-07-10T14:31:51.363Z",
+  "summary": "Execute Rwanda Revenue Authority follow-up now to secure a 30-minute discovery/demo; email if no connect; fully log in CRM within 60 minutes.",
+  "priority": "high",
+  "reasoning": "Within Kigali business hours; highest-impact overdue revenue task; sales agent idle; no active deals—immediate action can create pipeline. Prior directive unexecuted—reissue succinctly for execution now.",
+  "assignedAgentId": "sales",
+  "confidence": 0.95,
+  "task": {
+    "title": "RRA follow-up: call now (CAT) to book 30-minute discovery/demo; email if no connect; log in CRM",
+    "description": "Execute the existing RRA follow-up playbook now. 1) CRM prep (5–10 min): Create Rwanda Revenue Authority as a company and a new deal (Discovery/Qualification); link the existing contact; attach prior notes. 2) Call immediately (08:30–17:30 CAT): Dial the primary contact; if no answer, leave voicemail (if available) and within 10 minutes attempt an alternate via the RRA switchboard. 3) On connect: Confirm needs, stakeholders, decision process, timeline, and compliance; secure a 30-minute discovery/demo this week and send the calendar invite before ending the call. 4) If no connect: Send a concise follow-up email within 10 minutes proposing three 30-minute Kigali-time slots over the next 3 business days; include agenda, one-pager, and a relevant case study; cc known stakeholders. 5) CRM logging: Record all attempts and outcomes; update deal stage accordingly; if not booked, schedule next follow-up within 48 hours with blockers noted. 6) Data gaps: If numbers are invalid or email bounces, list exact gaps and hand off to research. 7) Status: Post a brief summary of attempts, outcomes, and next steps within 60 minutes.",
+    "priority": "high"
+  }
+}

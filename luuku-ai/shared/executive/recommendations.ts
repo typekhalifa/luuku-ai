@@ -1,4 +1,4 @@
-import { generateInsights } from "./insights";
+import { buildExecutiveInsights } from "./insights";
 import { getHighestPriorityTask } from "./priorities";
 
 export function generateRecommendations(): string[] {
@@ -17,9 +17,17 @@ export function generateRecommendations(): string[] {
 
     }
 
-    const insights = generateInsights();
+    const insights = buildExecutiveInsights();
 
-    if (insights.some(i => i.includes("overdue"))) {
+    if (
+
+        insights.messages.some(
+
+            message => message.includes("overdue")
+
+        )
+
+    ) {
 
         recommendations.push(
 
@@ -29,7 +37,15 @@ export function generateRecommendations(): string[] {
 
     }
 
-    if (insights.some(i => i.includes("No active"))) {
+    if (
+
+        insights.messages.some(
+
+            message => message.includes("No active")
+
+        )
+
+    ) {
 
         recommendations.push(
 

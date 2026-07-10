@@ -11,7 +11,7 @@ function runExecutiveDashboard() {
 
         executive.priority,
 
-        executive.insights,
+        executive.insights.messages,
 
         executive.recommendations
 

@@ -1,8 +1,9 @@
 import { AgentTask } from "../agents/interface";
+import { getCRMCompanies } from "../crm/company-repository";
 
 export interface TaskContext {
 
-    company: string;
+    companyName: string;
 
     contactType: string;
 
@@ -14,66 +15,83 @@ export function resolveTaskContext(
 
 ): TaskContext {
 
-    const text = (
+    const text =
 
-        task.title +
+        `${task.title} ${task.description}`.toLowerCase();
 
-        " " +
+    const company =
 
-        task.description
-
-    ).toLowerCase();
-
-    if (
-
-        text.includes("rwanda revenue authority") ||
-
-        text.includes("rra")
-
-    ) {
-
-        return {
-
-            company:
-
-                "Rwanda Revenue Authority",
-
-            contactType:
-
-                "Procurement"
-
-        };
-
-    }
-
-    if (
-
-        text.includes("bk") ||
-
-        text.includes("bank of kigali")
-
-    ) {
-
-        return {
-
-            company:
-
-                "Bank of Kigali",
-
-            contactType:
-
-                "Innovation"
-
-        };
-
-    }
+        findCompany(text);
 
     return {
 
-        company: "Unknown",
+        companyName:
 
-        contactType: "General"
+            company ?? "Unknown",
+
+        contactType:
+
+            "General"
 
     };
+
+}
+
+function findCompany(
+
+    text: string
+
+): string | undefined {
+
+    const companies =
+
+        getCRMCompanies();
+
+    for (const company of companies) {
+
+        if (
+
+            text.includes(
+
+                company.name.toLowerCase()
+
+            )
+
+        ) {
+
+            return company.name;
+
+        }
+
+    }
+
+    // Temporary support for common abbreviations
+    // until Company.aliases is added in v1.4.0.
+
+    if (text.includes("rra")) {
+
+        return "Rwanda Revenue Authority";
+
+    }
+
+    if (text.includes("bk")) {
+
+        return "Bank of Kigali";
+
+    }
+
+    if (text.includes("mtn")) {
+
+        return "MTN Rwanda";
+
+    }
+
+    if (text.includes("airtel")) {
+
+        return "Airtel Rwanda";
+
+    }
+
+    return undefined;
 
 }
