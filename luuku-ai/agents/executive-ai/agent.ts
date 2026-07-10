@@ -18,6 +18,8 @@ import { buildFounderNotifications } from "../../shared/executive/notifications"
 
 import { notifyFounder } from "../../shared/executive/notify";
 
+import { renderExecutiveSummary } from "../../shared/executive/summary";
+
 async function runExecutiveAI() {
 
     await bootstrap();
@@ -102,9 +104,7 @@ async function runExecutiveAI() {
 
         console.log(result);
 
-        console.log("");
-
-        console.log("Executive cycle completed successfully.");
+        renderExecutiveSummary();
 
     } catch (error) {
 

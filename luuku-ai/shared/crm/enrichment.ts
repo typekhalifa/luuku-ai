@@ -1,5 +1,17 @@
 import { Contact } from "./types";
 
+import { updateCRMContact } from "./updater";
+
+import {
+
+    findCRMCompany,
+
+    saveCRMCompany
+
+} from "./company-repository";
+
+
+import { getCompanies } from "./companies";
 export interface EnrichmentRequest {
 
     company: string;
@@ -50,41 +62,157 @@ export async function requestContactEnrichment(
 
     console.log("Research Agent is enriching CRM...");
 
+    const existingCompany =
+
+        findCRMCompany(
+
+            request.company
+
+        );
+
+    if (!existingCompany) {
+
+        saveCRMCompany({
+
+            id:
+
+                crypto.randomUUID(),
+
+            name:
+
+                request.company,
+
+            industry:
+
+                "Unknown",
+
+            website:
+
+                undefined,
+
+            country:
+
+                "Rwanda",
+
+            city:
+
+                undefined,
+
+            size:
+
+                undefined,
+
+            status:
+
+                "prospect",
+
+            confidence:
+
+                95,
+
+            verified:
+
+                true,
+
+            source:
+
+                "Research Simulation",
+
+            createdAt:
+
+                new Date().toISOString(),
+
+            updatedAt:
+
+                new Date().toISOString()
+
+        });
+
+        console.log("");
+
+        console.log("COMPANIES AFTER SAVE");
+
+        console.log(getCompanies());
+
+    }
+
     const contact: Contact = {
 
-        id: crypto.randomUUID(),
+        id:
 
-        name: "Procurement Manager",
+            crypto.randomUUID(),
 
-        company: request.company,
+        name:
 
-        phoneNumber: "+250780000000",
+            "Procurement Manager",
 
-        email: "procurement@example.com",
+        company:
 
-        preferredLanguage: "English",
+            request.company,
 
-        department: "Procurement",
+        phoneNumber:
 
-        position: "Manager",
+            "+250780000000",
 
-        verified: true,
+        email:
 
-        confidence: 95,
+            "procurement@example.com",
 
-        source: "Research Simulation",
+        preferredLanguage:
 
-        lastVerifiedAt: new Date().toISOString()
+            "English",
+
+        department:
+
+            "Procurement",
+
+        position:
+
+            "Manager",
+
+        verified:
+
+            true,
+
+        confidence:
+
+            95,
+
+        source:
+
+            "Research Simulation",
+
+        lastVerifiedAt:
+
+            new Date().toISOString()
 
     };
+
+    const update =
+
+        updateCRMContact(
+
+            contact
+
+        );
+
+    console.log("");
+
+    console.log("✓ CRM updated.");
+
+    console.log(update.summary);
 
     return {
 
         success: true,
 
-        summary: "CRM enrichment completed.",
+        summary:
 
-        contact
+            update.summary,
+
+        contact:
+
+            update.contact
 
     };
 

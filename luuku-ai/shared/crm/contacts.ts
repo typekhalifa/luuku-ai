@@ -64,17 +64,25 @@ export function updateContact(
 
         contact =>
 
-            contact.id === updated.id
+            contact.company.toLowerCase() ===
+
+            updated.company.toLowerCase()
 
     );
 
-    if (
+    if (index >= 0) {
 
-        index >= 0
+        contacts[index] = {
 
-    ) {
+            ...contacts[index],
 
-        contacts[index] = updated;
+            ...updated
+
+        };
+
+    } else {
+
+        contacts.push(updated);
 
     }
 

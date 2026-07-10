@@ -49,7 +49,7 @@ export async function executeSalesWorkflow(
 
         resolveContact(
 
-            context.company
+            context.companyName
 
         );
 
@@ -79,7 +79,7 @@ export async function executeSalesWorkflow(
 
             company:
 
-                context.company,
+                context.companyName,
 
             reasons: [
 
@@ -93,9 +93,15 @@ export async function executeSalesWorkflow(
 
     }
 
-    const validation =
+    let activeContact = contact;
 
-        validateContact(contact);
+    let validation =
+
+        validateContact(
+
+            activeContact
+
+        );
 
     console.log("");
 
@@ -115,35 +121,61 @@ export async function executeSalesWorkflow(
 
         console.log("Reasons:");
 
-        for (
+        for (const reason of validation.reasons) {
 
-            const reason of validation.reasons
-
-        ) {
-
-            console.log(
-
-                `• ${reason}`
-
-            );
+            console.log(`• ${reason}`);
 
         }
 
         console.log("");
 
-        await requestContactEnrichment({
+        const enrichment =
 
-            company:
+            await requestContactEnrichment({
 
-                context.company,
+                company:
 
-            reasons:
+                    context.companyName,
 
-                validation.reasons
+                reasons:
 
-        });
+                    validation.reasons
 
-        return;
+            });
+
+        activeContact =
+
+            enrichment.contact;
+
+        validation =
+
+            validateContact(
+
+                activeContact
+
+            );
+
+        if (!validation.ready) {
+
+            console.log("");
+
+            console.log(
+
+                "CRM enrichment failed."
+
+            );
+
+            return;
+
+        }
+
+        console.log("");
+
+        console.log(
+
+            "✓ CRM successfully enriched."
+
+        );
 
     }
 
@@ -151,9 +183,15 @@ export async function executeSalesWorkflow(
 
     console.log("");
 
-    console.log("CRM ready for communication.");
+    console.log(
+
+        "CRM ready for communication."
+
+    );
 
     console.log("");
+
+
 
     const requiresVoice =
 
