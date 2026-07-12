@@ -7,6 +7,85 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model Company {
+  id         String        @id @default(uuid())
+  name       String        @unique
+  industry   String
+  website    String?
+  country    String
+  city       String?
+  size       CompanySize?
+  status     CompanyStatus
+  confidence Int
+  verified   Boolean
+  source     String
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+  activities Activity[]
+  contacts   Contact[]
+  deals      Deal[]
+}
+
+model Contact {
+  id                String     @id @default(uuid())
+  companyId         String
+  name              String
+  email             String?
+  phoneNumber       String?
+  preferredLanguage String?
+  department        String?
+  position          String?
+  verified          Boolean
+  confidence        Int
+  source            String
+  lastVerifiedAt    DateTime?
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+  activities        Activity[]
+  company           Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+}
+
+model Deal {
+  id           String     @id @default(uuid())
+  companyId    String
+  title        String
+  value        Float
+  currency     String
+  stage        DealStage
+  probability  Int
+  ownerAgentId String
+  nextAction   String
+  dueDate      DateTime?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  activities   Activity[]
+  company      Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+}
+
+model Activity {
+  id          String       @id @default(uuid())
+  companyId   String
+  contactId   String?
+  dealId      String?
+  type        ActivityType
+  title       String
+  description String
+  outcome     String?
+  createdBy   String
+  createdAt   DateTime     @default(now())
+  company     Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  contact     Contact?     @relation(fields: [contactId], references: [id])
+  deal        Deal?        @relation(fields: [dealId], references: [id])
+
+  @@index([companyId])
+  @@index([contactId])
+  @@index([dealId])
+}
+
 enum CompanyStatus {
   prospect
   qualified
@@ -37,121 +116,4 @@ enum ActivityType {
   meeting
   note
   task
-}
-
-model Company {
-  id   String @id @default(uuid())
-  name String @unique
-
-  industry String
-  website  String?
-
-  country String
-  city    String?
-
-  size   CompanySize?
-  status CompanyStatus
-
-  confidence Int
-  verified   Boolean
-
-  source String
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  contacts   Contact[]
-  deals      Deal[]
-  activities Activity[]
-}
-
-model Contact {
-  id String @id @default(uuid())
-
-  companyId String
-  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
-
-  name String
-
-  email       String?
-  phoneNumber String?
-
-  preferredLanguage String?
-
-  department String?
-  position   String?
-
-  verified Boolean
-
-  confidence Int
-
-  source String
-
-  lastVerifiedAt DateTime?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  activities Activity[]
-
-  @@index([companyId])
-}
-
-model Deal {
-  id String @id @default(uuid())
-
-  companyId String
-  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
-
-  title String
-
-  value Float
-
-  currency String
-
-  stage DealStage
-
-  probability Int
-
-  ownerAgentId String
-
-  nextAction String
-
-  dueDate DateTime?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  activities Activity[]
-
-  @@index([companyId])
-}
-
-model Activity {
-  id String @id @default(uuid())
-
-  companyId String
-  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
-
-  contactId String?
-  contact   Contact? @relation(fields: [contactId], references: [id])
-
-  dealId String?
-  deal   Deal?   @relation(fields: [dealId], references: [id])
-
-  type ActivityType
-
-  title String
-
-  description String
-
-  outcome String?
-
-  createdBy String
-
-  createdAt DateTime @default(now())
-
-  @@index([companyId])
-  @@index([contactId])
-  @@index([dealId])
 }
