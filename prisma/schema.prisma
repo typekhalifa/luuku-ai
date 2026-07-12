@@ -1,0 +1,157 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum CompanyStatus {
+  prospect
+  qualified
+  customer
+  inactive
+}
+
+enum CompanySize {
+  startup
+  small
+  medium
+  enterprise
+}
+
+enum DealStage {
+  lead
+  qualified
+  discovery
+  proposal
+  negotiation
+  won
+  lost
+}
+
+enum ActivityType {
+  call
+  email
+  meeting
+  note
+  task
+}
+
+model Company {
+  id   String @id @default(uuid())
+  name String @unique
+
+  industry String
+  website  String?
+
+  country String
+  city    String?
+
+  size   CompanySize?
+  status CompanyStatus
+
+  confidence Int
+  verified   Boolean
+
+  source String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  contacts   Contact[]
+  deals      Deal[]
+  activities Activity[]
+}
+
+model Contact {
+  id String @id @default(uuid())
+
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  name String
+
+  email       String?
+  phoneNumber String?
+
+  preferredLanguage String?
+
+  department String?
+  position   String?
+
+  verified Boolean
+
+  confidence Int
+
+  source String
+
+  lastVerifiedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  activities Activity[]
+
+  @@index([companyId])
+}
+
+model Deal {
+  id String @id @default(uuid())
+
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  title String
+
+  value Float
+
+  currency String
+
+  stage DealStage
+
+  probability Int
+
+  ownerAgentId String
+
+  nextAction String
+
+  dueDate DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  activities Activity[]
+
+  @@index([companyId])
+}
+
+model Activity {
+  id String @id @default(uuid())
+
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  contactId String?
+  contact   Contact? @relation(fields: [contactId], references: [id])
+
+  dealId String?
+  deal   Deal?   @relation(fields: [dealId], references: [id])
+
+  type ActivityType
+
+  title String
+
+  description String
+
+  outcome String?
+
+  createdBy String
+
+  createdAt DateTime @default(now())
+
+  @@index([companyId])
+  @@index([contactId])
+  @@index([dealId])
+}

@@ -2,16 +2,7 @@ import { Contact } from "./types";
 
 import { updateCRMContact } from "./updater";
 
-import {
-
-    findCRMCompany,
-
-    saveCRMCompany
-
-} from "./company-repository";
-
-
-import { getCompanies } from "./companies";
+import { companyService } from "../database/services/company.service";
 export interface EnrichmentRequest {
 
     company: string;
@@ -64,7 +55,7 @@ export async function requestContactEnrichment(
 
     const existingCompany =
 
-        findCRMCompany(
+        await companyService.findCompany(
 
             request.company
 
@@ -72,67 +63,68 @@ export async function requestContactEnrichment(
 
     if (!existingCompany) {
 
-        saveCRMCompany({
+        const createdCompany =
 
-            id:
+            await companyService.createCompany({
 
-                crypto.randomUUID(),
+                id:
+                    crypto.randomUUID(),
 
-            name:
+                name:
+                    request.company,
 
-                request.company,
+                industry:
+                    "Unknown",
 
-            industry:
+                website:
+                    undefined,
 
-                "Unknown",
+                country:
+                    "Rwanda",
 
-            website:
+                city:
+                    undefined,
 
-                undefined,
+                size:
+                    undefined,
 
-            country:
+                status:
+                    "prospect",
 
-                "Rwanda",
+                confidence:
+                    95,
 
-            city:
+                verified:
+                    true,
 
-                undefined,
+                source:
+                    "Research Simulation",
 
-            size:
+                createdAt:
+                    new Date().toISOString(),
 
-                undefined,
+                updatedAt:
+                    new Date().toISOString()
 
-            status:
-
-                "prospect",
-
-            confidence:
-
-                95,
-
-            verified:
-
-                true,
-
-            source:
-
-                "Research Simulation",
-
-            createdAt:
-
-                new Date().toISOString(),
-
-            updatedAt:
-
-                new Date().toISOString()
-
-        });
+            });
 
         console.log("");
 
-        console.log("COMPANIES AFTER SAVE");
+        console.log("========================================");
 
-        console.log(getCompanies());
+        console.log("      DATABASE");
+
+        console.log("========================================");
+
+        console.log("");
+
+        console.log(
+
+            "✓ Company stored in PostgreSQL."
+
+        );
+
+        console.log(createdCompany);
 
     }
 

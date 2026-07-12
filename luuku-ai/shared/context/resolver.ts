@@ -17,41 +17,49 @@ export function resolveTaskContext(
 
     const text =
 
-        `${task.title} ${task.description}`.toLowerCase();
+        `${task.title} ${task.description}`;
 
     const company =
 
-        findCompany(text);
+        resolveCompany(text);
 
     return {
 
-        companyName:
+        companyName: company,
 
-            company ?? "Unknown",
-
-        contactType:
-
-            "General"
+        contactType: "General"
 
     };
 
 }
 
-function findCompany(
+function resolveCompany(
 
     text: string
 
-): string | undefined {
+): string {
 
-    const companies =
+    const lower = text.toLowerCase();
 
-        getCRMCompanies();
+    // Known abbreviations
+    if (lower.includes("rra")) {
 
-    for (const company of companies) {
+        return "Rwanda Revenue Authority";
+
+    }
+
+    if (lower.includes("bk")) {
+
+        return "Bank of Kigali";
+
+    }
+
+    // Match against CRM companies by full name
+    for (const company of getCRMCompanies()) {
 
         if (
 
-            text.includes(
+            lower.includes(
 
                 company.name.toLowerCase()
 
@@ -65,33 +73,33 @@ function findCompany(
 
     }
 
-    // Temporary support for common abbreviations
-    // until Company.aliases is added in v1.4.0.
+    // Fallback extraction for phrases like:
+    // "Follow up: Rwanda Revenue Authority"
+    // "Call Rwanda Revenue Authority"
+    const patterns = [
 
-    if (text.includes("rra")) {
+        /follow[\s-]?up[:\s]+(.+)/i,
 
-        return "Rwanda Revenue Authority";
+        /call[:\s]+(.+)/i,
+
+        /meeting[:\s]+(.+)/i,
+
+        /contact[:\s]+(.+)/i
+
+    ];
+
+    for (const pattern of patterns) {
+
+        const match = text.match(pattern);
+
+        if (match) {
+
+            return match[1].trim();
+
+        }
 
     }
 
-    if (text.includes("bk")) {
-
-        return "Bank of Kigali";
-
-    }
-
-    if (text.includes("mtn")) {
-
-        return "MTN Rwanda";
-
-    }
-
-    if (text.includes("airtel")) {
-
-        return "Airtel Rwanda";
-
-    }
-
-    return undefined;
+    return "Unknown";
 
 }
