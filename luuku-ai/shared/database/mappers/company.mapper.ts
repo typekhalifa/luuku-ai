@@ -1,4 +1,4 @@
-import { Company } from "../../crm/company-types";
+import { Company } from "../../domain/company";
 import { Company as PrismaCompany } from "@prisma/client";
 
 export class CompanyMapper {

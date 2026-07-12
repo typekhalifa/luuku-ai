@@ -1,10 +1,13 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "../client";
 
-import { Company } from "../../crm/company-types";
+import { Company } from "../../domain/company";
 import { CompanyMapper } from "../mappers/company.mapper";
 
-export class CompanyRepository {
+import { BaseRepository } from "./base.repository";
+
+export class CompanyRepository
+    extends BaseRepository<Company> {
 
     async findAll(): Promise<Company[]> {
 
