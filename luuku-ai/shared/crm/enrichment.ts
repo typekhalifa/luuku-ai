@@ -1,8 +1,7 @@
 import { Contact } from "./types";
 
-import { updateCRMContact } from "./updater";
+import { crmApplication } from "../application";
 
-import { companyService } from "../database/services/company.service";
 export interface EnrichmentRequest {
 
     company: string;
@@ -51,24 +50,12 @@ export async function requestContactEnrichment(
 
     console.log("");
 
-    console.log("Research Agent is enriching CRM...");
+    console.log("Research Agent is registering prospect...");
 
-    const existingCompany =
+    const result =
+        await crmApplication.registerProspect(
 
-        await companyService.findCompany(
-
-            request.company
-
-        );
-
-    if (!existingCompany) {
-
-        const createdCompany =
-
-            await companyService.createCompany({
-
-                id:
-                    crypto.randomUUID(),
+            {
 
                 name:
                     request.company,
@@ -98,113 +85,109 @@ export async function requestContactEnrichment(
                     true,
 
                 source:
+                    "Research Simulation"
+
+            },
+
+            {
+
+                name:
+                    "Procurement Manager",
+
+                email:
+                    "procurement@example.com",
+
+                phoneNumber:
+                    "+250780000000",
+
+                preferredLanguage:
+                    "English",
+
+                department:
+                    "Procurement",
+
+                position:
+                    "Manager",
+
+                verified:
+                    true,
+
+                confidence:
+                    95,
+
+                source:
                     "Research Simulation",
 
-                createdAt:
-                    new Date().toISOString(),
-
-                updatedAt:
+                lastVerifiedAt:
                     new Date().toISOString()
 
-            });
-
-        console.log("");
-
-        console.log("========================================");
-
-        console.log("      DATABASE");
-
-        console.log("========================================");
-
-        console.log("");
-
-        console.log(
-
-            "✓ Company stored in PostgreSQL."
-
-        );
-
-        console.log(createdCompany);
-
-    }
-
-    const contact: Contact = {
-
-        id:
-
-            crypto.randomUUID(),
-
-        name:
-
-            "Procurement Manager",
-
-        company:
-
-            request.company,
-
-        phoneNumber:
-
-            "+250780000000",
-
-        email:
-
-            "procurement@example.com",
-
-        preferredLanguage:
-
-            "English",
-
-        department:
-
-            "Procurement",
-
-        position:
-
-            "Manager",
-
-        verified:
-
-            true,
-
-        confidence:
-
-            95,
-
-        source:
-
-            "Research Simulation",
-
-        lastVerifiedAt:
-
-            new Date().toISOString()
-
-    };
-
-    const update =
-
-        updateCRMContact(
-
-            contact
+            }
 
         );
 
     console.log("");
 
-    console.log("✓ CRM updated.");
+    console.log("========================================");
 
-    console.log(update.summary);
+    console.log("      APPLICATION");
+
+    console.log("========================================");
+
+    console.log("");
+
+    console.log("✓ Prospect registered.");
+
+    console.log(result.company);
+
+    console.log(result.contact);
 
     return {
 
         success: true,
 
         summary:
+            "Prospect registered successfully.",
 
-            update.summary,
+        contact: {
 
-        contact:
+            id:
+                result.contact!.id,
 
-            update.contact
+            name:
+                result.contact!.name,
+
+            company:
+                result.company.name,
+
+            phoneNumber:
+                result.contact!.phoneNumber,
+
+            email:
+                result.contact!.email,
+
+            preferredLanguage:
+                result.contact!.preferredLanguage ??
+                "English",
+
+            department:
+                result.contact!.department,
+
+            position:
+                result.contact!.position,
+
+            verified:
+                result.contact!.verified,
+
+            confidence:
+                result.contact!.confidence,
+
+            source:
+                result.contact!.source,
+
+            lastVerifiedAt:
+                result.contact!.lastVerifiedAt
+
+        }
 
     };
 
