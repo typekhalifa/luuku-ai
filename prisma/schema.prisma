@@ -48,20 +48,22 @@ model Contact {
 }
 
 model Deal {
-  id           String     @id @default(uuid())
-  companyId    String
-  title        String
-  value        Float
-  currency     String
-  stage        DealStage
-  probability  Int
-  ownerAgentId String
-  nextAction   String
-  dueDate      DateTime?
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
-  activities   Activity[]
-  company      Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  id                String     @id @default(uuid())
+  companyId         String
+  title             String
+  value             Float
+  currency          String
+  stage             DealStage
+  probability       Int
+  ownerAgentId      String
+  nextAction        String
+  dueDate           DateTime?
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+  expectedCloseDate DateTime?
+  lastActivityAt    DateTime?
+  activities        Activity[]
+  company           Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
   @@index([companyId])
 }
@@ -76,6 +78,7 @@ model Activity {
   description String
   outcome     String?
   createdBy   String
+  completed Boolean @default(false)
   createdAt   DateTime     @default(now())
   company     Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
   contact     Contact?     @relation(fields: [contactId], references: [id])

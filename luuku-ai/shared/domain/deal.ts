@@ -29,6 +29,10 @@ export interface Deal {
 
     dueDate?: string;
 
+    expectedCloseDate?: string;
+
+    lastActivityAt?: string;
+
     createdAt: string;
 
     updatedAt: string;

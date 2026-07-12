@@ -25,6 +25,8 @@ export interface Activity {
 
     createdBy: string;
 
+    completed: boolean;
+
     createdAt: string;
 
 }

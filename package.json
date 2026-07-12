@@ -12,6 +12,8 @@
     "dev:executive-ai": "tsx luuku-ai/agents/executive-ai/agent.ts",
     "dev:database": "tsx luuku-ai/agents/database/test.ts",
     "dev:contact": "tsx luuku-ai/agents/contact-test/agent.ts",
+    "dev:deal": "tsx luuku-ai/agents/deal-test/agent.ts",
+    "dev:activity": "tsx luuku-ai/agents/activity-test/agent.ts",
     "typecheck": "tsc --noEmit",
     "clean:logs": "powershell -Command \"if (Test-Path logs) { Remove-Item logs\\*.md -Force -ErrorAction SilentlyContinue }\""
   },
