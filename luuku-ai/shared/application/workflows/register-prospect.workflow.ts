@@ -18,6 +18,9 @@ import {
     completeWorkflow
 } from "./";
 
+import { eventBus } from "../../events/core/event-bus";
+
+import { ProspectRegisteredEvent } from "../../events/events/prospect-registered.event";
 export interface RegisterProspectRequest {
 
     company: Omit<
@@ -77,6 +80,24 @@ export class RegisterProspectWorkflow {
         completeWorkflow(
 
             context
+
+        );
+
+        await eventBus.publish(
+
+            new ProspectRegisteredEvent(
+
+                context.workflowId,
+
+                context.company!.id,
+
+                context.company!.name,
+
+                context.contact!.id,
+
+                context.deal!.id
+
+            )
 
         );
 

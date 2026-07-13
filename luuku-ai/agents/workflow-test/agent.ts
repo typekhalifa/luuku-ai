@@ -1,5 +1,12 @@
 import { crmApplication } from "../../shared/application/crm.application";
 
+import { eventBus } from "../../shared/events/core/event-bus";
+
+import { consoleHandler } from "../../shared/events/handlers/console.handler";
+
+import { ProspectRegisteredEvent } from "../../shared/events/events/prospect-registered.event";
+
+
 async function main() {
 
     console.clear();
@@ -10,8 +17,23 @@ async function main() {
     console.log("======================================");
     console.log("");
 
-    const result =
+    eventBus.subscribe(
 
+        "ProspectRegistered",
+
+        consoleHandler
+
+    );
+
+    eventBus.subscribe(
+
+        ProspectRegisteredEvent.TYPE,
+
+        consoleHandler
+
+    );
+
+    const result =
         await crmApplication.registerProspect({
 
             company: {
@@ -59,7 +81,6 @@ async function main() {
                 source: "Workflow Test",
 
                 lastVerifiedAt:
-
                     new Date().toISOString()
 
             }
