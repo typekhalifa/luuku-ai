@@ -1,11 +1,6 @@
 import { crmApplication } from "../../shared/application/crm.application";
 
-import { eventBus } from "../../shared/events/core/event-bus";
-
-import { consoleHandler } from "../../shared/events/handlers/console.handler";
-
-import { ProspectRegisteredEvent } from "../../shared/events/events/prospect-registered.event";
-
+import { registerEventHandlers } from "../../shared/events/register";
 
 async function main() {
 
@@ -17,21 +12,7 @@ async function main() {
     console.log("======================================");
     console.log("");
 
-    eventBus.subscribe(
-
-        "ProspectRegistered",
-
-        consoleHandler
-
-    );
-
-    eventBus.subscribe(
-
-        ProspectRegisteredEvent.TYPE,
-
-        consoleHandler
-
-    );
+    registerEventHandlers();
 
     const result =
         await crmApplication.registerProspect({
