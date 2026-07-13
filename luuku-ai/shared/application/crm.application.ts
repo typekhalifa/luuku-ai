@@ -1,97 +1,30 @@
-import crypto from "crypto";
-
-import { Company } from "../domain/company";
-import { Contact } from "../domain/contact";
+import {
+    RegisterProspectRequest,
+    registerProspectWorkflow
+} from "./workflows/register-prospect.workflow";
 
 import { companyService } from "../database/services/company.service";
 import { contactService } from "../database/services/contact.service";
+import { dealService } from "../database/services/deal.service";
+import { activityService } from "../database/services/activity.service";
 
 export class CRMApplication {
 
     async registerProspect(
 
-        company: Omit<
-            Company,
-            "id" | "createdAt" | "updatedAt"
-        >,
-
-        contact?: Omit<
-            Contact,
-            | "id"
-            | "companyId"
-            | "createdAt"
-            | "updatedAt"
-        >
+        request: RegisterProspectRequest
 
     ) {
 
-        const now =
-            new Date().toISOString();
+        return registerProspectWorkflow.execute(
 
-        let targetCompany =
-            await companyService.findCompany(
-                company.name
-            );
+            request
 
-        if (!targetCompany) {
-
-            targetCompany =
-                await companyService.createCompany({
-
-                    ...company,
-
-                    id:
-                        crypto.randomUUID(),
-
-                    createdAt:
-                        now,
-
-                    updatedAt:
-                        now
-
-                });
-
-        }
-
-        let createdContact: Contact | null =
-            null;
-
-        if (contact) {
-
-            createdContact =
-                await contactService.createContact({
-
-                    ...contact,
-
-                    id:
-                        crypto.randomUUID(),
-
-                    companyId:
-                        targetCompany.id,
-
-                    createdAt:
-                        now,
-
-                    updatedAt:
-                        now
-
-                });
-
-        }
-
-        return {
-
-            company:
-                targetCompany,
-
-            contact:
-                createdContact
-
-        };
+        );
 
     }
 
-    async getCompanies(): Promise<Company[]> {
+    async getCompanies() {
 
         return companyService.getCompanies();
 
@@ -101,9 +34,37 @@ export class CRMApplication {
 
         companyId: string
 
-    ): Promise<Contact[]> {
+    ) {
 
         return contactService.getCompanyContacts(
+
+            companyId
+
+        );
+
+    }
+
+    async getCompanyDeals(
+
+        companyId: string
+
+    ) {
+
+        return dealService.getCompanyDeals(
+
+            companyId
+
+        );
+
+    }
+
+    async getCompanyActivities(
+
+        companyId: string
+
+    ) {
+
+        return activityService.getCompanyActivities(
 
             companyId
 

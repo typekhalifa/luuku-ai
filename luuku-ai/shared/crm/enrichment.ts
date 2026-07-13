@@ -53,9 +53,9 @@ export async function requestContactEnrichment(
     console.log("Research Agent is registering prospect...");
 
     const result =
-        await crmApplication.registerProspect(
+        await crmApplication.registerProspect({
 
-            {
+            company: {
 
                 name:
                     request.company,
@@ -89,7 +89,7 @@ export async function requestContactEnrichment(
 
             },
 
-            {
+            contact: {
 
                 name:
                     "Procurement Manager",
@@ -123,7 +123,7 @@ export async function requestContactEnrichment(
 
             }
 
-        );
+        });
 
     console.log("");
 
@@ -137,55 +137,64 @@ export async function requestContactEnrichment(
 
     console.log("✓ Prospect registered.");
 
+    console.log("");
+
+    console.log("Workflow :", result.workflowId);
+
+    console.log("Duration :", `${result.durationMs} ms`);
+
+    console.log("");
+
     console.log(result.company);
 
     console.log(result.contact);
 
     return {
 
-        success: true,
+        success:
+            result.success,
 
         summary:
-            "Prospect registered successfully.",
+            result.message,
 
         contact: {
 
             id:
-                result.contact!.id,
+                result.contact.id,
 
             name:
-                result.contact!.name,
+                result.contact.name,
 
             company:
                 result.company.name,
 
             phoneNumber:
-                result.contact!.phoneNumber,
+                result.contact.phoneNumber,
 
             email:
-                result.contact!.email,
+                result.contact.email,
 
             preferredLanguage:
-                result.contact!.preferredLanguage ??
+                result.contact.preferredLanguage ??
                 "English",
 
             department:
-                result.contact!.department,
+                result.contact.department,
 
             position:
-                result.contact!.position,
+                result.contact.position,
 
             verified:
-                result.contact!.verified,
+                result.contact.verified,
 
             confidence:
-                result.contact!.confidence,
+                result.contact.confidence,
 
             source:
-                result.contact!.source,
+                result.contact.source,
 
             lastVerifiedAt:
-                result.contact!.lastVerifiedAt
+                result.contact.lastVerifiedAt
 
         }
 
