@@ -2,6 +2,10 @@ import { crmApplication } from "../../shared/application/crm.application";
 
 import { registerEventHandlers } from "../../shared/events/register";
 
+import { printEventHistory } from "../../shared/events/history/history-viewer";
+
+import { workflowInspector } from "../../shared/events/history/workflow-inspector";
+
 async function main() {
 
     console.clear();
@@ -69,6 +73,10 @@ async function main() {
         });
 
     console.log(result);
+
+    printEventHistory();
+
+    workflowInspector.printTimeline();
 
 }
 

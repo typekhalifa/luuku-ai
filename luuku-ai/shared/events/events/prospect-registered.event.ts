@@ -1,12 +1,15 @@
 import { Event } from "../core/event";
 
+import { EventContext } from "../core/event-context";
+
 export class ProspectRegisteredEvent extends Event {
 
-    static readonly TYPE = "ProspectRegistered";
+    static readonly TYPE =
+        "ProspectRegistered";
 
     constructor(
 
-        public readonly workflowId: string,
+        context: EventContext,
 
         public readonly companyId: string,
 
@@ -19,7 +22,11 @@ export class ProspectRegisteredEvent extends Event {
     ) {
 
         super(
-            ProspectRegisteredEvent.TYPE
+
+            ProspectRegisteredEvent.TYPE,
+
+            context
+
         );
 
     }

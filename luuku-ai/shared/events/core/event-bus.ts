@@ -1,5 +1,6 @@
 import { Event } from "./event";
 import { EventHandler } from "./event-handler";
+import { eventHistory } from "../history/event-history";
 
 export class EventBus {
 
@@ -53,6 +54,12 @@ export class EventBus {
         console.log(`Publishing : ${event.type}`);
 
         console.log(`Version    : ${event.version}`);
+
+        eventHistory.record(
+
+            event
+
+        );
 
         console.log("");
 

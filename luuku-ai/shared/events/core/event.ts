@@ -1,5 +1,7 @@
 import crypto from "crypto";
 
+import { EventContext } from "./event-context";
+
 export abstract class Event {
 
     static readonly VERSION = 1;
@@ -12,7 +14,9 @@ export abstract class Event {
 
     protected constructor(
 
-        public readonly type: string
+        public readonly type: string,
+
+        public readonly context: EventContext
 
     ) {
 

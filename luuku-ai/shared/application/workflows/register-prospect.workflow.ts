@@ -87,7 +87,18 @@ export class RegisterProspectWorkflow {
 
             new ProspectRegisteredEvent(
 
-                context.workflowId,
+                {
+
+                    workflowId:
+                        context.workflowId,
+
+                    agent:
+                        "research-agent",
+
+                    correlationId:
+                        context.workflowId
+
+                },
 
                 context.company!.id,
 

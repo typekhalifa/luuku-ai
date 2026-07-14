@@ -22,7 +22,17 @@ export class ConsoleHandler
 
         console.log("Type      :", event.type);
         console.log("Company   :", event.companyName);
-        console.log("Workflow  :", event.workflowId);
+        console.log("Workflow  :", event.context.workflowId);
+
+        console.log("Agent     :", event.context.agent);
+
+        console.log(
+
+            "Correlation :",
+
+            event.context.correlationId
+
+        );
         console.log("Version   :", event.version);
         console.log("Occurred  :", event.occurredAt);
 
