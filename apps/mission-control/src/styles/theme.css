@@ -1,0 +1,27 @@
+:root {
+
+  --bg: #05060A;
+
+  --bg-secondary: #0B0D13;
+
+  --surface: #10131A;
+
+  --surface-hover: #171B24;
+
+  --border: #232936;
+
+  --text: #F7F8FA;
+
+  --muted: #9BA3AF;
+
+  --primary: #6D5DFB;
+
+  --primary-light: #8A7BFF;
+
+  --success: #22C55E;
+
+  --warning: #F59E0B;
+
+  --danger: #EF4444;
+
+}
