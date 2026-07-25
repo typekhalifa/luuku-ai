@@ -1,5 +1,7 @@
-export interface WorkflowEvent {
-  id?: string;
-  type: string;
-  occurredAt: string;
+export interface Workflow {
+    id: string;
+    name: string;
+    status: "running" | "paused" | "completed";
+    steps: number;
+    currentStep: number;
 }

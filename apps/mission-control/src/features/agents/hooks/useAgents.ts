@@ -2,13 +2,18 @@ import { useEffect, useState } from "react";
 
 import type { Agent } from "@/features/agents/types/agent";
 
-import { getAgents } from "../api/agent.api";
+import { agentClient } from "@/sdk/agents/agent.client";
 
 export function useAgents() {
 
-    const [agents, setAgents] =
-
+    const [data, setData] =
         useState<Agent[]>([]);
+
+    const [loading, setLoading] =
+        useState(true);
+
+    const [error, setError] =
+        useState<Error | null>(null);
 
     useEffect(() => {
 
@@ -16,21 +21,18 @@ export function useAgents() {
 
             try {
 
-                const data =
+                const agents =
+                    await agentClient.getAgents();
 
-                    await getAgents();
+                setData(agents);
 
-                setAgents(data);
+            } catch (err) {
 
-            } catch (error) {
+                setError(err as Error);
 
-                console.error(
+            } finally {
 
-                    "Failed to load agents.",
-
-                    error
-
-                );
+                setLoading(false);
 
             }
 
@@ -39,21 +41,21 @@ export function useAgents() {
         loadAgents();
 
         const timer =
-
-            setInterval(
-
-                loadAgents,
-
-                5000
-
-            );
+            setInterval(loadAgents, 5000);
 
         return () =>
-
             clearInterval(timer);
 
     }, []);
 
-    return agents;
+    return {
+
+        data,
+
+        loading,
+
+        error,
+
+    };
 
 }

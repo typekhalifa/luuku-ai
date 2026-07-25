@@ -15,6 +15,7 @@
     "dev:deal": "tsx luuku-ai/agents/deal-test/agent.ts",
     "dev:activity": "tsx luuku-ai/agents/activity-test/agent.ts",
     "dev:workflow": "tsx luuku-ai/agents/workflow-test/agent.ts",
+    "dev:api": "tsx luuku-ai/shared/api/server.ts",
     "typecheck": "tsc --noEmit",
     "clean:logs": "powershell -Command \"if (Test-Path logs) { Remove-Item logs\\*.md -Force -ErrorAction SilentlyContinue }\""
   },
@@ -28,6 +29,8 @@
   "license": "ISC",
   "type": "commonjs",
   "devDependencies": {
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
     "@types/node": "^26.0.0",
     "tsx": "^4.22.4",
     "typescript": "^6.0.3"
@@ -35,7 +38,9 @@
   "dependencies": {
     "@prisma/client": "^6.19.3",
     "@tavily/core": "^0.7.6",
+    "cors": "^2.8.6",
     "dotenv": "^17.4.2",
+    "express": "^5.2.1",
     "openai": "^6.44.0",
     "prisma": "^6.19.3"
   }

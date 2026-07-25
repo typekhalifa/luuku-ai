@@ -1,15 +1,17 @@
 import {
   Bot,
-  Clock3,
 } from "lucide-react";
 
 import { Card } from "@/shared/components/ui";
-import { useRuntime } from "../hooks/useRuntime";
+
+import { useRegistry } from "@/features/core/registry";
 
 export default function RuntimeAgents() {
-  const agents = useRuntime();
+
+  const agents = useRegistry();
 
   return (
+
     <Card className="p-6">
 
       <div className="mb-6 flex items-center justify-between">
@@ -17,17 +19,23 @@ export default function RuntimeAgents() {
         <div>
 
           <h2 className="text-2xl font-semibold">
+
             Runtime Agents
+
           </h2>
 
           <p className="mt-1 text-sm text-neutral-500">
+
             Live AI workforce status
+
           </p>
 
         </div>
 
         <div className="rounded-full bg-emerald-500/10 px-3 py-1 text-xs text-emerald-400">
+
           LIVE
+
         </div>
 
       </div>
@@ -41,9 +49,9 @@ export default function RuntimeAgents() {
             className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 transition hover:border-violet-500/30"
           >
 
-            <div className="flex items-start justify-between">
+            <div className="flex items-center justify-between">
 
-              <div className="flex gap-3">
+              <div className="flex items-center gap-3">
 
                 <div className="rounded-xl bg-violet-500/10 p-3">
 
@@ -57,42 +65,39 @@ export default function RuntimeAgents() {
                 <div>
 
                   <h3 className="font-semibold">
+
                     {agent.name}
+
                   </h3>
 
                   <p className="mt-1 text-sm text-neutral-500">
-                    {agent.skills.join(" • ")}
+                      {agent.role}
                   </p>
+                  
+                  <div className="mt-3 flex flex-wrap gap-2">
+
+                      {agent.capabilities.map((capability) => (
+
+                          <span
+                              key={capability}
+                              className="rounded-full bg-violet-500/10 px-2 py-1 text-xs text-violet-300"
+                          >
+
+                              {capability}
+
+                          </span>
+
+                      ))}
+
+                  </div>
 
                 </div>
 
               </div>
 
-              <StatusBadge status={agent.status} />
-
-            </div>
-
-            {agent.currentTask && (
-
-              <div className="mt-4 rounded-xl bg-black/20 p-3">
-
-                <p className="text-xs uppercase tracking-wider text-neutral-500">
-                  Current Task
-                </p>
-
-                <p className="mt-1 text-sm">
-                  {agent.currentTask}
-                </p>
-
-              </div>
-
-            )}
-
-            <div className="mt-4 flex items-center gap-2 text-xs text-neutral-500">
-
-              <Clock3 size={12} />
-
-              Heartbeat {agent.heartbeat}
+              <StatusBadge
+                status={agent.status}
+              />
 
             </div>
 
@@ -103,25 +108,48 @@ export default function RuntimeAgents() {
       </div>
 
     </Card>
+
   );
+
 }
 
 function StatusBadge({
+
   status,
+
 }: {
-  status: "online" | "offline" | "busy";
+
+  status:
+  "idle" | "running" | "offline"
+
 }) {
+
   const styles = {
-    online: "bg-emerald-500/10 text-emerald-400",
-    busy: "bg-amber-500/10 text-amber-400",
-    offline: "bg-red-500/10 text-red-400",
+
+    idle:
+
+      "bg-neutral-500/10 text-neutral-400",
+
+    running:
+
+      "bg-emerald-500/10 text-emerald-400",
+
+    offline:
+
+      "bg-amber-500/10 text-amber-400",
+
   };
 
   return (
+
     <span
       className={`rounded-full px-3 py-1 text-xs font-medium ${styles[status]}`}
     >
+
       {status}
+
     </span>
+
   );
+
 }

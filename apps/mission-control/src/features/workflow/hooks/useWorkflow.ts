@@ -1,16 +1,38 @@
 import { useEffect, useState } from "react";
 
-import { getEvents } from "../api/workflow.api";
-import type { WorkflowEvent } from "../types/workflow";
+import { workflowClient } from "@/sdk/workflow";
+
+import type { Workflow } from "../types";
 
 export function useWorkflow() {
-  const [events, setEvents] = useState<WorkflowEvent[]>([]);
 
-  useEffect(() => {
-    getEvents()
-      .then(setEvents)
-      .catch(console.error);
-  }, []);
+    const [data, setData] =
+        useState<Workflow[]>([]);
 
-  return events;
+    const [loading, setLoading] =
+        useState(true);
+
+    const [error, setError] =
+        useState<Error | null>(null);
+
+    useEffect(() => {
+
+        workflowClient
+            .getWorkflows()
+            .then(setData)
+            .catch((err) => setError(err as Error))
+            .finally(() => setLoading(false));
+
+    }, []);
+
+    return {
+
+        data,
+
+        loading,
+
+        error,
+
+    };
+
 }

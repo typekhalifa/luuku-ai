@@ -12,7 +12,7 @@ import {
 } from "@/shared/components/layout";
 
 import { useAgents } from "@/features/agents";
-import { useWorkflow } from "@/features/workflow";
+
 
 import {
   useDashboard,
@@ -36,20 +36,30 @@ import {
 } from "@/features/core/runtime";
 
 import { PlannerPreview } from "@/features/core/planner";
+
 import { ExecutionFeed } from "@/features/core/logs";
 
 import { TaskQueue } from "@/features/core/queue";
 
+import {
+  SchedulerCard,
+} from "@/features/core/scheduler";
+
+import {
+  RuntimeCard,
+} from "@/features/core/runtime-manager";
+
 export default function OverviewPage() {
+
   const {
-    stats,
+    data,
     loading,
     error,
   } = useDashboard();
 
-  const agents = useAgents();
-
-  const workflow = useWorkflow();
+  const {
+    data: agents,
+  } = useAgents();
 
   if (loading) {
     return (
@@ -62,7 +72,7 @@ export default function OverviewPage() {
   if (error) {
     return (
       <div className="flex h-screen items-center justify-center text-red-400">
-        {error}
+        {error.message}
       </div>
     );
   }
@@ -82,7 +92,7 @@ export default function OverviewPage() {
 
           <KPICard
             title="Companies"
-            value={stats?.companies ?? 0}
+            value={data?.companies ?? 0}
             subtitle="Registered Companies"
             icon={Building2}
             trend="+12% this month"
@@ -90,7 +100,7 @@ export default function OverviewPage() {
 
           <KPICard
             title="Agents"
-            value={stats?.agents ?? 0}
+            value={data?.agents ?? 0}
             subtitle="Running AI Agents"
             icon={Bot}
             trend="+3 online"
@@ -98,7 +108,7 @@ export default function OverviewPage() {
 
           <KPICard
             title="Workflows"
-            value={stats?.workflows ?? 0}
+            value={data?.workflows ?? 0}
             subtitle="Executed Today"
             icon={Workflow}
             trend="+28 today"
@@ -106,7 +116,7 @@ export default function OverviewPage() {
 
           <KPICard
             title="Events"
-            value={stats?.events ?? 0}
+            value={data?.events ?? 0}
             subtitle="System Events"
             icon={Activity}
             trend="Live"
@@ -160,11 +170,10 @@ export default function OverviewPage() {
           </div>
 
           <WorkflowTimeline
-            events={workflow}
+              events={[]}
           />
 
         </section>
-
 
         {/* AI PLANNER + EXECUTION */}
 
@@ -178,9 +187,13 @@ export default function OverviewPage() {
 
         {/* TASK QUEUE */}
 
-        <section>
+        <section className="grid gap-6 xl:grid-cols-3">
 
           <TaskQueue />
+
+          <SchedulerCard />
+
+          <RuntimeCard />
 
         </section>
 
@@ -201,12 +214,14 @@ export default function OverviewPage() {
           <SystemHealth />
 
           <RecentEvents
-            events={workflow}
+              events={[]}
           />
 
         </section>
+
       </div>
 
     </DashboardLayout>
   );
+
 }

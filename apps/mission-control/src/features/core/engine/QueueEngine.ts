@@ -1,5 +1,18 @@
 import type { QueueTask } from "@/features/core/queue";
 
+import {
+
+    startScheduler,
+
+    stopScheduler,
+
+} from "@/features/core/scheduler/services/scheduler.service";
+
+import {
+    startRuntime,
+    stopRuntime,
+} from "@/features/core/runtime-manager/services/runtime.service";
+
 type Listener = (tasks: QueueTask[]) => void;
 
 export class QueueEngine {
@@ -50,6 +63,13 @@ export class QueueEngine {
 
             task.status = "running";
 
+            startScheduler(task.agent);
+
+            startRuntime(
+                task.agent,
+                task.title
+            );
+
             this.emit();
 
             for (
@@ -75,6 +95,10 @@ export class QueueEngine {
             }
 
             task.status = "completed";
+
+            stopScheduler();
+
+            stopRuntime();
 
             this.emit();
 
