@@ -8,7 +8,7 @@ export interface EmbeddingProvider {
     readonly name: string;
 
     embed(
-        chunks: KnowledgeChunk[]
+        chunks: KnowledgeChunk[],
     ): Promise<KnowledgeEmbedding[]>;
 
 }

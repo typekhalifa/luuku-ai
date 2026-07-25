@@ -17,7 +17,7 @@ export class KnowledgeAssetLoader
 
     private readonly root = path.resolve(
         __dirname,
-        "../../"
+        "../../",
     );
 
     private readonly supportedExtensions = new Set([
@@ -48,16 +48,19 @@ export class KnowledgeAssetLoader
     ): Promise<void> {
 
         const entries =
-            await fs.readdir(directory, {
-
-                withFileTypes: true,
-
-            });
+            await fs.readdir(
+                directory,
+                {
+                    withFileTypes: true,
+                },
+            );
 
         for (const entry of entries) {
 
-            const fullPath =
-                path.join(directory, entry.name);
+            const fullPath = path.join(
+                directory,
+                entry.name,
+            );
 
             if (entry.isDirectory()) {
 
@@ -89,10 +92,12 @@ export class KnowledgeAssetLoader
                     "utf-8",
                 );
 
-            const relativePath = path.relative(
-                this.root,
-                fullPath,
-            );    
+            const relativePath = path
+                .relative(
+                    this.root,
+                    fullPath,
+                )
+                .replace(/\\/g, "/");
 
             documents.push({
 
@@ -100,7 +105,9 @@ export class KnowledgeAssetLoader
 
                 title: entry.name,
 
-                source: this.resolveSource(fullPath),
+                source: this.resolveSource(
+                    relativePath,
+                ),
 
                 content,
 
@@ -111,7 +118,9 @@ export class KnowledgeAssetLoader
                     filename: entry.name,
 
                     directory: path.basename(
-                        path.dirname(fullPath),
+                        path.dirname(
+                            relativePath,
+                        ),
                     ),
 
                     extension,
@@ -128,31 +137,63 @@ export class KnowledgeAssetLoader
 
     }
 
-
     private resolveSource(
         filePath: string,
     ): KnowledgeSource {
 
         const normalized =
-            filePath.replace(/\\/g, "/");
+            filePath.replace(
+                /\\/g,
+                "/",
+            );
 
-        if (normalized.includes("/industries/"))
+        if (
+            normalized.startsWith(
+                "industries/",
+            )
+        ) {
             return "industry";
+        }
 
-        if (normalized.includes("/offers/"))
+        if (
+            normalized.startsWith(
+                "offers/",
+            )
+        ) {
             return "offer";
+        }
 
-        if (normalized.includes("/playbooks/"))
+        if (
+            normalized.startsWith(
+                "playbooks/",
+            )
+        ) {
             return "playbook";
+        }
 
-        if (normalized.includes("/prompts/"))
+        if (
+            normalized.startsWith(
+                "prompts/",
+            )
+        ) {
             return "prompt";
+        }
 
-        if (normalized.includes("/prospects/"))
+        if (
+            normalized.startsWith(
+                "prospects/",
+            )
+        ) {
             return "prospect";
+        }
 
-        if (normalized.includes("/templates/"))
+        if (
+            normalized.startsWith(
+                "templates/",
+            )
+        ) {
             return "template";
+        }
 
         return "unknown";
 

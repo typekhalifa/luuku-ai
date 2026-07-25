@@ -1,4 +1,6 @@
-import type { KnowledgeService } from "./services";
+import type {
+    KnowledgeService,
+} from "./services";
 
 export class KnowledgeEngine {
 
@@ -10,7 +12,9 @@ export class KnowledgeEngine {
 
     async ingest(): Promise<void> {
 
-        console.log("📂 Loading knowledge assets...");
+        console.log(
+            "📂 Loading knowledge assets...",
+        );
 
         const documents =
             await this.service.load();
@@ -19,47 +23,88 @@ export class KnowledgeEngine {
             `📄 ${documents.length} documents loaded.`,
         );
 
-        const parsed = await this.service.parse(
-            documents,
-        );
+        const parsed =
+            await this.service.parse(
+                documents,
+            );
 
         const chunks =
-        await this.service.chunk(
-            parsed,
+            await this.service.chunk(
+                parsed,
+            );
+
+        console.log("");
+
+        console.log(
+            `🧩 ${chunks.length} chunks created.`,
         );
 
-        if (documents.length > 0) {
+        console.table(
 
-            console.log("");
+            chunks.map(chunk => ({
 
-            console.log(
-                `🧩 ${chunks.length} chunks created.`,
+                id: chunk.id,
+
+                document: chunk.documentId,
+
+                length: chunk.content.length,
+
+            })),
+
+        );
+
+        const embeddings =
+            await this.service.embed(
+                chunks,
             );
 
-            console.table(
+        console.log("");
 
-                chunks.map(chunk => ({
+        console.log(
+            `🧠 ${embeddings.length} embeddings created.`,
+        );
 
-                    id: chunk.id,
+        console.table(
 
-                    document: chunk.documentId,
+            embeddings.map(embedding => ({
 
-                    length: chunk.content.length,
+                chunk: embedding.chunkId,
 
-                })),
+                model: embedding.model,
 
-            );
+                dimensions: embedding.dimensions,
 
-        }
+            })),
+
+        );
+
+        await this.service.store(
+            embeddings,
+        );
+
+        console.log("");
+
+        console.log(
+            `💾 ${embeddings.length} embeddings stored.`,
+        );
+
+        console.log("");
+
+        console.log(
+            "✅ Knowledge ingestion completed.",
+        );
 
         console.log("");
 
     }
+
     async ask(
         query: string,
     ): Promise<string> {
 
-        return this.service.buildContext(query);
+        return this.service.buildContext(
+            query,
+        );
 
     }
 

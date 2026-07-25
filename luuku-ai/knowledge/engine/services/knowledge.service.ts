@@ -98,7 +98,9 @@ export class KnowledgeService {
         chunks: KnowledgeChunk[],
     ): Promise<KnowledgeEmbedding[]> {
 
-        return this.embeddingProvider.embed(chunks);
+        return this.embeddingProvider.embed(
+            chunks,
+        );
 
     }
 
@@ -106,7 +108,9 @@ export class KnowledgeService {
         embeddings: KnowledgeEmbedding[],
     ): Promise<void> {
 
-        return this.vectorStore.store(embeddings);
+        await this.vectorStore.store(
+            embeddings,
+        );
 
     }
 
@@ -114,7 +118,9 @@ export class KnowledgeService {
         query: string,
     ): Promise<RetrievalResult[]> {
 
-        return this.retriever.retrieve(query);
+        return this.retriever.retrieve(
+            query,
+        );
 
     }
 
@@ -123,9 +129,13 @@ export class KnowledgeService {
     ): Promise<string> {
 
         const results =
-            await this.retrieve(query);
+            await this.retrieve(
+                query,
+            );
 
-        return this.contextBuilder.build(results);
+        return this.contextBuilder.build(
+            results,
+        );
 
     }
 

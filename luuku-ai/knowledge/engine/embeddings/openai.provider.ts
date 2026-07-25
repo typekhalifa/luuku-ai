@@ -3,7 +3,9 @@ import type {
     KnowledgeEmbedding,
 } from "../types";
 
-import type { EmbeddingProvider } from "./embedding.provider";
+import type {
+    EmbeddingProvider,
+} from "./embedding.provider";
 
 export class OpenAIEmbeddingProvider
     implements EmbeddingProvider {
@@ -11,10 +13,38 @@ export class OpenAIEmbeddingProvider
     readonly name = "openai";
 
     async embed(
-        chunks: KnowledgeChunk[]
+        chunks: KnowledgeChunk[],
     ): Promise<KnowledgeEmbedding[]> {
 
-        return [];
+        const embeddings: KnowledgeEmbedding[] = [];
+
+        for (const chunk of chunks) {
+
+            embeddings.push({
+
+                chunkId: chunk.id,
+
+                model: "mock",
+
+                dimensions: 3,
+
+                vector: [
+
+                    Math.random(),
+
+                    Math.random(),
+
+                    Math.random(),
+
+                ],
+
+                createdAt: new Date(),
+
+            });
+
+        }
+
+        return embeddings;
 
     }
 
