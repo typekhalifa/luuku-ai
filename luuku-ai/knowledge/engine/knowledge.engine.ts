@@ -1,20 +1,37 @@
+import type { KnowledgeService } from "./services";
+
 export class KnowledgeEngine {
+
+    constructor(
+
+        private readonly service: KnowledgeService,
+
+    ) {}
 
     async ingest(): Promise<void> {
 
-        throw new Error("Not implemented.");
+        const documents =
+            await this.service.load();
+
+        const parsed =
+            await this.service.parse(documents);
+
+        const chunks =
+            await this.service.chunk(parsed);
+
+        const embeddings =
+            await this.service.embed(chunks);
+
+        await this.service.store(embeddings);
 
     }
 
     async ask(
-        query: string
+        query: string,
     ): Promise<string> {
 
-        throw new Error("Not implemented.");
+        return this.service.buildContext(query);
 
     }
 
 }
-
-export const knowledgeEngine =
-    new KnowledgeEngine();
