@@ -43,21 +43,25 @@ export class KnowledgeService {
         documents: KnowledgeDocument[],
     ): Promise<KnowledgeDocument[]> {
 
-        return Promise.all(
+        const parsed: KnowledgeDocument[] = [];
 
-            documents.map(async (document) => {
+        for (const document of documents) {
 
-                if (this.parser.supports(document)) {
+            if (!this.parser.supports(document)) {
 
-                    return this.parser.parse(document);
+                parsed.push(document);
 
-                }
+                continue;
 
-                return document;
+            }
 
-            }),
+            parsed.push(
+                await this.parser.parse(document),
+            );
 
-        );
+        }
+
+        return parsed;
 
     }
 

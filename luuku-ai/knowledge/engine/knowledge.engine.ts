@@ -19,15 +19,21 @@ export class KnowledgeEngine {
             `📄 ${documents.length} documents loaded.`,
         );
 
+        const parsed = await this.service.parse(
+            documents,
+        );
+
         if (documents.length > 0) {
 
             console.table(
 
-                documents.map((document) => ({
+                parsed.map(document => ({
 
                     title: document.title,
 
                     source: document.source,
+
+                    length: document.content.length,
 
                 })),
 

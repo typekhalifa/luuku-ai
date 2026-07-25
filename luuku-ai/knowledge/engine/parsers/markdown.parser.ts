@@ -7,15 +7,30 @@ export class MarkdownParser implements KnowledgeParser {
 
     supports(document: KnowledgeDocument): boolean {
 
-        return document.title.endsWith(".md");
+        return document.title
+            .toLowerCase()
+            .endsWith(".md");
 
     }
 
     async parse(
-        document: KnowledgeDocument
+        document: KnowledgeDocument,
     ): Promise<KnowledgeDocument> {
 
-        return document;
+        const content = document.content
+
+            .replace(/\r\n/g, "\n")
+            .replace(/\t/g, " ")
+            .replace(/\n{3,}/g, "\n\n")
+            .trim();
+
+        return {
+
+            ...document,
+
+            content,
+
+        };
 
     }
 
