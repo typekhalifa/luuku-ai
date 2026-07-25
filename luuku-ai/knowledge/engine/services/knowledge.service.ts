@@ -73,10 +73,20 @@ export class KnowledgeService {
 
         for (const document of documents) {
 
-            const result =
+            if (!document.content.trim()) {
+
+                console.warn(
+                    `⚠️ Skipping empty document: ${document.title}`,
+                );
+
+                continue;
+
+            }
+
+            const documentChunks =
                 await this.chunker.chunk(document);
 
-            chunks.push(...result);
+            chunks.push(...documentChunks);
 
         }
 

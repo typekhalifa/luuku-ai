@@ -89,9 +89,14 @@ export class KnowledgeAssetLoader
                     "utf-8",
                 );
 
+            const relativePath = path.relative(
+                this.root,
+                fullPath,
+            );    
+
             documents.push({
 
-                id: fullPath,
+                id: relativePath,
 
                 title: entry.name,
 
@@ -101,7 +106,13 @@ export class KnowledgeAssetLoader
 
                 metadata: {
 
-                    path: fullPath,
+                    path: relativePath,
+
+                    filename: entry.name,
+
+                    directory: path.basename(
+                        path.dirname(fullPath),
+                    ),
 
                     extension,
 

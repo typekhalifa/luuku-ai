@@ -23,17 +23,28 @@ export class KnowledgeEngine {
             documents,
         );
 
+        const chunks =
+        await this.service.chunk(
+            parsed,
+        );
+
         if (documents.length > 0) {
+
+            console.log("");
+
+            console.log(
+                `🧩 ${chunks.length} chunks created.`,
+            );
 
             console.table(
 
-                parsed.map(document => ({
+                chunks.map(chunk => ({
 
-                    title: document.title,
+                    id: chunk.id,
 
-                    source: document.source,
+                    document: chunk.documentId,
 
-                    length: document.content.length,
+                    length: chunk.content.length,
 
                 })),
 
