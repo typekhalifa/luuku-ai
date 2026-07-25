@@ -1,25 +1,149 @@
-import type { KnowledgeDocument } from "../types";
-import type { KnowledgeLoader } from "./base.loader";
+import fs from "node:fs/promises";
+import path from "node:path";
+
+import type {
+    KnowledgeLoader,
+} from "./base.loader";
+
+import type {
+    KnowledgeDocument,
+    KnowledgeSource,
+} from "../types";
 
 export class KnowledgeAssetLoader
     implements KnowledgeLoader {
 
     readonly name = "knowledge-assets";
 
+    private readonly root = path.resolve(
+        __dirname,
+        "../../"
+    );
+
+    private readonly supportedExtensions = new Set([
+        ".md",
+        ".txt",
+        ".json",
+    ]);
+
     async load(): Promise<KnowledgeDocument[]> {
 
-        /**
-         * Future:
-         *
-         * industries/
-         * offers/
-         * playbooks/
-         * prompts/
-         * prospects/
-         * templates/
-         */
+        const documents: KnowledgeDocument[] = [];
 
-        return [];
+        await this.scanDirectory(
+            this.root,
+            documents,
+        );
+
+        return documents;
+
+    }
+
+    private async scanDirectory(
+
+        directory: string,
+
+        documents: KnowledgeDocument[],
+
+    ): Promise<void> {
+
+        const entries =
+            await fs.readdir(directory, {
+
+                withFileTypes: true,
+
+            });
+
+        for (const entry of entries) {
+
+            const fullPath =
+                path.join(directory, entry.name);
+
+            if (entry.isDirectory()) {
+
+                await this.scanDirectory(
+                    fullPath,
+                    documents,
+                );
+
+                continue;
+
+            }
+
+            const extension =
+                path.extname(entry.name);
+
+            if (
+                !this.supportedExtensions.has(
+                    extension,
+                )
+            ) {
+
+                continue;
+
+            }
+
+            const content =
+                await fs.readFile(
+                    fullPath,
+                    "utf-8",
+                );
+
+            documents.push({
+
+                id: fullPath,
+
+                title: entry.name,
+
+                source: this.resolveSource(fullPath),
+
+                content,
+
+                metadata: {
+
+                    path: fullPath,
+
+                    extension,
+
+                },
+
+                createdAt: new Date(),
+
+                updatedAt: new Date(),
+
+            });
+
+        }
+
+    }
+
+
+    private resolveSource(
+        filePath: string,
+    ): KnowledgeSource {
+
+        const normalized =
+            filePath.replace(/\\/g, "/");
+
+        if (normalized.includes("/industries/"))
+            return "industry";
+
+        if (normalized.includes("/offers/"))
+            return "offer";
+
+        if (normalized.includes("/playbooks/"))
+            return "playbook";
+
+        if (normalized.includes("/prompts/"))
+            return "prompt";
+
+        if (normalized.includes("/prospects/"))
+            return "prospect";
+
+        if (normalized.includes("/templates/"))
+            return "template";
+
+        return "unknown";
 
     }
 

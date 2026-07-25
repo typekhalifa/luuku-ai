@@ -10,22 +10,34 @@ export class KnowledgeEngine {
 
     async ingest(): Promise<void> {
 
+        console.log("📂 Loading knowledge assets...");
+
         const documents =
             await this.service.load();
 
-        const parsed =
-            await this.service.parse(documents);
+        console.log(
+            `📄 ${documents.length} documents loaded.`,
+        );
 
-        const chunks =
-            await this.service.chunk(parsed);
+        if (documents.length > 0) {
 
-        const embeddings =
-            await this.service.embed(chunks);
+            console.table(
 
-        await this.service.store(embeddings);
+                documents.map((document) => ({
+
+                    title: document.title,
+
+                    source: document.source,
+
+                })),
+
+            );
+
+        }
+
+        console.log("");
 
     }
-
     async ask(
         query: string,
     ): Promise<string> {

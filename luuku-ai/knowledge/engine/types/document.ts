@@ -1,16 +1,17 @@
 export type KnowledgeSource =
-
     | "industry"
     | "offer"
     | "playbook"
     | "prompt"
     | "prospect"
     | "template"
-    | "document"
     | "website"
-    | "api"
     | "github"
-    | "notion";
+    | "notion"
+    | "api"
+    | "database"
+    | "manual"
+    | "unknown";
 
 export interface KnowledgeDocument {
 
