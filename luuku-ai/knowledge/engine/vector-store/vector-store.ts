@@ -1,6 +1,9 @@
 import type {
-    KnowledgeEmbedding,
+
+    StoredVector,
+
     RetrievalResult,
+
 } from "../types";
 
 export interface VectorStore {
@@ -8,18 +11,22 @@ export interface VectorStore {
     readonly name: string;
 
     store(
-        embeddings: KnowledgeEmbedding[]
+        vectors: StoredVector[],
     ): Promise<void>;
+
+    all(): Promise<StoredVector[]>;
 
     search(
         queryEmbedding: number[],
-        limit?: number
+        limit?: number,
     ): Promise<RetrievalResult[]>;
 
     delete(
-        ids: string[]
+        ids: string[],
     ): Promise<void>;
 
     clear(): Promise<void>;
+
+    count(): number;
 
 }

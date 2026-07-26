@@ -9,6 +9,10 @@ import { inMemoryVectorStore } from "./vector-store";
 import { similarityRetriever } from "./retrievers";
 import { defaultContextBuilder } from "./context";
 
+import {
+    openAIChatProvider,
+} from "./llm";
+
 export const knowledgeService =
     new KnowledgeService(
 
@@ -32,5 +36,7 @@ export const knowledgeEngine =
     new KnowledgeEngine(
 
         knowledgeService,
+
+        openAIChatProvider,
 
     );

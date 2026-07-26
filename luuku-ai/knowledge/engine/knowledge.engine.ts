@@ -1,4 +1,8 @@
 import type {
+    ChatProvider,
+} from "./llm";
+
+import type {
     KnowledgeService,
 } from "./services";
 
@@ -7,6 +11,8 @@ export class KnowledgeEngine {
     constructor(
 
         private readonly service: KnowledgeService,
+
+        private readonly chat: ChatProvider,
 
     ) {}
 
@@ -79,7 +85,17 @@ export class KnowledgeEngine {
         );
 
         await this.service.store(
+
+            chunks,
+
             embeddings,
+
+        );
+
+        console.log("");
+
+        console.log(
+            `📦 Vector store size: ${this.service.countEmbeddings()}`,
         );
 
         console.log("");
@@ -99,12 +115,21 @@ export class KnowledgeEngine {
     }
 
     async ask(
-        query: string,
+        question: string,
     ): Promise<string> {
 
-        return this.service.buildContext(
-            query,
-        );
+        const context =
+            await this.service.buildContext(
+                question,
+            );
+
+        return this.chat.answer({
+
+            question,
+
+            context,
+
+        });
 
     }
 

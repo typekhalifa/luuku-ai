@@ -105,12 +105,36 @@ export class KnowledgeService {
     }
 
     async store(
+
+        chunks: KnowledgeChunk[],
+
         embeddings: KnowledgeEmbedding[],
+
     ): Promise<void> {
 
-        await this.vectorStore.store(
-            embeddings,
+        const vectors = chunks.map(
+
+            (chunk, index) => ({
+
+                chunk,
+
+                embedding: embeddings[index],
+
+            }),
+
         );
+
+        await this.vectorStore.store(
+
+            vectors,
+
+        );
+
+    }
+
+    countEmbeddings(): number {
+
+        return this.vectorStore.count();
 
     }
 
