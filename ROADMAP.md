@@ -2,556 +2,280 @@
 
 > **Vision**
 >
-> Build the world's leading AI Systems Architecture platform that enables businesses to operate through autonomous AI agents working together as a coordinated company.
+> Build an AI Systems Architecture platform that enables businesses to operate through autonomous AI agents working together as a coordinated company.
+
+This roadmap describes **strategic product milestones**. It is intentionally separate from the package engineering version (`package.json`).
 
 ---
 
-# Current Version
+# v0.1 — FOUNDATION ✅
 
-**Backend Integration:** ✅ Complete
-
-```
-Dashboard      ✅
-Agents         ✅
-Events         ✅
-Workflow       ✅
-CRM            ✅
-Runtime        ✅
-```
-
----
-
-# PHASE 0 — FOUNDATION ✅
-
-## Objective
-
-Establish the engineering foundation of Luuku AI.
-
-### Completed
-
-- Project Architecture
-- Monorepo Structure
-- React + Vite Frontend
-- Express Backend
+- Project setup
+- React / web platform
+- Express backend
 - TypeScript
-- SDK Layer
-- API Client
-- Controller Layer
-- Application Layer
-- Route Layer
-- Feature-based Architecture
-
-Status:
-
-```
-████████████████████
-100%
-```
+- SDK
+- Applications
+- Controllers
+- Routes
+- Architecture
 
 ---
 
-# PHASE 1 — MISSION CONTROL ✅
+# v1.0 — MISSION CONTROL ✅
 
-## Objective
-
-Create the operational dashboard for Luuku AI.
-
-### Completed
-
-### Dashboard
-
-- KPIs
-- Live Backend Integration
-
-### Agents
-
-- Agent Management
-- Agent API
-
-### Events
-
-- Event History
-- Event API
-
-### Workflow
-
-- Workflow Backend
-- Workflow SDK
-
-### CRM
-
-- Companies
-- Contacts
-- Deals
-- Activities
-
-### Runtime
-
-- Runtime API
-- Runtime Manager
-- Runtime State
-
-Status:
-
-```
-████████████████████
-100%
-```
-
----
-
-# PHASE 2 — CORE INFRASTRUCTURE 🚧
-
-## Objective
-
-Build the operating system powering Luuku AI.
-
-### Modules
-
-- Queue
-- Scheduler
-- Registry
-- Planner
-- Orchestrator
-- Execution
+- Dashboard
+- Agents
+- Events
+- Workflow
+- CRM
 - Runtime
-- Logs
-- Memory
-- Plugins
-- Engine
-
-### Current Status
-
-```
-Queue           🟡
-Scheduler       🟡
-Registry        🟡
-Planner         🟡
-Orchestrator    🟡
-Execution       🟡
-Runtime         ✅
-Logs            🟡
-Memory          ⚪
-Plugins         ⚪
-Engine          🟡
-```
-
-Legend
-
-```
-⚪ Not Started
-
-🟡 Existing — Needs Evolution
-
-🟢 In Progress
-
-✅ Completed
-```
 
 ---
 
-# PHASE 3 — KNOWLEDGE LAYER ⭐
+# v2.0 — AI CORE / KNOWLEDGE 🚧
 
-## Objective
+Give agents reliable knowledge, memory, context, and AI capabilities.
 
-Give every AI agent memory and knowledge.
+### Knowledge
 
-## Components
-
-### Knowledge Sources
-
-- PDFs
-- Websites
-- APIs
-- Databases
-- Notion
-- GitHub
-- Internal Documents
-
----
-
-### Document Processing
-
-- Loaders
-- Parsing
-- Cleaning
-- Metadata Extraction
-
----
-
-### Chunking
-
-- Semantic Chunking
-- Recursive Chunking
-- Parent/Child Documents
-
----
-
-### Embeddings
-
-- OpenAI
-- Voyage AI
-- BGE
-- Local Models
-
----
-
-### Vector Database
-
-- pgvector
-- Pinecone
-- Qdrant
-- Weaviate
-
-(Current implementation will determine the final choice.)
-
----
-
-### Retrieval
-
-- Similarity Search
-- Hybrid Search
-- Metadata Filtering
+- Knowledge sources
+- Document loaders
+- Parsing and cleaning
+- Chunking
+- Embeddings
+- Vector database
+- Retrieval
+- Hybrid search
 - Reranking
+- Context builder
+
+### AI infrastructure
+
+- Model/provider abstraction
+- Tool calling
+- Prompt/context optimization
+- Caching
+- Memory
+- Guardrails
+- Evaluation
+
+The repository already contains evolving knowledge, embedding, context, conversation, provider, memory, and capability foundations. This milestone continues hardening them.
 
 ---
 
-### Context Builder
+# v3.0 — MULTI-AGENT COLLABORATION 🚧
 
-Responsible for building high-quality prompts.
+Allow specialized agents to work together instead of operating as isolated scripts.
 
-Responsibilities
+Initial roles include:
 
-- Context Compression
-- Token Optimization
-- Conversation Memory
-- Knowledge Fusion
-
----
-
-### Caching
-
-- Prompt Cache
-- Embedding Cache
-- Response Cache
-
----
-
-### Memory
-
-- Short-term Memory
-- Long-term Memory
-- Episodic Memory
-- Working Memory
-
----
-
-Status
-
-```
-████░░░░░░░░░░░░░░░░
-5%
-```
-
----
-
-# PHASE 4 — AI CORE
-
-## Objective
-
-Create intelligent autonomous agents.
-
-## Executive AI
-
-The brain of Luuku AI.
-
-Responsibilities
-
-- Receive goals
-- Select agents
-- Plan execution
-- Monitor execution
-- Approve decisions
-
----
-
-## Agents
-
+- Executive AI
 - Research Agent
 - Sales Agent
-- Marketing Agent
-- Developer Agent
 - Support Agent
+- Developer Agent
+- Marketing Agent
 - Finance Agent
 - Operations Agent
 
----
+Not every agent must exist before this milestone is useful. New agents should be addable without redesigning the platform.
 
-## Shared Capabilities
+Each agent should progressively gain:
 
-- Tool Calling
 - Memory
+- Tools
+- Permissions
 - Planning
-- Reflection
-- Self Evaluation
-- Knowledge Retrieval
+- Execution
+- Communication
+- Shared capabilities
 
 ---
 
-Status
+# v4.0 — COMPANY OPERATING SYSTEM 🚧
 
-```
-██░░░░░░░░░░░░░░░░░░
-10%
-```
+Turn the agent collection into a coordinated organization.
 
----
-
-# PHASE 5 — MULTI-AGENT ORCHESTRATION
-
-## Objective
-
-Allow AI agents to work together.
-
-Pipeline
-
-```
+```text
 Executive AI
-
-↓
-
+     ↓
 Planner
-
-↓
-
-Registry
-
-↓
-
+     ↓
+Router / Registry
+     ↓
 Orchestrator
-
-↓
-
+     ↓
 Queue
-
-↓
-
+     ↓
 Runtime
-
-↓
-
+     ↓
 Execution
-
-↓
-
-Logs
+     ↓
+Events / Logs / State
 ```
 
-Capabilities
+Core capabilities:
 
-- Task Delegation
-- Parallel Execution
-- Retry Strategy
-- Failure Recovery
-- Agent Communication
-- Human Approval
+- Goal decomposition
+- Agent selection
+- Task delegation
+- Queueing
+- Runtime execution
+- Failure handling
+- Agent communication
+- Shared organizational state
+- Human approval
+- Monitoring
+
+The repository already contains substantial foundations for planner, router, registry, executor, task, queue, runtime, collaboration, events, capabilities, and organization state.
 
 ---
 
-# PHASE 6 — COMMUNICATION LAYER
+# v5.0 — COMMUNICATION LAYER 🚀 NEXT
 
 ## Objective
 
 Operate Luuku AI from anywhere.
 
-Platforms
+The communication layer is a reusable communication core connecting humans and external channels to the company operating system — not a collection of unrelated integrations.
+
+### Communication Core
+
+- Message
+- Conversation
+- Channel
+- Command
+- Notification
+- Approval
+- Delivery
+- Conversation/thread identity
+
+### Initial channels
 
 - WhatsApp
 - Discord
 - Slack
 - Telegram
-- Mobile App
+- Voice
 
-Example
+### Core flow
 
+```text
+Founder / External Channel
+          ↓
+   Communication Core
+          ↓
+ Commands / Events / Approvals
+          ↓
+       Orchestrator
+          ↓
+      Agents + Runtime
+          ↓
+      Results / Events
+          ↓
+   Communication Core
+          ↓
+        Founder
 ```
+
+### First working milestone
+
+```text
+Founder
+  ↓
+Communication API
+  ↓
+"What's happening today?"
+  ↓
 Executive AI
-
-Research Agent finished.
-
-Sales Agent booked 3 meetings.
-
-Developer Agent deployed Runtime v2.
-
-One proposal requires approval.
-
-Approve?
+  ↓
+Orchestrator
+  ↓
+Agents / Events / State
+  ↓
+Executive Summary
+  ↓
+Communication API
+  ↓
+Founder
 ```
+
+Once this core loop works reliably, WhatsApp/Discord/Slack/Telegram become channel adapters rather than separate brains.
 
 ---
 
-# PHASE 7 — AUTONOMOUS COMPANY
+# v6.0 — AUTONOMOUS BUSINESS ⏳
 
-## Objective
+Move from assisted execution toward autonomous business workflows.
 
-Run an AI-native company.
-
-Example
-
-```
-Research Agent
-
-↓
-
-Planner
-
-↓
-
-Sales Agent
-
-↓
-
-Legal Agent
-
-↓
-
-Finance Agent
-
-↓
-
-Support Agent
-
-↓
-
-Developer Agent
+```text
+Research Agent finds opportunity
+          ↓
+Planner creates strategy
+          ↓
+Sales Agent prepares proposal
+          ↓
+Legal / Finance prepare documents
+          ↓
+Developer / Operations execute delivery
+          ↓
+Support handles onboarding
 ```
 
-The Executive AI coordinates every department while the human founder focuses on leadership and strategic decisions.
+The Executive AI coordinates the workflow while the founder remains responsible for strategic decisions and consequential approvals.
 
 ---
 
-# PHASE 8 — LUUKU OS
+# v7.0 — LUUKU OS ⏳
 
-## Objective
+Turn Luuku AI into an operating system for AI-native businesses.
 
-Become the operating system for AI businesses.
+Future capabilities may include:
 
-Future Capabilities
-
-- Multi-Organization
-- Agent Marketplace
-- Enterprise Memory
-- Knowledge Graph
-- Live Collaboration
-- AI Operating Console
-- Autonomous Business Operations
+- Multi-organization support
+- Enterprise memory
+- Knowledge graph
+- Agent marketplace
+- Live collaboration
+- AI operating console
+- Autonomous business operations
+- Client organization workspaces
 
 ---
 
 # ENGINEERING PRINCIPLES
 
-## Architecture
-
-```
-Frontend
-
-↓
-
-SDK
-
-↓
-
-REST API
-
-↓
-
-Controllers
-
-↓
-
-Applications
-
-↓
-
-Services
-
-↓
-
-Repositories
-
-↓
-
-Database
-```
-
----
-
-## Core Philosophy
-
-Business Features
-
-```
-Dashboard
-
-CRM
-
-Knowledge
-
-Workflow
-
-Agents
-```
-
-↓
-
-Core Infrastructure
-
-```
-Runtime
-
-Planner
-
-Queue
-
-Registry
-
-Execution
-
-Scheduler
-
-Logs
-
-Memory
-```
-
----
-
-## Development Rules
-
 - Build modular systems.
 - Keep responsibilities separated.
 - Prefer composition over duplication.
-- Avoid premature optimization.
-- Refactor only after behavior is proven.
+- Prove behavior before optimizing.
 - Every feature should expose a clean API contract.
-- Core infrastructure must remain framework-agnostic whenever practical.
+- Core infrastructure should remain framework-agnostic whenever practical.
+- Agents should use shared platform services rather than coupling directly to storage.
+- Communication channels should remain adapters around the communication core.
+- Human approval should remain available for consequential actions.
+- Add new specialized agents without redesigning the operating system.
 
 ---
 
-# LONG-TERM VISION
+# CURRENT STATE
 
-One day Luuku AI should allow a founder to operate an AI company from anywhere in the world.
+```text
+v0.1  Foundation                    ✅
+v1.0  Mission Control               ✅
+v2.0  AI Core / Knowledge           🚧
+v3.0  Multi-Agent Collaboration     🚧
+v4.0  Company Operating System      🚧
+v5.0  Communication Layer           🚀 NEXT
+v6.0  Autonomous Business           ⏳
+v7.0  Luuku OS                      ⏳
+```
 
-The Executive AI coordinates autonomous agents.
+**Canonical engineering version:** `v0.10.0`
 
-The founder receives concise updates, approves strategic decisions, and focuses on vision rather than repetitive operations.
-
-This is the future Luuku AI is being built to achieve.
+**Next strategic milestone:** `v5.0 — Communication Layer`
 
 ---
 
-**Last Updated:** July 2026
-
-**Status:** Backend Integration v1 Complete
-
-**Next Milestone:** Knowledge Layer (RAG + Memory + Context Engineering)
+**Last Updated:** August 2026
