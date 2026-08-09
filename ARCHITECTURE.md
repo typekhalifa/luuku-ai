@@ -1,340 +1,276 @@
 # Luuku AI Architecture
 
-> **An AI Operating System for autonomous business research, sales execution, and executive decision-making.**
+> **An AI Operating System for autonomous business workflows, specialized agents, and executive coordination.**
 
 ---
 
 # Vision
 
-Luuku AI is an AI Operating System designed to help founders and organizations automate business research, sales execution, executive decision-making, and future operational workflows through specialized AI agents.
+Luuku AI is being built as an AI Operating System where specialized agents collaborate through shared services, knowledge, memory, orchestration, communication, and execution infrastructure.
 
-Rather than building a single monolithic assistant, Luuku AI is built as a collection of independent agents that collaborate through shared services and a unified executive intelligence layer.
+The architecture is intentionally modular: agents are replaceable workers, while the shared platform provides the coordination and operating primitives they depend on.
 
 ---
 
-# Design Principles
+# Architectural Principles
 
 ## 1. Separation of Responsibilities
 
-Agents never access storage directly.
+Agents should use shared services and platform contracts rather than coupling directly to storage or infrastructure.
 
-Agents communicate only through shared services.
-
-```
+```text
 Agents
-    ↓
-Shared Services
-    ↓
-Storage
+  ↓
+Shared Services / Platform
+  ↓
+Storage / External Systems
 ```
 
-This allows the storage engine to evolve from JSON to SQLite, PostgreSQL, Supabase, or cloud databases without changing agent logic.
+## 2. Shared Organizational State
+
+The organization needs common state across agents, including tasks, events, conversations, knowledge, memory, CRM information, execution state, and logs.
+
+## 3. Orchestration
+
+Executive AI and other entry points should not directly perform every operation. Goals are translated into plans, routed to capabilities/agents, executed through runtime infrastructure, and observed through events and state.
+
+```text
+Goal
+ ↓
+Planner
+ ↓
+Router
+ ↓
+Registry / Capabilities
+ ↓
+Orchestrator
+ ↓
+Queue
+ ↓
+Runtime
+ ↓
+Execution
+ ↓
+Events / State / Logs
+```
+
+## 4. Communication Is an Interface to the Operating System
+
+WhatsApp, Discord, Slack, Telegram, and voice should be channel adapters around a shared communication core. Channel-specific code should not contain the company's workflow logic.
 
 ---
 
-## 2. Shared Memory
+# Current System Architecture
 
-Every agent shares the same organizational memory.
-
-Current shared memory includes:
-
-- Prospects
-- Tasks
-- Timeline
-- Knowledge
-- Reports
-
-This creates a single source of truth for the entire AI workforce.
+```text
+Founder / External Channel
+          │
+          ▼
+  ┌───────────────────┐
+  │ Communication Core│
+  └─────────┬─────────┘
+            ▼
+       Executive AI
+            │
+            ▼
+         Planner
+            │
+            ▼
+          Router
+            │
+            ▼
+   Agent / Capability Registry
+            │
+            ▼
+       Orchestrator
+            │
+            ▼
+           Queue
+            │
+            ▼
+          Runtime
+            │
+            ▼
+        Execution
+            │
+            ▼
+   Events / State / Logs
+            │
+            └──────────────► Communication Core
+```
 
 ---
 
-## 3. Executive Intelligence
+# Agent Layer
 
-Executive Intelligence transforms operational data into structured business intelligence before any Large Language Model is involved.
+Current agent areas include:
 
-Pipeline:
+- Executive AI
+- Executive Assistant
+- Research Agent
+- Sales Agent
+- Business agents/workflows
+- Communication / Voice
+- Dashboard and executive dashboard
+- Database, CRM, workflow, activity, contact, and deal test agents
 
-```
-Analytics
-    ↓
-Priorities
-    ↓
-Insights
-    ↓
-Recommendations
-```
-
-The Executive AI reasons over intelligence—not raw files.
+The agent set is intentionally extensible. Marketing, support, finance, developer, operations, legal, and other specialized agents can be added without redesigning the platform core.
 
 ---
 
-## 4. AI Orchestration
+# Shared Platform
 
-The Executive AI coordinates specialized agents instead of performing every task itself.
+`luuku-ai/shared/` currently contains reusable platform areas including:
 
-Future workflow:
+- agents
+- AI providers
+- API
+- applications
+- capabilities
+- collaboration
+- communication
+- configuration
+- context
+- conversation
+- CRM
+- database/domain services
+- events
+- executive intelligence
+- IDs
+- organization state
+- providers
+- runtime
+- scheduler
+- services
+- types
+- voice
 
+These modules form the platform layer beneath the agents.
+
+---
+
+# Orchestration Layer
+
+`luuku-ai/orchestration/` contains the core coordination primitives:
+
+```text
+agent/
+executor/
+planner/
+router/
+task/
 ```
+
+Responsibilities include agent registration, capabilities, planning, routing, execution requests/results, task state, priorities, and orchestration flow.
+
+---
+
+# Knowledge & AI Foundation
+
+The system includes evolving foundations for:
+
+- knowledge asset loading
+- document parsing
+- chunking and validation
+- embeddings
+- AI/chat providers
+- context construction
+- conversation infrastructure
+- memory
+- tool/capability registration
+
+These components support the transition from isolated agents toward knowledge-aware autonomous workflows.
+
+---
+
+# Communication Layer — v5.0
+
+The next strategic milestone is the Communication Layer.
+
+The communication core should own concepts such as:
+
+- Message
+- Conversation
+- Channel
+- Command
+- Notification
+- Approval
+- Delivery
+
+The initial channel targets are:
+
+- WhatsApp
+- Discord
+- Slack
+- Telegram
+- Voice
+
+The architecture should allow channels to be added or replaced without changing orchestration or agent business logic.
+
+```text
+Channel Adapter
+      ↓
+Communication Core
+      ↓
+Command / Event / Approval
+      ↓
+Orchestrator
+      ↓
+Agents + Runtime
+      ↓
+Result / Event
+      ↓
+Communication Core
+      ↓
 Founder
-      │
-      ▼
-Executive AI
-      │
-      ├──────────────┐
-      ▼              ▼
-Research Agent   Sales Agent
-      │              │
-      ▼              ▼
-Shared Services & Memory
 ```
 
 ---
 
-# System Architecture
+# Architectural Decisions
 
-```
-Founder
-      │
-      ▼
-Executive AI Orchestrator
-      │
-────────────────────────────────────
+## ADR-001 — Agents use platform services
 
-Research Agent
+Agents should not couple directly to storage implementations. This allows infrastructure to evolve independently.
 
-Sales Agent
+## ADR-002 — Shared modules do not depend on agents
 
-Voice Agent (Future)
+Shared infrastructure remains below the agent layer to avoid circular dependencies.
 
-WhatsApp Agent (Future)
+## ADR-003 — Orchestration is centralized
 
-Calendar Agent (Future)
+Planning, routing, registration, queueing, and execution are platform responsibilities rather than duplicated inside every agent.
 
-────────────────────────────────────
+## ADR-004 — Communication channels are adapters
 
-Executive Intelligence
+A channel integration must not become the system's business logic. The communication core provides a stable interface to the operating system.
 
-────────────────────────────────────
+## ADR-005 — Human approval remains a first-class capability
 
-Prospect Service
+Consequential workflows should be able to pause for founder approval before execution continues.
 
-Task Service
+---
 
-Timeline Service
+# Canonical Roadmap
 
-Validation Service
-
-Scheduler
-
-────────────────────────────────────
-
-Memory
-
-Knowledge
-
-Logs
-
-────────────────────────────────────
-
-Storage Layer
+```text
+v0.1  Foundation                    ✅
+v1.0  Mission Control               ✅
+v2.0  AI Core / Knowledge           🚧
+v3.0  Multi-Agent Collaboration     🚧
+v4.0  Company Operating System      🚧
+v5.0  Communication Layer           🚀 NEXT
+v6.0  Autonomous Business           ⏳
+v7.0  Luuku OS                      ⏳
 ```
 
 ---
 
-# Core Services
+# Current Engineering Baseline
 
-## Prospect Platform
+**Canonical engineering version:** `v0.10.0 — Autonomous Architecture Baseline`
 
-Responsible for managing business opportunities.
-
-Current API:
-
-- createProspect()
-- getProspect()
-- updateProspect()
-- archiveProspect()
-- restoreProspect()
-
----
-
-## Task Platform
-
-Responsible for operational execution.
-
-Current API:
-
-- createTask()
-- getTasks()
-- assignTask()
-- startTask()
-- completeTask()
-- cancelTask()
-- archiveTask()
-- getOverdueTasks()
-
----
-
-## Timeline Platform
-
-Responsible for recording historical business activity.
-
-Current API:
-
-- addTimelineEvent()
-- getLatestEvents()
-- getEventsByBusiness()
-- getEventsByAgent()
-
----
-
-# Executive Intelligence
-
-The Executive Intelligence layer provides business reasoning.
-
-Components:
-
-- Analytics Engine
-- Priority Engine
-- Insight Engine
-- Recommendation Engine
-
-Consumers:
-
-- Executive Dashboard
-- Executive AI (v1.0)
-
----
-
-# Current Architecture
-
-```
-Presentation Layer
-
-Executive Dashboard
-
-Operations Dashboard
-
-──────────────────────────
-
-Application Layer
-
-Research Agent
-
-Sales Agent
-
-Executive AI (Upcoming)
-
-──────────────────────────
-
-Business Layer
-
-Executive Intelligence
-
-Prospect Service
-
-Task Service
-
-Timeline Service
-
-──────────────────────────
-
-Storage Layer
-
-JSON
-```
-
----
-
-# Current Version
-
-## v0.9.9
-
-Executive Intelligence Service
-
-Completed milestones:
-
-- Live Research Platform
-- Shared Memory Platform
-- Sales Platform
-- Operations Dashboard
-- Core Services Platform
-- Executive Intelligence Platform
-- Executive Intelligence Service
-
----
-
-# Roadmap
-
-```
-v1.0
-Executive AI Orchestrator
-
-v1.1
-Voice Agent
-
-v1.2
-WhatsApp Agent
-
-v1.3
-Calendar Agent
-
-v2.0
-Luuku AI Operating System
-```
-
----
-
-# Architectural Decision Records
-
-## ADR-001
-
-**Decision**
-
-Agents never access storage directly.
-
-**Reason**
-
-Allows storage technology to evolve independently.
-
----
-
-## ADR-002
-
-**Decision**
-
-Shared modules never depend on agents.
-
-**Reason**
-
-Prevents circular dependencies and keeps architecture layered.
-
----
-
-## ADR-003
-
-**Decision**
-
-Executive AI consumes Executive Intelligence rather than raw operational data.
-
-**Reason**
-
-Business reasoning is centralized, reusable, and easier to maintain.
-
----
-
-## ADR-004
-
-**Decision**
-
-Every new capability must belong to one of three layers:
-
-- Shared Service
-- Intelligence Engine
-- Agent
-
-**Reason**
-
-Maintains long-term scalability and keeps responsibilities clear.
+Strategic roadmap versions (`v0.1` through `v7.0`) describe product milestones and are intentionally separate from the package/engineering version.
 
 ---
 
@@ -342,10 +278,8 @@ Maintains long-term scalability and keeps responsibilities clear.
 
 Luuku AI is not intended to become another chatbot.
 
-The long-term objective is to build an AI Operating System where specialized AI agents collaborate through shared memory, executive intelligence, and orchestration to execute real business workflows autonomously.
+The long-term objective is an AI Operating System where specialized agents collaborate through shared knowledge, memory, orchestration, communication, and execution infrastructure to run real business workflows autonomously.
 
 ---
 
-Type Khalifa
-
-Luuku AI © 2026
+**Luuku AI © 2026 — Type Khalifa**
