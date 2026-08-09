@@ -7,133 +7,125 @@ import { useRef } from "react";
 
 export function Hero() {
   const sectionRef = useRef<HTMLElement>(null);
-
   const { scrollYProgress } = useScroll({
     target: sectionRef,
-    offset: ["start start", "end start"],
+    offset: ["start start", "end end"],
   });
 
-  const videoScale = useTransform(
-    scrollYProgress,
-    [0, 1],
-    [1, 1.08]
-  );
+  const introY = useTransform(scrollYProgress, [0, 0.18, 0.38], [0, -40, -150]);
+  const introOpacity = useTransform(scrollYProgress, [0, 0.16, 0.34], [1, 1, 0]);
+  const introScale = useTransform(scrollYProgress, [0, 0.35], [1, 0.96]);
 
-  const contentY = useTransform(
-    scrollYProgress,
-    [0, 1],
-    [0, -120]
-  );
+  const videoWidth = useTransform(scrollYProgress, [0.18, 0.62], ["100%", "88%"]);
+  const videoHeight = useTransform(scrollYProgress, [0.18, 0.62], ["100%", "78%"]);
+  const videoX = useTransform(scrollYProgress, [0.18, 0.62], ["0%", "6%"]);
+  const videoY = useTransform(scrollYProgress, [0.18, 0.62], ["0%", "8%"]);
+  const videoRadius = useTransform(scrollYProgress, [0.18, 0.62], ["0px", "28px"]);
+  const videoScale = useTransform(scrollYProgress, [0, 0.25, 0.62, 1], [1, 1.02, 1, 0.98]);
+  const overlayOpacity = useTransform(scrollYProgress, [0, 0.3, 0.65, 1], [0.2, 0.38, 0.5, 0.68]);
 
-  const contentOpacity = useTransform(
-    scrollYProgress,
-    [0, 0.7],
-    [1, 0]
-  );
-
-  const overlayOpacity = useTransform(
-    scrollYProgress,
-    [0, 0.8],
-    [0.25, 0.65]
-  );
+  const systemOpacity = useTransform(scrollYProgress, [0.34, 0.5, 0.76], [0, 1, 1]);
+  const systemY = useTransform(scrollYProgress, [0.34, 0.52], [70, 0]);
+  const systemScale = useTransform(scrollYProgress, [0.34, 0.52], [0.96, 1]);
+  const systemLabelOpacity = useTransform(scrollYProgress, [0.46, 0.58], [0, 1]);
 
   return (
     <section
       ref={sectionRef}
-      className="relative min-h-[105svh] overflow-hidden bg-black"
+      className="relative min-h-[220svh] overflow-hidden bg-black text-white"
     >
-      {/* Video */}
-
-      <motion.div
-        style={{ scale: videoScale }}
-        className="absolute inset-0"
-      >
-        <video
-          autoPlay
-          muted
-          loop
-          playsInline
-          poster="/hero/poster.jpg"
-          className="h-full w-full object-cover"
+      <div className="sticky top-0 h-[100svh] overflow-hidden">
+        <motion.div
+          style={{
+            width: videoWidth,
+            height: videoHeight,
+            x: videoX,
+            y: videoY,
+            scale: videoScale,
+            borderRadius: videoRadius,
+          }}
+          className="absolute left-0 top-0 origin-center overflow-hidden"
         >
-          <source
-            src="/hero/founder.mp4"
-            type="video/mp4"
-          />
-        </video>
-      </motion.div>
+          <video
+            autoPlay
+            muted
+            loop
+            playsInline
+            poster="/hero/poster.png"
+            className="h-full w-full object-cover"
+          >
+            <source src="/hero/founder.mp4" type="video/mp4" />
+          </video>
+        </motion.div>
 
-      {/* Cinematic overlays */}
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/20 via-black/10 to-black/80" />
+        <motion.div style={{ opacity: overlayOpacity }} className="pointer-events-none absolute inset-0 bg-black" />
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_16%,rgba(0,0,0,.5)_100%)]" />
 
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/20 via-black/20 to-black/80" />
+        <motion.div
+          style={{ y: introY, opacity: introOpacity, scale: introScale }}
+          className="absolute inset-0 z-10 flex items-center"
+        >
+          <div className="mx-auto w-full max-w-[1500px] px-6 lg:px-10">
+            <div className="max-w-6xl">
+              <p className="mb-6 font-mono text-[10px] uppercase tracking-[0.38em] text-white/55 sm:text-[11px]">
+                LUUKU AI SYSTEMS · KIGALI
+              </p>
 
-      <motion.div
-        style={{ opacity: overlayOpacity }}
-        className="pointer-events-none absolute inset-0 bg-black"
-      />
+              <h1 className="max-w-6xl text-[clamp(3.25rem,8vw,7.5rem)] font-medium leading-[0.88] tracking-[-0.045em] text-white">
+                Engineering autonomous AI systems for Africa.
+              </h1>
 
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_20%,rgba(0,0,0,.45)_100%)]" />
+              <div className="mt-8 flex max-w-2xl flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
+                <p className="max-w-xl text-base leading-7 text-white/65 sm:text-lg">
+                  We design, deploy and maintain AI infrastructure that connects
+                  intelligence, orchestration and execution to real business operations.
+                </p>
 
-      {/* Content */}
-
-      <motion.div
-        style={{
-          y: contentY,
-          opacity: contentOpacity,
-        }}
-        className="relative z-10 flex min-h-[105svh] items-end"
-      >
-        <div className="mx-auto w-full max-w-[1500px] px-6 pb-20 sm:pb-24 lg:px-10 lg:pb-28">
-
-          <div className="max-w-4xl">
-
-            <p className="mb-5 font-mono text-[10px] uppercase tracking-[0.35em] text-white/60 sm:text-[11px]">
-              LUUKU AI SYSTEMS
-            </p>
-
-            <h1 className="max-w-4xl text-4xl font-medium leading-[0.95] tracking-tight text-white sm:text-5xl md:text-6xl lg:text-7xl xl:text-[82px]">
-              Engineering autonomous AI systems for Africa.
-            </h1>
-
-            <p className="mt-7 max-w-xl text-base leading-7 text-white/70 sm:text-lg">
-              We design, deploy and maintain practical AI infrastructure
-              that automates operations, supports decisions and unlocks
-              growth.
-            </p>
-
-            <div className="mt-8 flex flex-wrap items-center gap-3">
-
-              <Link
-                href="/demo"
-                className="inline-flex items-center gap-2 rounded-full bg-accent-gold px-6 py-3 text-sm font-medium text-black transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_12px_35px_rgba(212,160,23,.3)]"
-              >
-                Book Demo
-                <ArrowRight size={16} />
-              </Link>
-
-              <Link
-                href="#systems"
-                className="inline-flex items-center rounded-full border border-white/25 bg-white/5 px-6 py-3 text-sm font-medium text-white backdrop-blur-sm transition-all duration-300 hover:bg-white/10"
-              >
-                Explore Systems
-              </Link>
-
+                <Link
+                  href="#systems"
+                  className="group inline-flex shrink-0 items-center gap-2 text-xs font-medium uppercase tracking-[0.2em] text-white/80 transition-colors hover:text-white"
+                >
+                  Explore systems
+                  <ArrowRight size={15} className="transition-transform duration-300 group-hover:translate-x-1" />
+                </Link>
+              </div>
             </div>
-
           </div>
-        </div>
-      </motion.div>
+        </motion.div>
 
-      {/* Scroll indicator */}
+        <motion.div
+          style={{ opacity: systemOpacity, y: systemY, scale: systemScale }}
+          className="absolute inset-x-0 bottom-0 z-10 mx-auto flex max-w-[1500px] items-end px-6 pb-10 lg:px-10 lg:pb-12"
+        >
+          <div className="w-full">
+            <motion.p
+              style={{ opacity: systemLabelOpacity }}
+              className="mb-4 font-mono text-[10px] uppercase tracking-[0.35em] text-white/45 sm:text-[11px]"
+            >
+              From intelligence to execution
+            </motion.p>
 
-      <motion.div
-        style={{ opacity: contentOpacity }}
-        className="absolute bottom-8 right-6 z-10 hidden items-center gap-3 text-[10px] uppercase tracking-[0.3em] text-white/40 sm:flex lg:right-10"
-      >
-        <span>Scroll</span>
-        <span className="h-8 w-px bg-white/30" />
-      </motion.div>
+            <div className="flex flex-col gap-6 border-t border-white/15 pt-5 sm:flex-row sm:items-end sm:justify-between">
+              <h2 className="max-w-4xl text-3xl font-medium leading-[0.95] tracking-[-0.03em] sm:text-4xl md:text-5xl lg:text-6xl">
+                AI systems built to operate in the real world.
+              </h2>
 
+              <div className="max-w-sm text-sm leading-6 text-white/55">
+                Intelligence understands. Orchestration coordinates. Execution moves the work forward.
+              </div>
+            </div>
+          </div>
+        </motion.div>
+
+        <motion.div
+          style={{ opacity: introOpacity }}
+          className="absolute bottom-8 right-6 z-10 hidden items-center gap-3 text-[10px] uppercase tracking-[0.3em] text-white/40 sm:flex lg:right-10"
+        >
+          <span>Scroll to explore</span>
+          <span className="h-8 w-px bg-white/30" />
+        </motion.div>
+      </div>
     </section>
   );
 }
