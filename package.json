@@ -3,6 +3,10 @@
   "version": "0.7.2",
   "description": "Luuku AI internal operating system",
   "main": "index.js",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "scripts": {
     "dev:ea": "tsx luuku-ai/agents/executive-assistant/agent.ts",
     "dev:research": "tsx luuku-ai/agents/research-agent/agent.ts",
@@ -16,6 +20,11 @@
     "dev:activity": "tsx luuku-ai/agents/activity-test/agent.ts",
     "dev:workflow": "tsx luuku-ai/agents/workflow-test/agent.ts",
     "dev:api": "tsx luuku-ai/shared/api/server.ts",
+    "dev:knowledge": "tsx luuku-ai/scripts/test-knowledge.ts",
+    "dev:collaboration": "tsx luuku-ai/shared/collaboration/demo/collaboration-demo.ts",
+    "dev:queue": "tsx luuku-ai/shared/organization/demo/queue-demo.ts",
+    "dev:web": "npm run dev --workspace=apps/web",
+    "build:web": "npm run build --workspace=apps/web",
     "typecheck": "tsc --noEmit",
     "clean:logs": "powershell -Command \"if (Test-Path logs) { Remove-Item logs\\*.md -Force -ErrorAction SilentlyContinue }\""
   },
@@ -41,7 +50,20 @@
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
+    "framer-motion": "^12.42.2",
+    "lucide-react": "^1.27.0",
     "openai": "^6.44.0",
     "prisma": "^6.19.3"
-  }
+  },
+  "directories": {
+    "doc": "docs"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/typekhalifa/luuku-ai.git"
+  },
+  "bugs": {
+    "url": "https://github.com/typekhalifa/luuku-ai/issues"
+  },
+  "homepage": "https://github.com/typekhalifa/luuku-ai#readme"
 }

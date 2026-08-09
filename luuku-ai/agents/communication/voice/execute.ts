@@ -8,20 +8,12 @@ import {
 } from "../../../shared/voice/call";
 
 import {
-    resolveContact
-} from "../../../shared/crm/resolver";
-
-import {
     buildCommunicationBrief
 } from "../../../shared/communication/brief";
 
 import {
     FollowUpObjective
 } from "../../../shared/context/objectives";
-
-import {
-    resolveTaskContext
-} from "../../../shared/context/resolver";
 
 import {
     buildConversationPlan
@@ -43,33 +35,18 @@ import {
     updateDealsAfterCall
 } from "../../../shared/crm/deals/workflow";
 
+import {
+    Contact
+} from "../../../shared/crm/types";
+
 export async function executeVoiceTask(
 
-    task: AgentTask
+    task: AgentTask,
+
+    contact: Contact
 
 ): Promise<AgentResult> {
 
-    const context =
-
-        resolveTaskContext(task);
-
-    const contact =
-
-        resolveContact(
-
-            context.companyName
-
-        );
-
-    if (!contact) {
-
-        throw new Error(
-
-            "Contact not found."
-
-        );
-
-    }
 
     if (!contact.phoneNumber) {
 

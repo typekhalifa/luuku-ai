@@ -1,0 +1,13 @@
+export enum TaskType {
+
+    RESEARCH = "RESEARCH",
+
+    OUTREACH = "OUTREACH",
+
+    PROPOSAL = "PROPOSAL",
+
+    DEVELOPMENT = "DEVELOPMENT",
+
+    SUPPORT = "SUPPORT",
+
+}

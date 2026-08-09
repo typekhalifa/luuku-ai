@@ -9,11 +9,8 @@ import { resolveContact } from "../../../shared/crm/resolver";
 import { validateContact } from "../../../shared/crm/validator";
 
 import {
-
     requestContactEnrichment
-
 } from "../../../shared/crm/enrichment";
-
 
 export async function executeSalesWorkflow(
 
@@ -191,8 +188,6 @@ export async function executeSalesWorkflow(
 
     console.log("");
 
-
-
     const requiresVoice =
 
         text.includes("call") ||
@@ -207,7 +202,13 @@ export async function executeSalesWorkflow(
 
         console.log("");
 
-        await executeVoiceTask(task);
+        await executeVoiceTask(
+
+            task,
+
+            activeContact
+
+        );
 
     } else {
 

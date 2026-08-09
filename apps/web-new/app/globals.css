@@ -1,0 +1,68 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --luuku-950: #050507;
+  --luuku-900: #0a0a0f;
+  --luuku-800: #13131a;
+
+  --luuku-100: #f5f5f7;
+
+  --accent-gold: #d4a017;
+  --accent-sage: #7c9a6b;
+  --accent-clay: #b85450;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--luuku-950);
+  color: var(--luuku-100);
+
+  font-family: var(--font-geist-sans);
+
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+
+  text-rendering: optimizeLegibility;
+}
+
+/* ---------------- TYPOGRAPHY ---------------- */
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-weight: 500;
+  letter-spacing: -0.04em;
+}
+
+h1 {
+  line-height: 0.95;
+}
+
+h2 {
+  line-height: 1;
+}
+
+p {
+  line-height: 1.8;
+}
+
+button {
+  transition: all 0.25s ease;
+}
+
+a {
+  transition: all 0.25s ease;
+}
+
+::selection {
+  background: var(--accent-gold);
+  color: black;
+}

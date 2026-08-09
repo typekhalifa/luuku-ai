@@ -4,3 +4,5 @@ logs/
 dist/
 *.log
 /generated/prisma
+luuku-ai/memory/executive/decisions/
+luuku-ai/memory/executive/decisions/

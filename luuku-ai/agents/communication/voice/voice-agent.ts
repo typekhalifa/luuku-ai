@@ -8,12 +8,6 @@ import {
 
 } from "../../../shared/agents/interface";
 
-import {
-
-    executeVoiceTask
-
-} from "./execute";
-
 export class VoiceAgent extends BaseAgent {
 
     id = "voice";
@@ -28,7 +22,11 @@ export class VoiceAgent extends BaseAgent {
 
     ): Promise<AgentResult> {
 
-        return executeVoiceTask(task);
+        throw new Error(
+
+            "VoiceAgent cannot execute directly. Voice calls must be executed through Sales Workflow after CRM contact resolution."
+
+        );
 
     }
 
