@@ -8,28 +8,35 @@ We are building Luuku AI from the inside out: first by creating our own internal
 
 ## Vision
 
-To become one of Africa’s most trusted AI systems companies by helping organizations implement AI that is practical, reliable, scalable, and rooted in real operational pain points.
+Build an AI Systems Architecture platform that enables businesses to operate through autonomous AI agents working together as a coordinated company.
 
-Luuku AI is not being built around hype. It is being built around useful systems:
+Luuku AI is not being built around AI hype. It is being built around useful systems:
+
 - AI workflow automation
 - internal knowledge assistants
 - AI copilots for operations and teams
 - retrieval and knowledge systems
-- AI infrastructure tailored to how each organization actually works
+- AI infrastructure tailored to real operational workflows
+- autonomous multi-agent execution
 
 ---
 
 ## Current Mission
 
-Build Luuku AI from the inside out by creating our own internal AI Operating System.
+Build and prove Luuku AI's internal AI Operating System before scaling the same architecture into client-facing systems.
 
-The first internal stack includes:
+The current codebase already contains the foundations for:
 
-- **Executive Assistant Agent** — founder planning, prioritization, and execution tracking
+- **Executive Assistant** — founder planning, prioritization, and execution tracking
+- **Executive AI** — executive-level coordination and decision support
 - **Research Agent** — business research and AI opportunity discovery
-- **Sales / Outreach Agent** — future agent for offer drafting, prospect outreach, and follow-up
-- **Knowledge System** — future memory and document intelligence layer
-- **Agent Orchestration Layer** — future coordination system for multi-agent workflows
+- **Sales Agent** — sales workflow foundations
+- **Voice Agent** — communication/voice foundation
+- **Mission Control** — dashboards and operational visibility
+- **Knowledge Layer** — document loading and embedding foundations
+- **Orchestration Layer** — planning, routing, registry, task, and execution primitives
+- **Collaboration Layer** — agent messaging and event-driven coordination
+- **Organization Runtime** — queues, workers, runtime state, and monitoring
 
 The goal is simple:
 
@@ -37,172 +44,139 @@ The goal is simple:
 
 ---
 
-## Why This Repository Exists
+## Current Engineering Version
 
-Before Luuku AI becomes a full client-facing AI systems company, it needs an internal operating layer that can help run research, planning, outreach, and execution.
+**v0.10.0 — Autonomous Architecture Baseline**
 
-This repository is the beginning of that layer.
-
-It is the working codebase for Luuku AI’s internal AI workforce: a set of agents and support systems designed to help the founder and, later, the company itself operate with more leverage.
-
-In practical terms, this repository is where Luuku AI is building:
-- internal planning and prioritization systems
-- prospect and company research systems
-- offer design support
-- workflow automation experiments
-- future client delivery building blocks
-- the first pieces of Luuku AI’s long-term internal infrastructure
+This version label is the canonical repository/package version. Strategic roadmap milestones such as **v5.0 — Communication Layer** are tracked separately in `ROADMAP.md`.
 
 ---
 
-## Current Version
+# Current System
 
-**v0.7.2 — Research Agent Decision-Maker + Prospect Memory Patch**
-
-### Live internal components
-- **Executive Assistant Agent** — prioritizes founder work, creates daily execution plans, tracks carryover and blocked tasks, and logs execution updates.
-- **Research Agent** — analyzes business prospects for Luuku AI, scores prospect fit, suggests likely AI workflow opportunities, recommends first offers, identifies likely decision-maker targets, proposes pilot shapes, and keeps lightweight memory from prior research logs.
-
-### Latest v0.7.2 upgrades
-- Prospect scoring
-- Research tags
-- Outreach readiness assessment
-- Immediate next research actions
-- Likely decision-maker targets
-- Suggested pilot shape
-- Confidence level
-- Prospect memory note from prior logs
-
-### Current Luuku AI direction
-Luuku AI is being built as an internal AI operating system for founder execution and AI workflow automation prospecting, with the long-term goal of becoming a client-facing AI systems and workflow automation company.
----
-
-# Current Agent Stack
-
-## 1) Executive Assistant Agent
-
-**Purpose:**  
-Help the founder operate Luuku AI with better focus, prioritization, and execution discipline.
-
-### Current capabilities
-- accepts a daily task list
-- ranks tasks into top priorities
-- separates urgent vs strategic work
-- generates a suggested execution sequence
-- supports fallback mode when OpenAI is unavailable
-- reads founder profile context
-- reads recent logs to maintain continuity across days
-- supports execution updates such as:
-  - `DONE: task`
-  - `CARRY: task`
-  - `BLOCKED: task | blocker note`
-  - `DROPPED: task`
-
-### Example outputs
-- daily priority brief
-- carryover decisions
-- next best actions
-- execution update logging
-
----
-
-## 2) Research Agent
-
-**Purpose:**  
-Help Luuku AI research businesses and identify practical AI automation opportunities worth pitching.
-
-### Current capabilities
-- accepts a business research brief
-- generates a structured research summary
-- identifies likely pain points
-- suggests Luuku AI opportunity angles
-- recommends a first offer to pitch
-- drafts an outreach hook
-- highlights what still needs validation
-- supports fallback mode when OpenAI is unavailable
-- saves research logs for later review
-
-### Example use cases
-- researching a bank, hospital, university, logistics company, or retailer
-- identifying repetitive operational workflows
-- spotting internal knowledge assistant opportunities
-- preparing for future outreach and consulting offers
-
----
-
-## 3) Future Agents
-
-Planned next layers include:
-
-### Sales / Outreach Agent
-- convert research into first-offer outreach drafts
-- generate proposal angles and personalized hooks
-- help Luuku AI move from research to real pipeline activity
-
-### Knowledge System
-- unify founder notes, business research, offers, and historical logs
-- support long-term memory across Luuku AI agents
-- become the base for future internal and client-facing knowledge assistants
-
-### Agent Orchestration Layer
-- allow agents to work together instead of in isolation
-- route tasks between research, planning, outreach, and memory systems
-- become the coordination layer for Luuku AI’s internal operating system
-
----
-
-# Strategic Direction
-
-Luuku AI is being built around a practical belief:
-
-**Most African organizations do not need “AI for AI’s sake.”**  
-They need systems that solve real workflow friction.
-
-That means Luuku AI will focus on use cases such as:
-- internal knowledge retrieval
-- repetitive customer support workflows
-- operational reporting and summaries
-- approvals and coordination bottlenecks
-- document-heavy internal processes
-- founder and team productivity systems
-- business-specific copilots and automation layers
-
-The long-term commercial direction is to position Luuku AI as a systems architecture and implementation company that helps African businesses adopt AI through concrete workflow solutions, not vague AI transformation language.
-
----
-
-# Repository Structure
+## Agents
 
 ```text
-.
-├── data/
-│   ├── founder-profile.md
-│   └── research-agent-profile.md
-│
-├── logs/
-│   └── generated local logs from agents
-│
-├── luuku-ai/
-│   ├── agents/
-│   │   ├── executive-assistant/
-│   │   │   ├── agent.ts
-│   │   │   └── prompt.md
-│   │   │
-│   │   └── research-agent/
-│   │       └── agent.ts
-│   │
-│   ├── docs/
-│   │   ├── agents.md
-│   │   ├── architecture.md
-│   │   ├── roadmap.md
-│   │   └── vision.md
-│   │
-│   └── shared/
-│       └── config/
-│           └── env.ts
-│
-├── .gitignore
-├── package.json
-├── package-lock.json
-├── tsconfig.json
-└── README.md
+luuku-ai/agents/
+├── executive-ai/
+├── executive-assistant/
+├── research-agent/
+├── sales-agent/
+├── business/
+├── communication/
+│   └── voice/
+├── dashboard/
+├── executive-dashboard/
+└── database / workflow / CRM test agents
+```
+
+The agent set is intentionally incomplete. New specialized agents will be added as the underlying company operating system matures.
+
+## Core Architecture
+
+```text
+Founder / External Channel
+          ↓
+   Communication Layer
+          ↓
+     Executive AI
+          ↓
+       Planner
+          ↓
+        Router
+          ↓
+   Agent Registry
+          ↓
+    Orchestrator
+          ↓
+        Queue
+          ↓
+       Runtime
+          ↓
+      Execution
+          ↓
+   Events / State / Logs
+          ↓
+ Communication Layer
+```
+
+Shared infrastructure lives under `luuku-ai/shared/` and includes communication, AI providers, context, conversation, CRM, events, collaboration, organization state, runtime, scheduling, and other reusable services.
+
+The orchestration layer lives under `luuku-ai/orchestration/` and contains planner, router, executor, registry, capability, and task primitives.
+
+---
+
+# Knowledge & AI Foundation
+
+The repository includes foundations for:
+
+- knowledge asset loading
+- document parsing
+- chunking and validation
+- embedding generation
+- shared AI/chat providers
+- context and conversation infrastructure
+- memory and organizational state
+- tool/capability registration
+
+These foundations continue to evolve toward the full AI Core described in the roadmap.
+
+---
+
+# Communication Direction
+
+The next strategic milestone is **v5.0 — Communication Layer**.
+
+The communication layer is being designed as a core system, not as a collection of unrelated chat integrations.
+
+```text
+Communication Core
+        ↓
+ Commands / Notifications / Approvals
+        ↓
+ Orchestrator / Agents / Runtime
+        ↓
+ Results / Events / State
+        ↓
+ Communication Core
+```
+
+Initial channel targets include WhatsApp, Discord, Slack, Telegram, and voice. Channel adapters should remain replaceable while the communication core owns message, conversation, command, notification, approval, and delivery concepts.
+
+---
+
+# Long-Term Vision
+
+```text
+v0.1  Foundation                    ✅
+v1.0  Mission Control               ✅
+v2.0  AI Core / Knowledge           🚧
+v3.0  Multi-Agent Collaboration     🚧
+v4.0  Company Operating System      🚧
+v5.0  Communication Layer           🚀 NEXT
+v6.0  Autonomous Business           ⏳
+v7.0  Luuku OS                      ⏳
+```
+
+The long-term objective is an AI Operating System where specialized agents collaborate through shared knowledge, memory, orchestration, communication, and execution infrastructure to run real business workflows autonomously.
+
+---
+
+# Development Principles
+
+- Build modular systems.
+- Keep responsibilities separated.
+- Prefer composition over duplication.
+- Prove behavior before optimizing.
+- Keep core infrastructure framework-agnostic where practical.
+- Agents should use shared services rather than coupling directly to storage.
+- Communication channels should be adapters, not the business logic.
+- Human approval remains available for consequential decisions.
+
+---
+
+**Repository:** `typekhalifa/luuku-ai`
+
+**Canonical engineering version:** `v0.10.0`
+
+**Next strategic milestone:** `v5.0 — Communication Layer`
