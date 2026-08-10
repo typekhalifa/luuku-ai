@@ -31,14 +31,33 @@ export interface ProspectResearchResult {
 const client = new OpenAI();
 
 function parseResearchResponse(text: string): ProspectResearchResult {
-    const start = text.indexOf("{");
-    const end = text.lastIndexOf("}");
-
-    if (start < 0 || end <= start) {
-        throw new Error("Research Agent returned no JSON research result");
-    }
-
-    const parsed = JSON.parse(text.slice(start, end + 1)) as ProspectResearchResult;
+    const parsed = JSON.parse(text) as {
+        company: {
+            name: string;
+            industry: string;
+            website: string | null;
+            country: string;
+            city: string | null;
+            size: "startup" | "small" | "medium" | "enterprise" | null;
+            confidence: number;
+            source: string;
+        };
+        contact: {
+            name: string;
+            email: string | null;
+            phoneNumber: string | null;
+            preferredLanguage: string;
+            department: string | null;
+            position: string | null;
+            confidence: number;
+            source: string;
+        };
+        sources: Array<{
+            title: string;
+            url: string;
+        }>;
+        summary: string;
+    };
 
     if (!parsed.company?.name || !parsed.company?.source) {
         throw new Error("Research Agent returned an incomplete company result");
@@ -58,7 +77,30 @@ function parseResearchResponse(text: string): ProspectResearchResult {
         }
     }
 
-    return parsed;
+    return {
+        company: {
+            name: parsed.company.name,
+            industry: parsed.company.industry,
+            website: parsed.company.website ?? undefined,
+            country: parsed.company.country,
+            city: parsed.company.city ?? undefined,
+            size: parsed.company.size ?? undefined,
+            confidence: parsed.company.confidence,
+            source: parsed.company.source,
+        },
+        contact: {
+            name: parsed.contact.name,
+            email: parsed.contact.email ?? undefined,
+            phoneNumber: parsed.contact.phoneNumber ?? undefined,
+            preferredLanguage: parsed.contact.preferredLanguage,
+            department: parsed.contact.department ?? undefined,
+            position: parsed.contact.position ?? undefined,
+            confidence: parsed.contact.confidence,
+            source: parsed.contact.source,
+        },
+        sources: parsed.sources,
+        summary: parsed.summary,
+    };
 }
 
 export async function researchProspect(
@@ -83,45 +125,112 @@ Use web search. Prefer official organization websites and official government or
 CRITICAL DATA RULES:
 1. Never invent an email address, phone number, person, job title, website, or other contact detail.
 2. Only return a contact detail when the searched sources support it.
-3. If a contact detail cannot be verified, omit it.
+3. If a contact detail cannot be verified, return null for that field.
 4. The contact may be a verified department/office rather than a named person when that is what the sources support.
 5. Every source URL must be a real URL returned or opened during web research.
 6. Confidence is 0-100 and must reflect evidence quality, not certainty from the model alone.
-7. Return JSON only. No markdown and no commentary.
+7. Return the requested structured JSON. Do not add commentary outside it.
 
-Return exactly this shape:
-{
-  "company": {
-    "name": "string",
-    "industry": "string",
-    "website": "string or omit",
-    "country": "string",
-    "city": "string or omit",
-    "size": "startup|small|medium|enterprise or omit",
-    "confidence": 0,
-    "source": "string"
-  },
-  "contact": {
-    "name": "string",
-    "email": "string or omit",
-    "phoneNumber": "string or omit",
-    "preferredLanguage": "string",
-    "department": "string or omit",
-    "position": "string or omit",
-    "confidence": 0,
-    "source": "string"
-  },
-  "sources": [
-    { "title": "string", "url": "https://..." }
-  ],
-  "summary": "string"
-}
+For contact.name, use a verified person's name when available. If no named person can be verified, use the verified department or office name instead.
 `;
 
     const response = await client.responses.create({
         model,
         tools: [{ type: "web_search" }],
         input: prompt,
+        text: {
+            format: {
+                type: "json_schema",
+                name: "prospect_research",
+                strict: true,
+                schema: {
+                    type: "object",
+                    additionalProperties: false,
+                    properties: {
+                        company: {
+                            type: "object",
+                            additionalProperties: false,
+                            properties: {
+                                name: { type: "string" },
+                                industry: { type: "string" },
+                                website: { type: ["string", "null"] },
+                                country: { type: "string" },
+                                city: { type: ["string", "null"] },
+                                size: {
+                                    type: [
+                                        "string",
+                                        "null",
+                                    ],
+                                    enum: [
+                                        "startup",
+                                        "small",
+                                        "medium",
+                                        "enterprise",
+                                        null,
+                                    ],
+                                },
+                                confidence: { type: "number" },
+                                source: { type: "string" },
+                            },
+                            required: [
+                                "name",
+                                "industry",
+                                "website",
+                                "country",
+                                "city",
+                                "size",
+                                "confidence",
+                                "source",
+                            ],
+                        },
+                        contact: {
+                            type: "object",
+                            additionalProperties: false,
+                            properties: {
+                                name: { type: "string" },
+                                email: { type: ["string", "null"] },
+                                phoneNumber: {
+                                    type: ["string", "null"],
+                                },
+                                preferredLanguage: { type: "string" },
+                                department: {
+                                    type: ["string", "null"],
+                                },
+                                position: {
+                                    type: ["string", "null"],
+                                },
+                                confidence: { type: "number" },
+                                source: { type: "string" },
+                            },
+                            required: [
+                                "name",
+                                "email",
+                                "phoneNumber",
+                                "preferredLanguage",
+                                "department",
+                                "position",
+                                "confidence",
+                                "source",
+                            ],
+                        },
+                        sources: {
+                            type: "array",
+                            items: {
+                                type: "object",
+                                additionalProperties: false,
+                                properties: {
+                                    title: { type: "string" },
+                                    url: { type: "string" },
+                                },
+                                required: ["title", "url"],
+                            },
+                        },
+                        summary: { type: "string" },
+                    },
+                    required: ["company", "contact", "sources", "summary"],
+                },
+            },
+        },
     });
 
     return parseResearchResponse(response.output_text);
