@@ -18,6 +18,8 @@ import { buildFounderNotifications } from "../../shared/executive/notifications"
 
 import { notifyFounder } from "../../shared/executive/notify";
 
+import { createFounderDiscordCommunication } from "../../shared/executive/founder-discord";
+
 import { renderExecutiveSummary } from "../../shared/executive/summary";
 
 async function runExecutiveAI() {
@@ -61,6 +63,21 @@ async function runExecutiveAI() {
             buildFounderNotifications(decision);
 
         notifyFounder(notifications);
+
+        if (notifications.length > 0) {
+
+            const founderCommunication =
+                createFounderDiscordCommunication();
+
+            await founderCommunication.publishNotifications(
+                notifications,
+            );
+
+            console.log("");
+
+            console.log("✓ Executive notifications delivered to Discord.");
+
+        }
 
         console.log("");
 
