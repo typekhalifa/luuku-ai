@@ -1,10 +1,8 @@
-import crypto from "node:crypto";
-
-import { buildExecutiveCRM } from "../executive/crm";
-import { saveCompany } from "../crm/companies";
-import { saveCRMContact } from "../crm/repository";
-import { Company } from "../crm/company-types";
-import { Contact } from "../crm/types";
+import { companyService } from "../database/services/company.service";
+import { contactService } from "../database/services/contact.service";
+import { dealService } from "../database/services/deal.service";
+import { activityService } from "../database/services/activity.service";
+import { registerProspectWorkflow } from "./workflows/register-prospect.workflow";
 
 export interface CRMOverview {
     companies: number;
@@ -45,67 +43,102 @@ export interface RegisterProspectResult {
     message: string;
     workflowId: string;
     durationMs: number;
-    company: Company;
-    contact: Contact;
+    company: {
+        id: string;
+        name: string;
+        industry: string;
+        website?: string;
+        country: string;
+        city?: string;
+        size?: string;
+        status: string;
+        confidence: number;
+        verified: boolean;
+        source: string;
+    };
+    contact: {
+        id: string;
+        name: string;
+        company: string;
+        email?: string;
+        phoneNumber?: string;
+        preferredLanguage?: string;
+        department?: string;
+        position?: string;
+        verified: boolean;
+        confidence: number;
+        source: string;
+        lastVerifiedAt?: string;
+    };
 }
 
 export class CRMApplication {
     async getOverview(): Promise<CRMOverview> {
-        const overview = buildExecutiveCRM();
+        const [companies, contacts, deals, activities] = await Promise.all([
+            companyService.getCompanies(),
+            contactService.getContacts(),
+            dealService.getDeals(),
+            activityService.getActivities(),
+        ]);
 
         return {
-            companies: overview.companies,
-            contacts: overview.contacts,
-            deals: overview.deals,
-            activities: overview.activities,
+            companies: companies.length,
+            contacts: contacts.length,
+            deals: deals.length,
+            activities: activities.length,
         };
     }
 
     async registerProspect(
         request: RegisterProspectRequest,
     ): Promise<RegisterProspectResult> {
-        const startedAt = Date.now();
-        const company: Company = {
-            id: crypto.randomUUID(),
-            name: request.company.name,
-            industry: request.company.industry,
-            website: request.company.website,
-            country: request.company.country,
-            city: request.company.city,
-            size: request.company.size as Company["size"],
-            status: request.company.status as Company["status"],
-            confidence: request.company.confidence,
-            verified: request.company.verified,
-            source: request.company.source,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-        };
-
-        const contact: Contact = {
-            id: crypto.randomUUID(),
-            name: request.contact.name,
-            company: request.company.name,
-            email: request.contact.email,
-            phoneNumber: request.contact.phoneNumber,
-            preferredLanguage: request.contact.preferredLanguage ?? "English",
-            department: request.contact.department,
-            position: request.contact.position,
-            verified: request.contact.verified,
-            confidence: request.contact.confidence,
-            source: request.contact.source,
-            lastVerifiedAt: request.contact.lastVerifiedAt,
-        };
-
-        saveCompany(company);
-        saveCRMContact(contact);
+        const result = await registerProspectWorkflow.execute({
+            company: {
+                name: request.company.name,
+                industry: request.company.industry,
+                website: request.company.website,
+                country: request.company.country,
+                city: request.company.city,
+                size: request.company.size as "startup" | "small" | "medium" | "enterprise" | undefined,
+                status: request.company.status as "prospect" | "qualified" | "customer" | "inactive",
+                confidence: request.company.confidence,
+                verified: request.company.verified,
+                source: request.company.source,
+            },
+            contact: {
+                name: request.contact.name,
+                email: request.contact.email,
+                phoneNumber: request.contact.phoneNumber,
+                preferredLanguage: request.contact.preferredLanguage,
+                department: request.contact.department,
+                position: request.contact.position,
+                verified: request.contact.verified,
+                confidence: request.contact.confidence,
+                source: request.contact.source,
+                lastVerifiedAt: request.contact.lastVerifiedAt,
+            },
+        });
 
         return {
-            success: true,
-            message: "Prospect registered successfully.",
-            workflowId: crypto.randomUUID(),
-            durationMs: Date.now() - startedAt,
-            company,
-            contact,
+            success: result.success,
+            message: result.message,
+            workflowId: result.workflowId,
+            durationMs: result.durationMs,
+            company: result.company,
+            contact: {
+                id: result.contact.id,
+                name: result.contact.name,
+                company: result.company.name,
+                email: result.contact.email,
+                phoneNumber: result.contact.phoneNumber,
+                preferredLanguage: result.contact.preferredLanguage,
+                department: result.contact.department,
+                position: result.contact.position,
+                verified: result.contact.verified,
+                confidence: result.contact.confidence,
+                source: result.contact.source,
+                lastVerifiedAt: result.contact.lastVerifiedAt,
+            },
         };
     }
 }
