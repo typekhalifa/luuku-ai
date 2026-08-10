@@ -1,6 +1,7 @@
 import "dotenv/config";
 
 import { researchProspect } from "./web-research";
+import { assessProspect } from "./prospect-intelligence";
 
 async function runDemo() {
     const company = process.argv.slice(2).join(" ").trim() || "Rwanda Revenue Authority";
@@ -9,6 +10,8 @@ async function runDemo() {
         "Assess whether the organization is a credible prospect for Luuku AI workflow automation.",
         "Identify the most relevant public contact or department for an initial business conversation.",
     ]);
+
+    const intelligence = assessProspect(result);
 
     console.log("");
     console.log("========================================");
@@ -28,9 +31,32 @@ async function runDemo() {
     console.log(`Email      : ${result.contact.email ?? "Not verified"}`);
     console.log(`Phone      : ${result.contact.phoneNumber ?? "Not verified"}`);
     console.log(`Confidence : ${result.contact.confidence}`);
+    console.log(`Quality    : ${intelligence.contactQuality}`);
     console.log("");
     console.log("Summary:");
     console.log(result.summary);
+    console.log("");
+    console.log("========================================");
+    console.log("       PROSPECT INTELLIGENCE");
+    console.log("========================================");
+    console.log("");
+    console.log(`AI Need                : ${intelligence.score.aiNeed}/10`);
+    console.log(`Workflow Potential     : ${intelligence.score.workflowPotential}/10`);
+    console.log(`Knowledge Fit          : ${intelligence.score.knowledgeFit}/10`);
+    console.log(`Outreach Attractiveness: ${intelligence.score.outreachAttractiveness}/10`);
+    console.log(`Overall Luuku Fit      : ${intelligence.score.overall}/10`);
+    console.log(`Confidence             : ${intelligence.confidence}`);
+    console.log(`Readiness              : ${intelligence.readiness}`);
+    console.log("");
+    console.log(`Opportunity            : ${intelligence.opportunity}`);
+    console.log(`Recommended Offer      : ${intelligence.recommendedOffer}`);
+    console.log(`Why                    : ${intelligence.why}`);
+    console.log(`Next Action            : ${intelligence.nextAction}`);
+    console.log("");
+    console.log("Research Tags:");
+    for (const tag of intelligence.tags) {
+        console.log(`• ${tag}`);
+    }
     console.log("");
     console.log("Sources:");
 
@@ -40,7 +66,7 @@ async function runDemo() {
     }
 
     console.log("");
-    console.log("Real prospect research completed.");
+    console.log("Real prospect research + intelligence completed.");
     console.log("");
 }
 
