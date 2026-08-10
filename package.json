@@ -22,10 +22,12 @@
     "dev:api": "tsx luuku-ai/shared/api/server.ts",
     "dev:knowledge": "tsx luuku-ai/scripts/test-knowledge.ts",
     "dev:collaboration": "tsx luuku-ai/shared/collaboration/demo/collaboration-demo.ts",
+    "dev:communication": "tsx luuku-ai/shared/communication/demo/communication-demo.ts",
     "dev:queue": "tsx luuku-ai/shared/organization/demo/queue-demo.ts",
     "dev:web": "npm run dev --workspace=apps/web",
     "build:web": "npm run build --workspace=apps/web",
     "typecheck": "tsc --noEmit",
+    "typecheck:backend": "tsc --noEmit -p luuku-ai/tsconfig.json",
     "clean:logs": "powershell -Command \"if (Test-Path logs) { Remove-Item logs\\*.md -Force -ErrorAction SilentlyContinue }\""
   },
   "keywords": [
