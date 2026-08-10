@@ -6,7 +6,11 @@ export class InMemoryCommunicationService implements CommunicationService {
     private readonly conversations = new Map<string, CommunicationConversation>();
 
     async sendMessage(input: SendMessageInput): Promise<CommunicationMessage> {
-        const conversation = this.requireConversation(input.conversationId);
+        const conversation = this.getOrCreateConversation(
+            input.conversationId,
+            input.channel,
+            input.recipient,
+        );
         const now = new Date().toISOString();
 
         const message: CommunicationMessage = {
@@ -59,16 +63,6 @@ export class InMemoryCommunicationService implements CommunicationService {
 
     async getConversation(conversationId: string): Promise<CommunicationConversation | null> {
         return this.conversations.get(conversationId) ?? null;
-    }
-
-    private requireConversation(conversationId: string): CommunicationConversation {
-        const conversation = this.conversations.get(conversationId);
-
-        if (!conversation) {
-            throw new Error(`Communication conversation not found: ${conversationId}`);
-        }
-
-        return conversation;
     }
 
     private getOrCreateConversation(
