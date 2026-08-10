@@ -26,7 +26,7 @@ export function loadDiscordEnvironment(
     }
 
     return {
-        botToken,
-        channelId,
+        botToken: botToken!,
+        channelId: channelId!,
     };
 }
