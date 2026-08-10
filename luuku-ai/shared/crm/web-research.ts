@@ -1,4 +1,5 @@
 import OpenAI from "openai";
+import { config } from "../config/env";
 
 export interface ProspectResearchResult {
     company: {
@@ -38,10 +39,12 @@ interface TavilyResponse {
     results?: TavilyResult[];
 }
 
-const client = new OpenAI();
+const client = new OpenAI({
+    apiKey: config.openaiApiKey,
+});
 
 async function tavilySearch(query: string): Promise<TavilyResult[]> {
-    const apiKey = process.env.TAVILY_API_KEY;
+    const apiKey = config.tavilyApiKey;
 
     if (!apiKey) {
         throw new Error("TAVILY_API_KEY is missing");
@@ -189,8 +192,7 @@ export async function researchProspect(
 
     const model =
         process.env.OPENAI_RESEARCH_MODEL ??
-        process.env.OPENAI_MODEL ??
-        "gpt-5-mini";
+        config.openaiModel;
 
     const prompt = `
 You are Luuku AI's Research Agent.
