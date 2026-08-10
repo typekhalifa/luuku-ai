@@ -40,9 +40,9 @@ export interface RegisterProspectRequest {
 
         name: string;
 
-        email: string;
+        email?: string;
 
-        phoneNumber: string;
+        phoneNumber?: string;
 
         preferredLanguage?: string;
 
@@ -104,9 +104,9 @@ export interface RegisterProspectResult {
 
         name: string;
 
-        email: string;
+        email?: string;
 
-        phoneNumber: string;
+        phoneNumber?: string;
 
         preferredLanguage?: string;
 
