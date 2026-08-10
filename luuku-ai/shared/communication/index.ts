@@ -3,5 +3,7 @@ export * from "./message";
 export * from "./conversation";
 export * from "./communication-service";
 export * from "./in-memory-communication-service";
+export * from "./events";
+export * from "./event-communication-bridge";
 export * from "./types";
 export * from "./brief";
