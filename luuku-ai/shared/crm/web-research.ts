@@ -28,7 +28,64 @@ export interface ProspectResearchResult {
     summary: string;
 }
 
+interface TavilyResult {
+    title?: string;
+    url?: string;
+    content?: string;
+}
+
+interface TavilyResponse {
+    results?: TavilyResult[];
+}
+
 const client = new OpenAI();
+
+async function tavilySearch(query: string): Promise<TavilyResult[]> {
+    const apiKey = process.env.TAVILY_API_KEY;
+
+    if (!apiKey) {
+        throw new Error("TAVILY_API_KEY is missing");
+    }
+
+    const response = await fetch("https://api.tavily.com/search", {
+        method: "POST",
+        headers: {
+            Authorization: `Bearer ${apiKey}`,
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+            query,
+            topic: "general",
+            search_depth: "advanced",
+            max_results: 6,
+            include_answer: false,
+            include_raw_content: false,
+        }),
+    });
+
+    if (!response.ok) {
+        const body = await response.text();
+        throw new Error(
+            `Tavily search failed (${response.status} ${response.statusText}): ${body}`,
+        );
+    }
+
+    const data = (await response.json()) as TavilyResponse;
+    return data.results ?? [];
+}
+
+function deduplicateSources(results: TavilyResult[]) {
+    const seen = new Set<string>();
+
+    return results.filter((result) => {
+        if (!result.url || seen.has(result.url)) {
+            return false;
+        }
+
+        seen.add(result.url);
+        return true;
+    });
+}
 
 function parseResearchResponse(text: string): ProspectResearchResult {
     const parsed = JSON.parse(text) as {
@@ -107,6 +164,29 @@ export async function researchProspect(
     company: string,
     reasons: string[],
 ): Promise<ProspectResearchResult> {
+    const searchQueries = [
+        `${company} official website contact information`,
+        `${company} official contact email phone department`,
+        `${company} leadership procurement operations official`,
+    ];
+
+    const searchResults = await Promise.all(
+        searchQueries.map((query) => tavilySearch(query)),
+    );
+
+    const evidence = deduplicateSources(searchResults.flat());
+
+    if (evidence.length === 0) {
+        throw new Error(`Tavily returned no research sources for ${company}`);
+    }
+
+    const evidenceText = evidence
+        .map(
+            (result, index) =>
+                `SOURCE ${index + 1}\nTITLE: ${result.title ?? "Untitled"}\nURL: ${result.url}\nCONTENT: ${(result.content ?? "").slice(0, 5000)}`,
+        )
+        .join("\n\n");
+
     const model =
         process.env.OPENAI_RESEARCH_MODEL ??
         process.env.OPENAI_MODEL ??
@@ -120,23 +200,28 @@ Company: ${company}
 Reasons:
 ${reasons.map((reason) => `- ${reason}`).join("\n")}
 
-Use web search. Prefer official organization websites and official government or institutional sources. Use secondary sources only when necessary.
+Tavily has already performed live web searches. Treat the following search results as your evidence. Do not invent facts that are not supported by the evidence.
+
+${evidenceText}
 
 CRITICAL DATA RULES:
 1. Never invent an email address, phone number, person, job title, website, or other contact detail.
-2. Only return a contact detail when the searched sources support it.
+2. Only return a contact detail when the evidence supports it.
 3. If a contact detail cannot be verified, return null for that field.
-4. The contact may be a verified department/office rather than a named person when that is what the sources support.
-5. Every source URL must be a real URL returned or opened during web research.
-6. Confidence is 0-100 and must reflect evidence quality, not certainty from the model alone.
-7. Return the requested structured JSON. Do not add commentary outside it.
+4. The contact may be a verified department/office rather than a named person when that is what the evidence supports.
+5. Every source URL in the output must come from the evidence above.
+6. Confidence is 0-100 and must reflect evidence quality for that specific field.
+7. Do not use 100 unless the evidence directly and unambiguously supports the field.
+8. Prefer official organization or government sources over secondary sources.
+9. If sources conflict, do not silently choose one. Reflect the uncertainty in confidence and summary.
+10. Return the most useful verified public contact for a first business conversation.
+11. Return the requested structured JSON. Do not add commentary outside it.
 
 For contact.name, use a verified person's name when available. If no named person can be verified, use the verified department or office name instead.
 `;
 
     const response = await client.responses.create({
         model,
-        tools: [{ type: "web_search" }],
         input: prompt,
         text: {
             format: {
@@ -157,10 +242,7 @@ For contact.name, use a verified person's name when available. If no named perso
                                 country: { type: "string" },
                                 city: { type: ["string", "null"] },
                                 size: {
-                                    type: [
-                                        "string",
-                                        "null",
-                                    ],
+                                    type: ["string", "null"],
                                     enum: [
                                         "startup",
                                         "small",
@@ -189,16 +271,10 @@ For contact.name, use a verified person's name when available. If no named perso
                             properties: {
                                 name: { type: "string" },
                                 email: { type: ["string", "null"] },
-                                phoneNumber: {
-                                    type: ["string", "null"],
-                                },
+                                phoneNumber: { type: ["string", "null"] },
                                 preferredLanguage: { type: "string" },
-                                department: {
-                                    type: ["string", "null"],
-                                },
-                                position: {
-                                    type: ["string", "null"],
-                                },
+                                department: { type: ["string", "null"] },
+                                position: { type: ["string", "null"] },
                                 confidence: { type: "number" },
                                 source: { type: "string" },
                             },
