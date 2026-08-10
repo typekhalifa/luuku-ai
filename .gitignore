@@ -3,6 +3,6 @@ node_modules/
 logs/
 dist/
 *.log
+.data/
 /generated/prisma
-luuku-ai/memory/executive/decisions/
 luuku-ai/memory/executive/decisions/
