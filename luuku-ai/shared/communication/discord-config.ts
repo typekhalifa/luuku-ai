@@ -1,13 +1,13 @@
+import { config } from "../config/env";
+
 export interface DiscordEnvironment {
     botToken: string;
     channelId: string;
 }
 
-export function loadDiscordEnvironment(
-    env: NodeJS.ProcessEnv = process.env,
-): DiscordEnvironment {
-    const botToken = env.DISCORD_BOT_TOKEN?.trim();
-    const channelId = env.DISCORD_CHANNEL_ID?.trim();
+export function loadDiscordEnvironment(): DiscordEnvironment {
+    const botToken = config.discordBotToken.trim();
+    const channelId = config.discordChannelId.trim();
 
     const missing: string[] = [];
 
@@ -26,7 +26,7 @@ export function loadDiscordEnvironment(
     }
 
     return {
-        botToken: botToken!,
-        channelId: channelId!,
+        botToken,
+        channelId,
     };
 }
