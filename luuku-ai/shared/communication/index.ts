@@ -5,5 +5,6 @@ export * from "./communication-service";
 export * from "./in-memory-communication-service";
 export * from "./events";
 export * from "./event-communication-bridge";
+export * from "./founder-communication";
 export * from "./types";
 export * from "./brief";
