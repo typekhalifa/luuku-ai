@@ -3,6 +3,8 @@ export * from "./message";
 export * from "./conversation";
 export * from "./communication-service";
 export * from "./in-memory-communication-service";
+export * from "./channel-adapter";
+export * from "./in-memory-channel-adapter";
 export * from "./events";
 export * from "./event-communication-bridge";
 export * from "./founder-communication";
