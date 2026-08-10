@@ -1,3 +1,5 @@
+import { randomUUID } from "node:crypto";
+
 import {
     InMemoryEventBusV2,
     InMemoryEventStore,
@@ -35,7 +37,7 @@ export class FounderCommunication {
     ): Promise<void> {
         for (const notification of notifications) {
             await this.eventBus.publish({
-                id: crypto.randomUUID(),
+                id: randomUUID(),
                 type: COMMUNICATION_MESSAGE_REQUESTED_EVENT,
                 category: "communication",
                 source: "executive-ai",
