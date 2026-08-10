@@ -23,6 +23,7 @@
     "dev:knowledge": "tsx luuku-ai/scripts/test-knowledge.ts",
     "dev:collaboration": "tsx luuku-ai/shared/collaboration/demo/collaboration-demo.ts",
     "dev:communication": "tsx luuku-ai/shared/communication/demo/communication-demo.ts",
+    "dev:discord:real": "tsx luuku-ai/shared/communication/demo/real-discord-demo.ts",
     "dev:queue": "tsx luuku-ai/shared/organization/demo/queue-demo.ts",
     "dev:web": "npm run dev --workspace=apps/web",
     "build:web": "npm run build --workspace=apps/web",
