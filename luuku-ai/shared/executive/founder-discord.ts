@@ -1,11 +1,9 @@
-import "dotenv/config";
-
 import {
-    ChannelCommunicationService,
     DiscordChannelAdapter,
     FounderCommunication,
     InMemoryChannelAdapterRegistry,
     InMemoryCommunicationService,
+    ChannelCommunicationService,
 } from "../communication";
 
 import { loadDiscordEnvironment } from "../communication/discord-config";
