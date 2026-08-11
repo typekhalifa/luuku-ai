@@ -31,6 +31,12 @@ export interface AgentResult {
 
     verified?: boolean;
 
+    /**
+     * Deterministic blockers returned when execution cannot proceed.
+     * Optional so existing agent results remain backwards compatible.
+     */
+    blockers?: string[];
+
 }
 
 export interface Agent {
