@@ -208,16 +208,16 @@ export class RegisterProspectWorkflow {
             existingContacts.find(
                 candidate =>
                     (
-                        normalizedEmail &&
+                        !!normalizedEmail &&
                         candidate.email?.trim().toLowerCase() ===
                             normalizedEmail
                     ) ||
                     (
-                        normalizedPhone &&
+                        !!normalizedPhone &&
                         candidate.phoneNumber?.trim() ===
                             normalizedPhone
                     )
-            ) ?? existingContacts[0];
+            );
 
         const now =
             new Date().toISOString();
