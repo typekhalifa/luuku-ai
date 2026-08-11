@@ -27,6 +27,16 @@ import {
     requestContactEnrichment
 } from "../../../shared/crm/enrichment";
 
+function extractContactEmail(
+    text: string
+): string | undefined {
+    const match = text.match(
+        /CONTACT_EMAIL:\s*([^\s\n\r]+)/i
+    );
+
+    return match?.[1]?.trim() || undefined;
+}
+
 export async function executeSalesWorkflow(
 
     task: AgentTask
@@ -49,9 +59,15 @@ export async function executeSalesWorkflow(
     const context =
         await resolveTaskContext(task);
 
+    const preferredContactEmail =
+        extractContactEmail(
+            task.title + "\n" + task.description
+        );
+
     let activeContact =
         await resolveContact(
-            context.companyName
+            context.companyName,
+            preferredContactEmail
         );
 
     if (!activeContact) {
