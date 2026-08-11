@@ -1,5 +1,5 @@
 import { AgentTask } from "../agents/interface";
-import { getCRMCompanies } from "../crm/company-repository";
+import { companyService } from "../database/services/company.service";
 
 export interface TaskContext {
 
@@ -9,19 +9,18 @@ export interface TaskContext {
 
 }
 
-export function resolveTaskContext(
+export async function resolveTaskContext(
 
     task: AgentTask
 
-): TaskContext {
+): Promise<TaskContext> {
 
     const text =
 
         `${task.title} ${task.description}`;
 
     const company =
-
-        resolveCompany(text);
+        await resolveCompany(text);
 
     return {
 
@@ -33,15 +32,15 @@ export function resolveTaskContext(
 
 }
 
-function resolveCompany(
+async function resolveCompany(
 
     text: string
 
-): string {
+): Promise<string> {
 
     const lower = text.toLowerCase();
 
-    // Known abbreviations
+    // Known abbreviations remain deterministic for recurring executive tasks.
     if (lower.includes("rra")) {
 
         return "Rwanda Revenue Authority";
@@ -54,17 +53,20 @@ function resolveCompany(
 
     }
 
-    // Match against CRM companies by full name
-    for (const company of getCRMCompanies()) {
+    // PostgreSQL is the source of truth for company resolution.
+    const companies =
+        await companyService.getCompanies();
+
+    // Prefer the longest company name so overlapping names resolve correctly.
+    const ordered = [...companies]
+        .sort((a, b) => b.name.length - a.name.length);
+
+    for (const company of ordered) {
 
         if (
-
             lower.includes(
-
                 company.name.toLowerCase()
-
             )
-
         ) {
 
             return company.name;
@@ -73,18 +75,18 @@ function resolveCompany(
 
     }
 
-    // Fallback extraction for phrases like:
+    // Fallback extraction for phrases such as:
     // "Follow up: Rwanda Revenue Authority"
-    // "Call Rwanda Revenue Authority"
+    // "Follow up: Luuku Email Test by email"
     const patterns = [
 
-        /follow[\s-]?up[:\s]+(.+)/i,
+        /follow[\s-]?up[:\s]+(.+?)(?=\s+by\s+(?:email|e-mail|call|phone|voice|meeting)\b|$)/i,
 
-        /call[:\s]+(.+)/i,
+        /call[:\s]+(.+?)(?=\s+by\s+(?:email|e-mail|call|phone|voice|meeting)\b|$)/i,
 
-        /meeting[:\s]+(.+)/i,
+        /meeting[:\s]+(.+?)(?=\s+by\s+(?:email|e-mail|call|phone|voice|meeting)\b|$)/i,
 
-        /contact[:\s]+(.+)/i
+        /contact[:\s]+(.+?)(?=\s+by\s+(?:email|e-mail|call|phone|voice|meeting)\b|$)/i
 
     ];
 
