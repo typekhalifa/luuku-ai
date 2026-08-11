@@ -9,7 +9,7 @@ import { buildExecutiveCRM } from "../../shared/executive/crm";
 
 export interface ExecutiveContext {
     generatedAt: string;
-    intelligence: ReturnType<typeof buildExecutiveIntelligence>;
+    intelligence: Awaited<ReturnType<typeof buildExecutiveIntelligence>>;
     memory: ReturnType<typeof buildExecutiveMemory>;
     agentHealth: ReturnType<typeof buildAgentHealth>;
     objectives: ReturnType<typeof buildExecutiveObjectives>;
@@ -22,7 +22,7 @@ export interface ExecutiveContext {
 
 export async function buildExecutiveContext(): Promise<ExecutiveContext> {
     const agentHealth = buildAgentHealth();
-    const intelligence = buildExecutiveIntelligence();
+    const intelligence = await buildExecutiveIntelligence();
     const memory = buildExecutiveMemory();
 
     let systemHealth: ExecutiveContext["systemHealth"] = "excellent";
