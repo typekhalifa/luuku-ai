@@ -3,6 +3,7 @@ import { requestExecutiveReasoning } from "../../shared/ai/executive";
 import { runExecutiveReview } from "../../shared/executive/review";
 import { parseDecision } from "./parser";
 import { validateDecision } from "./decision";
+import { guardExecutiveDecision } from "../../shared/executive/decision-guard";
 import crypto from "crypto";
 import { runAgent } from "../../shared/agents/runner";
 import { saveExecutiveDecision } from "../../shared/executive/history";
@@ -45,6 +46,10 @@ async function runExecutiveAI() {
             throw new Error("Executive decision failed validation.");
         }
 
+        const decisionGuard = guardExecutiveDecision(
+            `${decision.summary}\n${decision.task.title}\n${decision.task.description}`,
+        );
+
         saveExecutiveDecision(decision);
 
         console.log("");
@@ -61,15 +66,39 @@ async function runExecutiveAI() {
         console.log("");
         console.log(decision);
 
-        const result = await runAgent(
-            decision.assignedAgentId,
-            {
-                id: crypto.randomUUID(),
-                title: decision.task.title,
-                description: decision.task.description,
-                priority: decision.task.priority,
-            },
-        );
+        let result;
+
+        if (!decisionGuard.allowed) {
+            console.log("");
+            console.log("========================================");
+            console.log("      EXECUTION BLOCKED");
+            console.log("========================================");
+            console.log("");
+            console.log("The Executive decision requires capabilities or timing that are not currently executable.");
+            for (const blocker of decisionGuard.blockers) {
+                console.log(`- ${blocker}`);
+            }
+
+            result = {
+                success: false,
+                summary: "Executive task blocked before agent execution because required capabilities or scheduling constraints are not currently executable.",
+                completedAt: new Date().toISOString(),
+                executionStatus: "blocked",
+                executed: false,
+                verified: false,
+                blockers: decisionGuard.blockers,
+            };
+        } else {
+            result = await runAgent(
+                decision.assignedAgentId,
+                {
+                    id: crypto.randomUUID(),
+                    title: decision.task.title,
+                    description: decision.task.description,
+                    priority: decision.task.priority,
+                },
+            );
+        }
 
         console.log("");
         console.log("========================================");
