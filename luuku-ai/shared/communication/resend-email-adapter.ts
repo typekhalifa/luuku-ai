@@ -10,7 +10,9 @@ const RESEND_ENDPOINT =
 function getConfig() {
     return {
         apiKey: process.env.RESEND_API_KEY,
-        from: process.env.RESEND_FROM_EMAIL
+        from: process.env.RESEND_FROM_EMAIL,
+        mode: process.env.EMAIL_MODE || "test",
+        testRecipient: process.env.EMAIL_TEST_RECIPIENT
     };
 }
 
@@ -55,7 +57,7 @@ export const resendEmailAdapter: CommunicationAdapter = {
         request: CommunicationRequest
     ): Promise<CommunicationExecutionResult> {
 
-        const { apiKey, from } = getConfig();
+        const { apiKey, from, mode, testRecipient } = getConfig();
 
         if (!apiKey || !from) {
             return blockedResult(
@@ -75,6 +77,24 @@ export const resendEmailAdapter: CommunicationAdapter = {
                 "Email recipient is missing.",
                 "EMAIL_RECIPIENT_MISSING"
             );
+        }
+
+        if (mode === "test") {
+            if (!testRecipient) {
+                return blockedResult(
+                    request,
+                    "Test email mode requires EMAIL_TEST_RECIPIENT.",
+                    "EMAIL_TEST_RECIPIENT_NOT_CONFIGURED"
+                );
+            }
+
+            if (recipient.toLowerCase() !== testRecipient.toLowerCase()) {
+                return blockedResult(
+                    request,
+                    `Test mode only permits delivery to ${testRecipient}.`,
+                    "EMAIL_TEST_RECIPIENT_BLOCKED"
+                );
+            }
         }
 
         if (!request.subject) {
@@ -157,7 +177,8 @@ export const resendEmailAdapter: CommunicationAdapter = {
                     details: {
                         recipient,
                         from,
-                        providerAccepted: true
+                        providerAccepted: true,
+                        mode
                     }
                 },
                 summary:
