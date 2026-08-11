@@ -39,8 +39,8 @@ jobs:
               '    insights: Awaited<ReturnType<typeof buildExecutiveInsights>>;\n    capabilities: ReturnType<typeof buildExecutiveCapabilities>;\n'
           )
 
-          marker = 'export async function buildExecutiveContext(\n'
           helper = '''function getKigaliTime(date: Date): string {\n    return new Intl.DateTimeFormat("sv-SE", {\n        timeZone: "Africa/Kigali",\n        year: "numeric",\n        month: "2-digit",\n        day: "2-digit",\n        hour: "2-digit",\n        minute: "2-digit",\n        second: "2-digit",\n        hour12: false\n    }).format(date);\n}\n\n'''
+          marker = 'export async function buildExecutiveContext(\n'
           if helper not in text:
               text = text.replace(marker, helper + marker)
 
@@ -74,10 +74,10 @@ jobs:
               'import { ExecutiveContext } from "./brain";\nimport { buildExecutiveCapabilities } from "../../shared/executive/capabilities";\n'
           )
 
-          text = text.replace(
-              '): string {\n\n    return `\n',
-              '''): string {\n\n    const now = new Date();\n\n    const currentTimeLocal =\n        new Intl.DateTimeFormat("sv-SE", {\n            timeZone: "Africa/Kigali",\n            year: "numeric",\n            month: "2-digit",\n            day: "2-digit",\n            hour: "2-digit",\n            minute: "2-digit",\n            second: "2-digit",\n            hour12: false\n        }).format(now);\n\n    const capabilities = buildExecutiveCapabilities();\n\n    return `\n'''
-          )
+          old_start = '): string {\n\n    return `\n'
+          new_start = ''' ): string {\n\n    const now = new Date();\n\n    const currentTimeLocal =\n        new Intl.DateTimeFormat("sv-SE", {\n            timeZone: "Africa/Kigali",\n            year: "numeric",\n            month: "2-digit",\n            day: "2-digit",\n            hour: "2-digit",\n            minute: "2-digit",\n            second: "2-digit",\n            hour12: false\n        }).format(now);\n\n    const capabilities = buildExecutiveCapabilities();\n\n    return `\n'''
+          if old_start in text:
+              text = text.replace(old_start, new_start, 1)
 
           marker = 'Use previous decisions when appropriate to avoid unnecessary repetition.\n'
           rules = '''AUTHORITATIVE RUNTIME TRUTH\n\n- Current UTC time: ${now.toISOString()}\n- Current Kigali time: ${currentTimeLocal}\n- Time zone: Africa/Kigali (CAT, UTC+02:00)\n- The runtime clock above is authoritative. Ignore stale times from previous decisions.\n\nCAPABILITY TRUTH\n\n${JSON.stringify(capabilities, null, 2)}\n\nCapabilities are hard constraints, not suggestions.\n\n- available means the capability can perform the action now.\n- simulation_only means the workflow may simulate the action but MUST NOT claim external execution.\n- unavailable means the capability cannot perform the action at all.\n- Never delegate a task that requires a simulation_only or unavailable capability as though it will execute externally.\n- If the requested action is blocked by capability, choose a useful blocker-resolving action or escalate the capability gap.\n- CRM writes are local application state and are not evidence that an external communication occurred.\n- A simulated voice call is never a completed call.\n- A drafted email is never a sent email.\n- A prepared calendar invite is never a scheduled meeting.\n\n'''
