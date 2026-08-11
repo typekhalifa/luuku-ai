@@ -16,11 +16,12 @@ function capabilityStatus(id: string) {
 function findCapabilityBlockers(text: string): string[] {
     const blockers: string[] = [];
 
+    // Guard actual outbound actions, not references to capabilities, gaps,
+    // escalation plans, or reports about unavailable integrations.
     const requiresEmail = containsAny(text, [
-        /\bsend(?:ing)?\s+(?:a\s+)?(?:real\s+)?e-?mail\b/i,
-        /\breal\s+e-?mail\b/i,
-        /\be-?mail\s+now\b/i,
-        /\be-?mail\s+sending\b/i,
+        /\b(?:send|send out|deliver|dispatch)\s+(?:a\s+|the\s+|this\s+)?(?:real\s+)?e-?mail\b/i,
+        /\b(?:send|deliver|dispatch)\s+(?:a\s+)?(?:real\s+)?outbound\s+e-?mail\b/i,
+        /\be-?mail\s+(?:the|a)\s+(?:prospect|contact|customer|company)\s+(?:now|immediately|today)\b/i,
     ]);
 
     if (requiresEmail) {
@@ -31,10 +32,10 @@ function findCapabilityBlockers(text: string): string[] {
     }
 
     const requiresVoice = containsAny(text, [
-        /\b(?:real\s+)?(?:phone\s+)?call\b/i,
-        /\bdial(?:ing)?\b/i,
-        /\bvoicemail\b/i,
-        /\bvoice\s+call\b/i,
+        /\b(?:place|make|start|initiate)\s+(?:a\s+)?(?:real\s+)?(?:phone\s+)?call\b/i,
+        /\bdial(?:ing)?\s+(?:the\s+)?(?:prospect|contact|customer|company|rra)\b/i,
+        /\bcall\s+(?:the\s+)?(?:prospect|contact|customer|company|rra)\s+(?:now|immediately|today)\b/i,
+        /\b(?:leave|send)\s+(?:a\s+)?voicemail\b/i,
     ]);
 
     if (requiresVoice) {
@@ -45,9 +46,9 @@ function findCapabilityBlockers(text: string): string[] {
     }
 
     const requiresCalendar = containsAny(text, [
-        /\bschedule(?:d|ing)?\s+(?:a\s+)?(?:meeting|call|demo)\b/i,
-        /\bcalendar\s+invite\b/i,
-        /\bcalendar\b.*\b(?:schedule|invite)\b/i,
+        /\b(?:schedule|book|arrange|set\s+up)\s+(?:a\s+|the\s+|this\s+)?(?:meeting|call|demo)\b/i,
+        /\bcreate\s+(?:a\s+)?calendar\s+invite\b/i,
+        /\bschedule\s+(?:a\s+)?calendar\s+(?:event|invite)\b/i,
     ]);
 
     if (requiresCalendar) {
