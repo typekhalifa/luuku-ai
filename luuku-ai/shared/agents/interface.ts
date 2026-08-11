@@ -1,3 +1,7 @@
+import {
+    ExecutionStatus
+} from "../execution/types";
+
 export interface AgentTask {
 
     id: string;
@@ -20,6 +24,12 @@ export interface AgentResult {
     summary: string;
 
     completedAt: string;
+
+    executionStatus?: ExecutionStatus;
+
+    executed?: boolean;
+
+    verified?: boolean;
 
 }
 
