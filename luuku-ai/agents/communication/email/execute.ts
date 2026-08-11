@@ -111,6 +111,9 @@ export async function executeEmailTask(
     const body =
         buildEmailBody(contact);
 
+    const idempotencyKey =
+        `sales-email/${task.id}`;
+
     console.log("");
     console.log("========================================");
     console.log("       REAL EMAIL EXECUTION");
@@ -118,6 +121,7 @@ export async function executeEmailTask(
     console.log("");
     console.log(`To      : ${contact.email}`);
     console.log(`Subject : ${subject}`);
+    console.log(`Request : ${idempotencyKey}`);
     console.log("");
 
     const result =
@@ -130,6 +134,7 @@ export async function executeEmailTask(
             metadata: {
                 source: "sales-agent",
                 taskId: task.id,
+                idempotencyKey,
                 replyTo: process.env.RESEND_REPLY_TO || ""
             }
         });
@@ -163,6 +168,9 @@ export async function executeEmailTask(
         );
 
     const activeDeal = deals[0];
+    const providerEvidence = result.evidence;
+    const externalId = providerEvidence?.externalId;
+    const provider = providerEvidence?.provider;
 
     const activity: Activity = {
         id: crypto.randomUUID(),
@@ -171,7 +179,12 @@ export async function executeEmailTask(
         dealId: activeDeal?.id,
         type: "email",
         title: "Sales Follow-up Email",
-        description: result.summary,
+        description: [
+            result.summary,
+            provider && externalId
+                ? `Provider: ${provider}; externalId: ${externalId}; idempotencyKey: ${idempotencyKey}.`
+                : `IdempotencyKey: ${idempotencyKey}.`
+        ].join(" "),
         outcome: "Sent",
         createdBy: "Sales Agent",
         completed: true,
