@@ -121,20 +121,42 @@ export const resendEmailAdapter: CommunicationAdapter = {
             const replyTo =
                 metadataString(request, "replyTo");
 
+            const idempotencyKey =
+                metadataString(request, "idempotencyKey") ||
+                metadataString(request, "taskId");
+
+            const headers: Record<string, string> = {
+                "Authorization": `Bearer ${apiKey}`,
+                "Content-Type": "application/json"
+            };
+
+            if (idempotencyKey) {
+                headers["Idempotency-Key"] = idempotencyKey;
+            }
+
+            const tags = [
+                {
+                    name: "luuku_source",
+                    value: metadataString(request, "source") || "communication-router"
+                },
+                {
+                    name: "luuku_capability",
+                    value: request.capability.replace(/[^a-zA-Z0-9_-]/g, "_")
+                }
+            ];
+
             const response = await fetch(
                 RESEND_ENDPOINT,
                 {
                     method: "POST",
-                    headers: {
-                        "Authorization": `Bearer ${apiKey}`,
-                        "Content-Type": "application/json"
-                    },
+                    headers,
                     body: JSON.stringify({
                         from,
                         to: [recipient],
                         subject: request.subject,
                         html,
                         text: request.body,
+                        tags,
                         ...(replyTo
                             ? { reply_to: replyTo }
                             : {})
@@ -178,7 +200,8 @@ export const resendEmailAdapter: CommunicationAdapter = {
                         recipient,
                         from,
                         providerAccepted: true,
-                        mode
+                        mode,
+                        idempotencyKey
                     }
                 },
                 summary:
