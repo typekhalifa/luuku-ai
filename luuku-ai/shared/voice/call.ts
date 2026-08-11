@@ -26,11 +26,18 @@ export async function placeVoiceCall(
 
     return {
 
-        success: true,
+        success: false,
+
+        status: "simulated",
+
+        executed: false,
+
+        verified: false,
 
         transcript: "",
 
-        summary: "Call simulation completed.",
+        summary:
+            "Call simulation completed. Real voice execution is not connected yet.",
 
         durationSeconds: 0
 
