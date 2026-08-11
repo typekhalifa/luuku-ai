@@ -12,7 +12,7 @@ model Company {
   name       String        @unique
   industry   String
   website    String?
-  country    String
+  country   String
   city       String?
   size       CompanySize?
   status     CompanyStatus
@@ -87,6 +87,24 @@ model Activity {
   @@index([companyId])
   @@index([contactId])
   @@index([dealId])
+}
+
+model CommunicationEvent {
+  id             String   @id @default(uuid())
+  provider       String
+  providerEventId String  @unique
+  type           String
+  externalId     String?
+  messageId      String?
+  recipient      String?
+  sender         String?
+  subject        String?
+  payload        Json
+  receivedAt     DateTime @default(now())
+
+  @@index([externalId])
+  @@index([messageId])
+  @@index([type])
 }
 
 enum CompanyStatus {
