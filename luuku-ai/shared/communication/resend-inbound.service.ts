@@ -1,6 +1,7 @@
 import { Prisma } from "@prisma/client";
 
 import { prisma } from "../database/client";
+import { handleInboundSalesReply } from "./inbound-sales.service";
 
 const RESEND_RECEIVING_ENDPOINT =
     "https://api.resend.com/emails/receiving";
@@ -100,7 +101,7 @@ async function retrieveReceivedEmail(
         name?: string;
     };
 
-    if (!response.ok || !('id' in payload)) {
+    if (!response.ok || !("id" in payload)) {
         const errorPayload = payload as { message?: string; name?: string };
         throw new Error(
             errorPayload.message ||
@@ -298,6 +299,27 @@ export async function processInboundResendEmail(
                 dealId: deal?.id
             };
         });
+
+        if (result.activityId && result.contactId && companyId) {
+            const inboundBody =
+                receivedEmail.text?.trim() ||
+                receivedEmail.html?.trim() ||
+                "Inbound email received without a text body.";
+
+            void handleInboundSalesReply({
+                activityId: result.activityId,
+                contactId: result.contactId,
+                companyId,
+                dealId: result.dealId,
+                companyName: fallbackContact?.company.name,
+                contactEmail: senderEmail,
+                subject: receivedEmail.subject || data.subject || "No subject",
+                body: inboundBody,
+                messageId,
+                inReplyTo,
+                references
+            });
+        }
 
         return {
             duplicate: false,
