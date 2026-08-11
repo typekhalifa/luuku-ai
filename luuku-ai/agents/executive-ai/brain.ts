@@ -6,9 +6,11 @@ import { getAgents } from "../../shared/agents/registry";
 import { buildExecutiveObjectives } from "../../shared/executive/objectives";
 import { buildExecutiveSchedule } from "../../shared/executive/scheduler";
 import { buildExecutiveCRM } from "../../shared/executive/crm";
+import { AgentResult } from "../../shared/agents/interface";
 
 export interface ExecutiveContext {
     generatedAt: string;
+    currentTime: string;
     intelligence: Awaited<ReturnType<typeof buildExecutiveIntelligence>>;
     memory: ReturnType<typeof buildExecutiveMemory>;
     agentHealth: ReturnType<typeof buildAgentHealth>;
@@ -18,9 +20,12 @@ export interface ExecutiveContext {
     insights: Awaited<ReturnType<typeof buildExecutiveInsights>>;
     availableAgents: string[];
     systemHealth: "excellent" | "good" | "warning" | "critical";
+    lastExecution?: AgentResult;
 }
 
-export async function buildExecutiveContext(): Promise<ExecutiveContext> {
+export async function buildExecutiveContext(
+    lastExecution?: AgentResult
+): Promise<ExecutiveContext> {
     const agentHealth = buildAgentHealth();
     const intelligence = await buildExecutiveIntelligence();
     const memory = buildExecutiveMemory();
@@ -37,6 +42,7 @@ export async function buildExecutiveContext(): Promise<ExecutiveContext> {
 
     return {
         generatedAt: new Date().toISOString(),
+        currentTime: new Date().toISOString(),
         intelligence,
         memory,
         objectives,
@@ -46,5 +52,6 @@ export async function buildExecutiveContext(): Promise<ExecutiveContext> {
         insights,
         availableAgents: getAgents().map(agent => agent.name),
         systemHealth,
+        lastExecution,
     };
 }
