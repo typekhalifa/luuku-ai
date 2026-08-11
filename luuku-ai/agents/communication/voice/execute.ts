@@ -199,63 +199,85 @@ export async function executeVoiceTask(
         result.status === "completed" ||
         result.status === "verified";
 
-    const outcome =
-        result.status === "simulated"
-            ? "Simulated"
-            : completed
-            ? "Completed"
-            : "Failed";
+    if (result.executed) {
 
-    const activity: Activity = {
+        const outcome =
+            completed
+                ? "Completed"
+                : "Failed";
 
-        id:
-            crypto.randomUUID(),
+        const activity: Activity = {
 
-        companyId:
-            company.id,
+            id:
+                crypto.randomUUID(),
 
-        contactId:
-            contact.id,
+            companyId:
+                company.id,
 
-        dealId:
-            activeDeal?.id,
+            contactId:
+                contact.id,
 
-        type:
-            "call",
+            dealId:
+                activeDeal?.id,
 
-        title:
-            "Sales Follow-up Call",
+            type:
+                "call",
 
-        description:
-            result.summary,
+            title:
+                "Sales Follow-up Call",
 
-        outcome,
+            description:
+                result.summary,
 
-        createdBy:
-            "Voice Agent",
+            outcome,
 
-        completed,
+            createdBy:
+                "Voice Agent",
 
-        createdAt:
-            new Date().toISOString()
+            completed,
 
-    };
+            createdAt:
+                new Date().toISOString()
 
-    await activityService.createActivity(
-        activity
-    );
+        };
 
-    console.log("");
+        await activityService.createActivity(
+            activity
+        );
 
-    console.log("========================================");
+        console.log("");
 
-    console.log("      ACTIVITY LOGGED TO POSTGRESQL");
+        console.log("========================================");
 
-    console.log("========================================");
+        console.log("      ACTIVITY LOGGED TO POSTGRESQL");
 
-    console.log("");
+        console.log("========================================");
 
-    console.log(activity);
+        console.log("");
+
+        console.log(activity);
+
+    } else {
+
+        console.log("");
+
+        console.log("========================================");
+
+        console.log("      CRM ACTIVITY NOT LOGGED");
+
+        console.log("========================================");
+
+        console.log("");
+
+        console.log(
+            "Reason : Communication was not actually executed."
+        );
+
+        console.log(
+            `Status : ${result.status}`
+        );
+
+    }
 
     await updateDealsAfterCall(
 
@@ -274,7 +296,7 @@ export async function executeVoiceTask(
 
         summary:
             result.status === "simulated"
-                ? "Sales communication prepared and simulated. Real call was not executed; CRM deal state remains unchanged."
+                ? "Sales communication prepared and simulated. Real call was not executed; CRM activity and deal state were left unchanged."
                 : result.summary,
 
         completedAt:
