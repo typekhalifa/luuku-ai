@@ -13,3 +13,4 @@ export * from "./event-communication-bridge";
 export * from "./founder-communication";
 export * from "./types";
 export * from "./brief";
+export * from "./router";
