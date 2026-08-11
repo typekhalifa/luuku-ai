@@ -8,6 +8,10 @@ import {
 } from "../../communication/voice/execute";
 
 import {
+    executeEmailTask
+} from "../../communication/email/execute";
+
+import {
     resolveTaskContext
 } from "../../../shared/context/resolver";
 
@@ -245,10 +249,27 @@ export async function executeSalesWorkflow(
 
     console.log("");
 
+    const requiresEmail =
+        text.includes("email") ||
+        text.includes("e-mail");
+
     const requiresVoice =
         text.includes("call") ||
         text.includes("phone") ||
         text.includes("meeting");
+
+    if (requiresEmail && !requiresVoice) {
+
+        console.log("✓ Real email communication required");
+
+        console.log("");
+
+        return executeEmailTask(
+            task,
+            activeContact
+        );
+
+    }
 
     if (requiresVoice) {
 
