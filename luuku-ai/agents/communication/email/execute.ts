@@ -87,6 +87,22 @@ export async function executeEmailTask(
         };
     }
 
+    const company =
+        await companyService.findCompany(
+            contact.company
+        );
+
+    if (!company) {
+        return {
+            success: false,
+            summary: `Sales email workflow stopped because company ${contact.company} could not be resolved in PostgreSQL.`,
+            completedAt: new Date().toISOString(),
+            executionStatus: "blocked",
+            executed: false,
+            verified: false
+        };
+    }
+
     registerCommunicationProviders();
 
     const subject =
@@ -121,22 +137,6 @@ export async function executeEmailTask(
     console.log("");
     console.log("Email execution result:");
     console.log(result);
-
-    const company =
-        await companyService.findCompany(
-            contact.company
-        );
-
-    if (!company) {
-        return {
-            success: false,
-            summary: "Email execution completed, but CRM company could not be resolved for activity logging.",
-            completedAt: new Date().toISOString(),
-            executionStatus: "failed",
-            executed: result.executed,
-            verified: result.verified
-        };
-    }
 
     if (!result.verified) {
         console.log("");
