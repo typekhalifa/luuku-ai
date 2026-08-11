@@ -121,6 +121,12 @@ export const resendEmailAdapter: CommunicationAdapter = {
             const replyTo =
                 metadataString(request, "replyTo");
 
+            const inReplyTo =
+                metadataString(request, "inReplyTo");
+
+            const references =
+                metadataString(request, "references");
+
             const idempotencyKey =
                 metadataString(request, "idempotencyKey") ||
                 metadataString(request, "taskId");
@@ -132,6 +138,16 @@ export const resendEmailAdapter: CommunicationAdapter = {
 
             if (idempotencyKey) {
                 headers["Idempotency-Key"] = idempotencyKey;
+            }
+
+            const emailHeaders: Record<string, string> = {};
+
+            if (inReplyTo) {
+                emailHeaders["In-Reply-To"] = inReplyTo;
+            }
+
+            if (references) {
+                emailHeaders["References"] = references;
             }
 
             const tags = [
@@ -159,6 +175,9 @@ export const resendEmailAdapter: CommunicationAdapter = {
                         tags,
                         ...(replyTo
                             ? { reply_to: replyTo }
+                            : {}),
+                        ...(Object.keys(emailHeaders).length
+                            ? { headers: emailHeaders }
                             : {})
                     })
                 }
@@ -201,7 +220,10 @@ export const resendEmailAdapter: CommunicationAdapter = {
                         from,
                         providerAccepted: true,
                         mode,
-                        idempotencyKey
+                        idempotencyKey,
+                        threadedReply: Boolean(inReplyTo),
+                        inReplyTo,
+                        references
                     }
                 },
                 summary:
