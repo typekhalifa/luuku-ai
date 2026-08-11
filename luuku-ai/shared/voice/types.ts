@@ -1,3 +1,7 @@
+import {
+    ExecutionResult
+} from "../execution/types";
+
 export interface VoiceCallRequest {
 
     contactName: string;
@@ -17,7 +21,7 @@ export interface VoiceCallRequest {
 
 }
 
-export interface VoiceCallResult {
+export interface VoiceCallResult extends ExecutionResult {
 
     success: boolean;
 
