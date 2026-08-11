@@ -30,6 +30,16 @@ function blockedResult(
     };
 }
 
+function metadataString(
+    request: CommunicationRequest,
+    key: string
+): string | undefined {
+    const value = request.metadata?.[key];
+    return typeof value === "string"
+        ? value
+        : undefined;
+}
+
 export const resendEmailAdapter: CommunicationAdapter = {
 
     capability: "email.send",
@@ -84,6 +94,13 @@ export const resendEmailAdapter: CommunicationAdapter = {
         }
 
         try {
+            const html =
+                metadataString(request, "html") ||
+                request.body;
+
+            const replyTo =
+                metadataString(request, "replyTo");
+
             const response = await fetch(
                 RESEND_ENDPOINT,
                 {
@@ -96,15 +113,10 @@ export const resendEmailAdapter: CommunicationAdapter = {
                         from,
                         to: [recipient],
                         subject: request.subject,
-                        html:
-                            request.metadata?.html ||
-                            request.body,
+                        html,
                         text: request.body,
-                        ...(request.metadata?.replyTo
-                            ? {
-                                reply_to:
-                                    request.metadata.replyTo
-                            }
+                        ...(replyTo
+                            ? { reply_to: replyTo }
                             : {})
                     })
                 }
