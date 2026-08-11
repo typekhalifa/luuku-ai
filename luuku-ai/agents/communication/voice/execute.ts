@@ -143,12 +143,14 @@ export async function executeVoiceTask(
 
     console.log("========================================");
 
-    console.log("      AI CONVERSATION");
+    console.log("  SIMULATED AI CONVERSATION");
 
     console.log("========================================");
 
     console.log("");
 
+    console.log("No prospect was contacted. This transcript is an AI simulation used for planning/testing.");
+    console.log("");
     console.log(transcript);
 
     const result =
