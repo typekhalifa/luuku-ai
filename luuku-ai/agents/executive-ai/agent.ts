@@ -12,9 +12,16 @@ import { notifyFounder } from "../../shared/executive/notify";
 import { createFounderDiscordCommunication } from "../../shared/executive/founder-discord";
 
 async function publishFounderNotifications(
-    decision: ReturnType<typeof parseDecision>
+    decision: ReturnType<typeof parseDecision>,
+    blockers: string[] = [],
 ) {
     const notifications = buildFounderNotifications(decision);
+
+    if (blockers.length > 0 && notifications.length > 0) {
+        notifications[0].title = "Executive Decision — BLOCKED";
+        notifications[0].message += `\n\n⚠️ Execution was blocked before agent dispatch:\n${blockers.map((blocker) => `• ${blocker}`).join("\n")}`;
+    }
+
     notifyFounder(notifications);
 
     if (notifications.length > 0) {
@@ -57,7 +64,7 @@ async function runExecutiveAI() {
         console.log("      FOUNDER NOTIFICATIONS");
         console.log("========================================");
         console.log("");
-        await publishFounderNotifications(decision);
+        await publishFounderNotifications(decision, decisionGuard.blockers);
 
         console.log("");
         console.log("========================================");
@@ -121,6 +128,10 @@ async function runExecutiveAI() {
             throw new Error("Post-execution executive decision failed validation.");
         }
 
+        const followUpGuard = guardExecutiveDecision(
+            `${followUpDecision.summary}\n${followUpDecision.task.title}\n${followUpDecision.task.description}`,
+        );
+
         saveExecutiveDecision(followUpDecision);
 
         console.log("");
@@ -130,7 +141,17 @@ async function runExecutiveAI() {
         console.log("");
         console.log(followUpDecision);
 
-        await publishFounderNotifications(followUpDecision);
+        if (!followUpGuard.allowed) {
+            console.log("");
+            console.log("========================================");
+            console.log(" POST-EXECUTION DECISION BLOCKED");
+            console.log("========================================");
+            for (const blocker of followUpGuard.blockers) {
+                console.log(`- ${blocker}`);
+            }
+        }
+
+        await publishFounderNotifications(followUpDecision, followUpGuard.blockers);
 
         console.log("");
         console.log("========================================");
