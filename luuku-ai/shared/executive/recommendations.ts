@@ -1,70 +1,35 @@
 import { buildExecutiveInsights } from "./insights";
 import { getHighestPriorityTask } from "./priorities";
 
-export function generateRecommendations(): string[] {
-
+export async function generateRecommendations(): Promise<string[]> {
     const recommendations: string[] = [];
-
     const highest = getHighestPriorityTask();
 
     if (highest) {
-
         recommendations.push(
-
-            `Prioritize "${highest.title}" for ${highest.business}.`
-
+            `Prioritize "${highest.title}" for ${highest.business}.`,
         );
-
     }
 
-    const insights = buildExecutiveInsights();
+    const insights = await buildExecutiveInsights();
 
-    if (
-
-        insights.messages.some(
-
-            message => message.includes("overdue")
-
-        )
-
-    ) {
-
+    if (insights.messages.some((message: string) => message.includes("overdue"))) {
         recommendations.push(
-
-            "Resolve overdue tasks before creating new work."
-
+            "Resolve overdue tasks before creating new work.",
         );
-
     }
 
-    if (
-
-        insights.messages.some(
-
-            message => message.includes("No active")
-
-        )
-
-    ) {
-
+    if (insights.messages.some((message: string) => message.includes("No active"))) {
         recommendations.push(
-
-            "Assign work to an available agent."
-
+            "Assign work to an available agent.",
         );
-
     }
 
     if (recommendations.length === 0) {
-
         recommendations.push(
-
-            "Operations look healthy. Continue executing the current plan."
-
+            "Operations look healthy. Continue executing the current plan.",
         );
-
     }
 
     return recommendations;
-
 }
