@@ -41,6 +41,13 @@ import {
     Contact
 } from "../../../shared/crm/types";
 
+interface InboundReplyData {
+    subject: string;
+    body: string;
+    inReplyTo?: string;
+    references?: string;
+}
+
 function buildEmailSubject(
     company: string
 ): string {
@@ -70,6 +77,50 @@ function buildEmailBody(
         "Best regards,",
         "Luuku AI"
     ].join("\n");
+}
+
+function extractInboundReply(
+    task: AgentTask
+): InboundReplyData | undefined {
+    if (!/^INBOUND_REPLY=true$/im.test(task.description)) {
+        return undefined;
+    }
+
+    const subject =
+        task.description.match(
+            /^ORIGINAL_SUBJECT:\s*(.+)$/im
+        )?.[1]?.trim();
+
+    const inReplyTo =
+        task.description.match(
+            /^IN_REPLY_TO:\s*(.+)$/im
+        )?.[1]?.trim();
+
+    const references =
+        task.description.match(
+            /^REFERENCES:\s*(.+)$/im
+        )?.[1]?.trim();
+
+    const bodyMatch = task.description.match(
+        /REPLY_BODY_START\s*\n([\s\S]*?)\nREPLY_BODY_END/i
+    );
+
+    const body = bodyMatch?.[1]?.trim();
+
+    if (!body) {
+        return undefined;
+    }
+
+    return {
+        subject: subject
+            ? /^re:/i.test(subject)
+                ? subject
+                : `Re: ${subject}`
+            : "Re: Luuku AI",
+        body,
+        inReplyTo: inReplyTo || undefined,
+        references: references || undefined
+    };
 }
 
 export async function executeEmailTask(
@@ -105,10 +156,15 @@ export async function executeEmailTask(
 
     registerCommunicationProviders();
 
+    const inboundReply =
+        extractInboundReply(task);
+
     const subject =
+        inboundReply?.subject ||
         buildEmailSubject(contact.company);
 
     const body =
+        inboundReply?.body ||
         buildEmailBody(contact);
 
     const idempotencyKey =
@@ -116,7 +172,11 @@ export async function executeEmailTask(
 
     console.log("");
     console.log("========================================");
-    console.log("       REAL EMAIL EXECUTION");
+    console.log(
+        inboundReply
+            ? "       REAL EMAIL REPLY EXECUTION"
+            : "       REAL EMAIL EXECUTION"
+    );
     console.log("========================================");
     console.log("");
     console.log(`To      : ${contact.email}`);
@@ -132,10 +192,18 @@ export async function executeEmailTask(
             subject,
             body,
             metadata: {
-                source: "sales-agent",
+                source: inboundReply
+                    ? "sales-agent-inbound-reply"
+                    : "sales-agent",
                 taskId: task.id,
                 idempotencyKey,
-                replyTo: process.env.RESEND_REPLY_TO || ""
+                replyTo: process.env.RESEND_REPLY_TO || "",
+                ...(inboundReply?.inReplyTo
+                    ? { inReplyTo: inboundReply.inReplyTo }
+                    : {}),
+                ...(inboundReply?.references
+                    ? { references: inboundReply.references }
+                    : {})
             }
         });
 
@@ -178,14 +246,21 @@ export async function executeEmailTask(
         contactId: contact.id,
         dealId: activeDeal?.id,
         type: "email",
-        title: "Sales Follow-up Email",
+        title: inboundReply
+            ? "Sales Agent Reply to Inbound Email"
+            : "Sales Follow-up Email",
         description: [
             result.summary,
+            inboundReply
+                ? "Triggered by AI-classified inbound prospect reply."
+                : "",
             provider && externalId
                 ? `Provider: ${provider}; externalId: ${externalId}; idempotencyKey: ${idempotencyKey}.`
                 : `IdempotencyKey: ${idempotencyKey}.`
-        ].join(" "),
-        outcome: "Sent",
+        ].filter(Boolean).join(" "),
+        outcome: inboundReply
+            ? "Reply sent and verified"
+            : "Sent",
         createdBy: "Sales Agent",
         completed: true,
         createdAt: new Date().toISOString()
@@ -202,7 +277,9 @@ export async function executeEmailTask(
 
     return {
         success: true,
-        summary: `Sales Agent sent and verified the follow-up email to ${contact.email}. ${result.summary}`,
+        summary: inboundReply
+            ? `Sales Agent sent and verified an inbound-reply response to ${contact.email}. ${result.summary}`
+            : `Sales Agent sent and verified the follow-up email to ${contact.email}. ${result.summary}`,
         completedAt: new Date().toISOString(),
         executionStatus: "verified",
         executed: true,
