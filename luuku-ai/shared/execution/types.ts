@@ -6,6 +6,7 @@ export type ExecutionStatus =
     | "executing"
     | "completed"
     | "failed"
+    | "blocked"
     | "verified";
 
 export interface ExecutionEvidence {
