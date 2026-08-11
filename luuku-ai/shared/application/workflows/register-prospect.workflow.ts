@@ -21,6 +21,7 @@ import {
 import { eventBus } from "../../events/core/event-bus";
 
 import { ProspectRegisteredEvent } from "../../events/events/prospect-registered.event";
+
 export interface RegisterProspectRequest {
 
     company: Omit<
@@ -49,68 +50,61 @@ export class RegisterProspectWorkflow {
         const context =
             createWorkflowContext();
 
-        await this.ensureCompany(
-
-            context,
-
-            request.company
-
-        );
+        const companyCreated =
+            await this.ensureCompany(
+                context,
+                request.company
+            );
 
         await this.ensurePrimaryContact(
-
             context,
-
             request.contact
-
         );
 
         await this.ensureInitialDeal(
-
             context
-
         );
 
         await this.logInitialActivity(
-
             context
-
         );
 
         completeWorkflow(
-
             context
-
         );
 
-        await eventBus.publish(
+        if (companyCreated) {
 
-            new ProspectRegisteredEvent(
+            await eventBus.publish(
 
-                {
+                new ProspectRegisteredEvent(
 
-                    workflowId:
-                        context.workflowId,
+                    {
 
-                    agent:
-                        "research-agent",
+                        workflowId:
+                            context.workflowId,
 
-                    correlationId:
-                        context.workflowId
+                        agent:
+                            "research-agent",
 
-                },
+                        correlationId:
+                            context.workflowId
 
-                context.company!.id,
+                    },
 
-                context.company!.name,
+                    context.company!.id,
 
-                context.contact!.id,
+                    context.company!.name,
 
-                context.deal!.id
+                    context.contact!.id,
 
-            )
+                    context.deal!.id
 
-        );
+                )
+
+            );
+
+        }
 
         return {
 
@@ -153,21 +147,18 @@ export class RegisterProspectWorkflow {
 
         company: RegisterProspectRequest["company"]
 
-    ): Promise<void> {
+    ): Promise<boolean> {
 
         const existing =
-
             await companyService.findCompany(
-
                 company.name
-
             );
 
         if (existing) {
 
             context.company = existing;
 
-            return;
+            return false;
 
         }
 
@@ -175,7 +166,6 @@ export class RegisterProspectWorkflow {
             new Date().toISOString();
 
         context.company =
-
             await companyService.createCompany({
 
                 ...company,
@@ -191,6 +181,8 @@ export class RegisterProspectWorkflow {
 
             });
 
+        return true;
+
     }
 
     private async ensurePrimaryContact(
@@ -201,11 +193,82 @@ export class RegisterProspectWorkflow {
 
     ): Promise<void> {
 
+        const existingContacts =
+            await contactService.getCompanyContacts(
+                context.company!.id
+            );
+
+        const normalizedEmail =
+            contact.email?.trim().toLowerCase();
+
+        const normalizedPhone =
+            contact.phoneNumber?.trim();
+
+        const existing =
+            existingContacts.find(
+                candidate =>
+                    (
+                        normalizedEmail &&
+                        candidate.email?.trim().toLowerCase() ===
+                            normalizedEmail
+                    ) ||
+                    (
+                        normalizedPhone &&
+                        candidate.phoneNumber?.trim() ===
+                            normalizedPhone
+                    )
+            ) ?? existingContacts[0];
+
         const now =
             new Date().toISOString();
 
-        context.contact =
+        if (existing) {
 
+            context.contact =
+                await contactService.updateContact({
+
+                    ...existing,
+
+                    name:
+                        contact.name,
+
+                    email:
+                        contact.email,
+
+                    phoneNumber:
+                        contact.phoneNumber,
+
+                    preferredLanguage:
+                        contact.preferredLanguage,
+
+                    department:
+                        contact.department,
+
+                    position:
+                        contact.position,
+
+                    verified:
+                        contact.verified,
+
+                    confidence:
+                        contact.confidence,
+
+                    source:
+                        contact.source,
+
+                    lastVerifiedAt:
+                        contact.lastVerifiedAt,
+
+                    updatedAt:
+                        now
+
+                });
+
+            return;
+
+        }
+
+        context.contact =
             await contactService.createContact({
 
                 ...contact,
@@ -233,11 +296,8 @@ export class RegisterProspectWorkflow {
     ): Promise<void> {
 
         const existingDeals =
-
             await dealService.getCompanyDeals(
-
                 context.company!.id
-
             );
 
         if (existingDeals.length > 0) {
@@ -253,7 +313,6 @@ export class RegisterProspectWorkflow {
             new Date().toISOString();
 
         context.deal =
-
             await dealService.createDeal({
 
                 id:
@@ -302,8 +361,30 @@ export class RegisterProspectWorkflow {
 
     ): Promise<void> {
 
-        context.activity =
+        const existingActivities =
+            await activityService.getCompanyActivities(
+                context.company!.id
+            );
 
+        const existingRegistration =
+            existingActivities.find(
+                activity =>
+                    activity.title ===
+                        "Prospect Registered" &&
+                    activity.dealId ===
+                        context.deal!.id
+            );
+
+        if (existingRegistration) {
+
+            context.activity =
+                existingRegistration;
+
+            return;
+
+        }
+
+        context.activity =
             await activityService.createActivity({
 
                 id:
