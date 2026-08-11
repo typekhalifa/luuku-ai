@@ -1,144 +1,89 @@
 import { bootstrap } from "../../shared/kernel/bootstrap";
-
 import { requestExecutiveReasoning } from "../../shared/ai/executive";
-
 import { runExecutiveReview } from "../../shared/executive/review";
-
 import { parseDecision } from "./parser";
-
 import { validateDecision } from "./decision";
-
 import crypto from "crypto";
-
 import { runAgent } from "../../shared/agents/runner";
-
 import { saveExecutiveDecision } from "../../shared/executive/history";
-
 import { buildFounderNotifications } from "../../shared/executive/notifications";
-
 import { notifyFounder } from "../../shared/executive/notify";
-
 import { createFounderDiscordCommunication } from "../../shared/executive/founder-discord";
 
-import { renderExecutiveSummary } from "../../shared/executive/summary";
-
 async function runExecutiveAI() {
-
     await bootstrap();
 
     try {
-
         console.log("");
-
         console.log("========================================");
-
         console.log("      LUUKU AI EXECUTIVE");
-
         console.log("========================================");
 
-        const context =
-            runExecutiveReview();
+        const context = await runExecutiveReview();
 
         console.log("");
-
         console.log("Requesting executive reasoning...");
 
-        const response =
-            await requestExecutiveReasoning(context);
-
-        const decision =
-            parseDecision(response);
+        const response = await requestExecutiveReasoning(context);
+        const decision = parseDecision(response);
 
         if (!validateDecision(decision)) {
-
-            throw new Error(
-                "Executive decision failed validation."
-            );
-
+            throw new Error("Executive decision failed validation.");
         }
 
         saveExecutiveDecision(decision);
 
-        const notifications =
-            buildFounderNotifications(decision);
-
+        const notifications = buildFounderNotifications(decision);
         notifyFounder(notifications);
 
         if (notifications.length > 0) {
-
-            const founderCommunication =
-                createFounderDiscordCommunication();
-
-            await founderCommunication.publishNotifications(
-                notifications,
-            );
-
+            const founderCommunication = createFounderDiscordCommunication();
+            await founderCommunication.publishNotifications(notifications);
             console.log("");
-
             console.log("✓ Executive notifications delivered to Discord.");
-
         }
 
         console.log("");
-
         console.log("========================================");
-
         console.log("      EXECUTIVE DECISION");
-
         console.log("========================================");
-
         console.log("");
-
         console.log(decision);
 
         const result = await runAgent(
-
             decision.assignedAgentId,
-
             {
-
                 id: crypto.randomUUID(),
-
                 title: decision.task.title,
-
                 description: decision.task.description,
-
-                priority: decision.task.priority
-
-            }
-
+                priority: decision.task.priority,
+            },
         );
 
         console.log("");
-
         console.log("========================================");
-
         console.log("      AGENT RESULT");
-
         console.log("========================================");
-
         console.log("");
-
         console.log(result);
 
-        renderExecutiveSummary();
+        console.log("");
+        console.log("========================================");
+        console.log("      EXECUTIVE SUMMARY");
+        console.log("========================================");
+        console.log("");
+        const finalContext = await runExecutiveReview();
+        console.log("CRM");
+        console.log("");
+        console.log(`Companies   : ${finalContext.crm.companies}`);
+        console.log(`Contacts    : ${finalContext.crm.contacts}`);
+        console.log(`Deals       : ${finalContext.crm.deals}`);
+        console.log(`Activities  : ${finalContext.crm.activities}`);
+        console.log(`Timeline    : ${finalContext.crm.timeline}`);
 
     } catch (error) {
-
-        console.error("");
-
-        console.error("========================================");
-
-        console.error("      EXECUTIVE AI FAILED");
-
-        console.error("========================================");
-
-        console.error("");
-
         console.error(error);
-
     }
-
 }
 
 runExecutiveAI();
