@@ -4,6 +4,7 @@ import { buildExecutiveIntelligence } from "../../shared/executive/intelligence"
 import { buildExecutiveMemory } from "../../shared/executive/memory";
 import { getAgents } from "../../shared/agents/registry";
 import { buildExecutiveObjectives } from "../../shared/executive/objectives";
+import { buildExecutiveSchedule } from "../../shared/executive/scheduler";
 import { buildExecutiveCRM } from "../../shared/executive/crm";
 
 export interface ExecutiveContext {
