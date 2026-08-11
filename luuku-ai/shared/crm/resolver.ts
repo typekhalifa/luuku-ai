@@ -1,21 +1,80 @@
-import { Contact } from "./types";
+import {
+    Contact
+} from "./types";
 
 import {
+    contactService
+} from "../database/services/contact.service";
 
-    findCRMContact
+import {
+    companyService
+} from "../database/services/company.service";
 
-} from "./repository";
+export async function resolveContact(
 
-export function resolveContact(
+    companyName: string
 
-    company: string
+): Promise<Contact | undefined> {
 
-): Contact | undefined {
+    const company =
+        await companyService.findCompany(
+            companyName
+        );
 
-    return findCRMContact(
+    if (!company) {
+        return undefined;
+    }
 
-        company
+    const contacts =
+        await contactService.getCompanyContacts(
+            company.id
+        );
 
-    );
+    const contact =
+        contacts[0];
+
+    if (!contact) {
+        return undefined;
+    }
+
+    return {
+
+        id:
+            contact.id,
+
+        name:
+            contact.name,
+
+        company:
+            company.name,
+
+        phoneNumber:
+            contact.phoneNumber,
+
+        email:
+            contact.email,
+
+        preferredLanguage:
+            contact.preferredLanguage ?? "English",
+
+        department:
+            contact.department,
+
+        position:
+            contact.position,
+
+        verified:
+            contact.verified,
+
+        confidence:
+            contact.confidence,
+
+        source:
+            contact.source,
+
+        lastVerifiedAt:
+            contact.lastVerifiedAt
+
+    };
 
 }
