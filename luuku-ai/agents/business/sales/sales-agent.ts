@@ -1,20 +1,13 @@
 import { BaseAgent } from "../../../shared/agents/base";
 
 import {
-
     AgentTask,
-
     AgentResult
-
 } from "../../../shared/agents/interface";
 
 import {
-
-    executeSalesTask
-
-} from "./execute";
-
-import { executeSalesWorkflow } from "./workflow";
+    executeSalesWorkflow
+} from "./workflow";
 
 export class SalesAgent extends BaseAgent {
 
@@ -40,21 +33,9 @@ export class SalesAgent extends BaseAgent {
 
         console.log("");
 
-        await executeSalesWorkflow(task);
-
-        return {
-
-            success: true,
-
-            summary:
-
-                `Sales workflow completed "${task.title}".`,
-
-            completedAt:
-
-                new Date().toISOString()
-
-        };
+        return executeSalesWorkflow(
+            task
+        );
 
     }
 
