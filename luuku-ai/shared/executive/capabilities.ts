@@ -15,7 +15,17 @@ export interface ExecutiveCapability {
 
 }
 
+function isRealEmailConfigured(): boolean {
+    return Boolean(
+        process.env.RESEND_API_KEY &&
+        process.env.RESEND_FROM_EMAIL
+    );
+}
+
 export function buildExecutiveCapabilities(): ExecutiveCapability[] {
+
+    const emailAvailable =
+        isRealEmailConfigured();
 
     return [
 
@@ -59,11 +69,18 @@ export function buildExecutiveCapabilities(): ExecutiveCapability[] {
 
             id: "email.send",
 
-            status: "unavailable",
+            status:
+                emailAvailable
+                    ? "available"
+                    : "unavailable",
 
-            description: "No real outbound email provider is connected to Luuku AI.",
+            description:
+                emailAvailable
+                    ? "Real outbound email is connected through the configured Resend provider."
+                    : "No real outbound email provider is configured. Set RESEND_API_KEY and RESEND_FROM_EMAIL.",
 
-            safeForExternalExecution: false
+            safeForExternalExecution:
+                emailAvailable
 
         },
 
