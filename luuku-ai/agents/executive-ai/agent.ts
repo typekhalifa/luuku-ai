@@ -6,6 +6,7 @@ import { validateDecision } from "./decision";
 import { guardExecutiveDecision } from "../../shared/executive/decision-guard";
 import crypto from "crypto";
 import { runAgent } from "../../shared/agents/runner";
+import { AgentResult } from "../../shared/agents/interface";
 import { saveExecutiveDecision } from "../../shared/executive/history";
 import { buildFounderNotifications } from "../../shared/executive/notifications";
 import { notifyFounder } from "../../shared/executive/notify";
@@ -73,7 +74,7 @@ async function runExecutiveAI() {
         console.log("");
         console.log(decision);
 
-        let result;
+        let result: AgentResult;
 
         if (!decisionGuard.allowed) {
             console.log("");
