@@ -1,7 +1,10 @@
+import { AgentResult } from "../../shared/agents/interface";
 import { buildExecutiveContext } from "../../agents/executive-ai/brain";
 
-export async function runExecutiveReview() {
-    const context = await buildExecutiveContext();
+export async function runExecutiveReview(
+    lastExecution?: AgentResult
+) {
+    const context = await buildExecutiveContext(lastExecution);
 
     console.log("");
     console.log("========================================");
@@ -10,6 +13,9 @@ export async function runExecutiveReview() {
     console.log("");
     console.log("Generated:");
     console.log(context.generatedAt);
+    console.log("");
+    console.log("Current Time:");
+    console.log(context.currentTime);
     console.log("");
     console.log("System Health:");
     console.log(context.systemHealth);
@@ -40,6 +46,16 @@ export async function runExecutiveReview() {
     console.log("");
     console.log("Active Agents:");
     console.log(context.agentHealth.length);
+
+    if (lastExecution) {
+        console.log("");
+        console.log("LAST EXECUTION");
+        console.log("");
+        console.log(`Status   : ${lastExecution.executionStatus ?? "unknown"}`);
+        console.log(`Executed : ${lastExecution.executed ?? false}`);
+        console.log(`Verified : ${lastExecution.verified ?? false}`);
+        console.log(`Summary  : ${lastExecution.summary}`);
+    }
 
     return context;
 }
