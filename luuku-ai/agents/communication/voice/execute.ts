@@ -10,6 +10,10 @@ import {
 } from "../../../shared/voice/call";
 
 import {
+    isVerifiedRealExecution
+} from "../../../shared/execution/reality";
+
+import {
     buildCommunicationBrief
 } from "../../../shared/communication/brief";
 
@@ -197,11 +201,14 @@ export async function executeVoiceTask(
     const activeDeal =
         deals[0];
 
+    const isRealExecution =
+        isVerifiedRealExecution(result);
+
     const completed =
         result.status === "completed" ||
         result.status === "verified";
 
-    if (result.executed) {
+    if (isRealExecution) {
 
         const outcome =
             completed
@@ -272,11 +279,15 @@ export async function executeVoiceTask(
         console.log("");
 
         console.log(
-            "Reason : Communication was not actually executed."
+            "Reason : Communication was not verified as a real external execution."
         );
 
         console.log(
-            `Status : ${result.status}`
+            `Status : ${result.status} | executed=${result.executed} | verified=${result.verified}`
+        );
+
+        console.log(
+            "CRM reality is protected from simulated or unverified communication."
         );
 
     }
@@ -287,7 +298,11 @@ export async function executeVoiceTask(
 
         result.summary,
 
-        result.status
+        result.status,
+
+        result.executed,
+
+        result.verified
 
     );
 
