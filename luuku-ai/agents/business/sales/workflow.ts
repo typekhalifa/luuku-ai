@@ -1,12 +1,23 @@
-import { AgentTask } from "../../../shared/agents/interface";
+import {
+    AgentTask,
+    AgentResult
+} from "../../../shared/agents/interface";
 
-import { executeVoiceTask } from "../../communication/voice/execute";
+import {
+    executeVoiceTask
+} from "../../communication/voice/execute";
 
-import { resolveTaskContext } from "../../../shared/context/resolver";
+import {
+    resolveTaskContext
+} from "../../../shared/context/resolver";
 
-import { resolveContact } from "../../../shared/crm/resolver";
+import {
+    resolveContact
+} from "../../../shared/crm/resolver";
 
-import { validateContact } from "../../../shared/crm/validator";
+import {
+    validateContact
+} from "../../../shared/crm/validator";
 
 import {
     requestContactEnrichment
@@ -16,7 +27,7 @@ export async function executeSalesWorkflow(
 
     task: AgentTask
 
-): Promise<void> {
+): Promise<AgentResult> {
 
     console.log("");
 
@@ -39,18 +50,14 @@ export async function executeSalesWorkflow(
     ).toLowerCase();
 
     const context =
-
         resolveTaskContext(task);
 
-    const contact =
-
-        resolveContact(
-
+    let activeContact =
+        await resolveContact(
             context.companyName
-
         );
 
-    if (!contact) {
+    if (!activeContact) {
 
         console.log("");
 
@@ -68,36 +75,55 @@ export async function executeSalesWorkflow(
 
         console.log("Reason:");
 
-        console.log("• No contact found.");
+        console.log("• No contact found in PostgreSQL.");
 
         console.log("");
 
-        await requestContactEnrichment({
+        const enrichment =
+            await requestContactEnrichment({
 
-            company:
+                company:
+                    context.companyName,
 
-                context.companyName,
+                reasons: [
+                    "No contact found in PostgreSQL."
+                ]
 
-            reasons: [
+            });
 
-                "No contact found."
+        if (!enrichment.success) {
 
-            ]
+            return {
 
-        });
+                success: false,
 
-        return;
+                summary:
+                    "Sales workflow could not enrich the missing CRM contact.",
+
+                completedAt:
+                    new Date().toISOString(),
+
+                executionStatus:
+                    "failed",
+
+                executed:
+                    false,
+
+                verified:
+                    false
+
+            };
+
+        }
+
+        activeContact =
+            enrichment.contact;
 
     }
 
-    let activeContact = contact;
-
     let validation =
-
         validateContact(
-
             activeContact
-
         );
 
     console.log("");
@@ -127,29 +153,47 @@ export async function executeSalesWorkflow(
         console.log("");
 
         const enrichment =
-
             await requestContactEnrichment({
 
                 company:
-
                     context.companyName,
 
                 reasons:
-
                     validation.reasons
 
             });
 
-        activeContact =
+        if (!enrichment.success) {
 
+            return {
+
+                success: false,
+
+                summary:
+                    "Sales workflow could not complete CRM enrichment.",
+
+                completedAt:
+                    new Date().toISOString(),
+
+                executionStatus:
+                    "failed",
+
+                executed:
+                    false,
+
+                verified:
+                    false
+
+            };
+
+        }
+
+        activeContact =
             enrichment.contact;
 
         validation =
-
             validateContact(
-
                 activeContact
-
             );
 
         if (!validation.ready) {
@@ -157,21 +201,36 @@ export async function executeSalesWorkflow(
             console.log("");
 
             console.log(
-
                 "CRM enrichment failed."
-
             );
 
-            return;
+            return {
+
+                success: false,
+
+                summary:
+                    "Sales workflow stopped because CRM validation is still incomplete.",
+
+                completedAt:
+                    new Date().toISOString(),
+
+                executionStatus:
+                    "failed",
+
+                executed:
+                    false,
+
+                verified:
+                    false
+
+            };
 
         }
 
         console.log("");
 
         console.log(
-
             "✓ CRM successfully enriched."
-
         );
 
     }
@@ -181,19 +240,14 @@ export async function executeSalesWorkflow(
     console.log("");
 
     console.log(
-
         "CRM ready for communication."
-
     );
 
     console.log("");
 
     const requiresVoice =
-
         text.includes("call") ||
-
         text.includes("phone") ||
-
         text.includes("meeting");
 
     if (requiresVoice) {
@@ -202,18 +256,34 @@ export async function executeSalesWorkflow(
 
         console.log("");
 
-        await executeVoiceTask(
-
+        return executeVoiceTask(
             task,
-
             activeContact
-
         );
 
-    } else {
-
-        console.log("✓ No communication required");
-
     }
+
+    console.log("✓ No communication required");
+
+    return {
+
+        success: true,
+
+        summary:
+            `Sales CRM workflow completed "${task.title}". No external communication was required.`,
+
+        completedAt:
+            new Date().toISOString(),
+
+        executionStatus:
+            "completed",
+
+        executed:
+            true,
+
+        verified:
+            false
+
+    };
 
 }
