@@ -7,10 +7,22 @@ import { agentsRouter } from "./routes/agents.route";
 import { workflowRouter } from "./routes/workflow.routes";
 import { crmRouter } from "./routes/crm.routes";
 import { runtimeRouter } from "./routes/runtime.routes";
+import { resendWebhookRouter } from "./routes/resend-webhook.route";
 
 const app = express();
 
 app.use(cors());
+
+// Resend requires the exact raw request body for Svix signature verification.
+app.use(
+    "/api/v1/webhooks/resend",
+    express.raw({
+        type: "application/json",
+        limit: "1mb"
+    }),
+    resendWebhookRouter
+);
+
 app.use(express.json());
 
 // API v1
