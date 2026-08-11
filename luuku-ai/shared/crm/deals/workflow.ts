@@ -5,6 +5,10 @@ import {
 } from "../../execution/types";
 
 import {
+    isVerifiedRealExecution
+} from "../../execution/reality";
+
+import {
     dealService
 } from "../../database/services/deal.service";
 
@@ -14,13 +18,20 @@ export async function updateDealsAfterCall(
 
     summary: string,
 
-    executionStatus: ExecutionStatus
+    executionStatus: ExecutionStatus,
+
+    executed = false,
+
+    verified = false
 
 ): Promise<void> {
 
     const isRealExecution =
-        executionStatus === "completed" ||
-        executionStatus === "verified";
+        isVerifiedRealExecution({
+            status: executionStatus,
+            executed,
+            verified
+        });
 
     if (!isRealExecution) {
 
@@ -35,11 +46,11 @@ export async function updateDealsAfterCall(
         console.log("");
 
         console.log(
-            `Reason : Voice execution status is ${executionStatus}.`
+            `Reason : Execution status=${executionStatus}, executed=${executed}, verified=${verified}.`
         );
 
         console.log(
-            "No deal stage mutation was applied to CRM reality."
+            "CRM deal state requires executed=true, verified=true, and a completed/verified terminal status."
         );
 
         return;
