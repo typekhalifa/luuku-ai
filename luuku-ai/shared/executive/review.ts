@@ -1,4 +1,4 @@
-import { AgentResult } from "../../shared/agents/interface";
+import { AgentResult } from "../agents/interface";
 import { buildExecutiveContext } from "../../agents/executive-ai/brain";
 
 export async function runExecutiveReview(
