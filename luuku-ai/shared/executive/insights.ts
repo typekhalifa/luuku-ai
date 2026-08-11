@@ -1,137 +1,49 @@
-import { buildAnalytics } from "./analytics";
-
-import { getCompanies } from "../crm/companies";
-import { getDeals } from "../crm/deals/repository";
-import { getActivities } from "../crm/activities/repository";
+import { companyService } from "../database/services/company.service";
+import { dealService } from "../database/services/deal.service";
+import { activityService } from "../database/services/activity.service";
 
 export interface ExecutiveInsights {
-
     pipelineValue: number;
-
     activeDeals: number;
-
     overdueActivities: number;
-
     topPriorityCompany?: string;
-
     messages: string[];
-
 }
 
-export function buildExecutiveInsights(): ExecutiveInsights {
-
-    const analytics = buildAnalytics();
-
-    const companies = getCompanies();
-
-    const deals = getDeals();
-
-    const activities = getActivities();
+export async function buildExecutiveInsights(): Promise<ExecutiveInsights> {
+    const [companies, deals, activities] = await Promise.all([
+        companyService.getCompanies(),
+        dealService.getDeals(),
+        activityService.getActivities(),
+    ]);
 
     const messages: string[] = [];
-
-    if (analytics.overdueTasks > 0) {
-
-        messages.push(
-
-            `You have ${analytics.overdueTasks} overdue task(s).`
-
-        );
-
-    }
-
-    if (analytics.completedTasks > analytics.activeTasks) {
-
-        messages.push(
-
-            "Execution is ahead of workload."
-
-        );
-
-    }
-
-    if (analytics.activeTasks === 0) {
-
-        messages.push(
-
-            "No active work is currently assigned."
-
-        );
-
-    }
-
     const pipelineValue = deals.reduce(
-
         (total, deal) => total + deal.value,
-
-        0
-
+        0,
     );
-
     const activeDeals = deals.filter(
-
-        deal =>
-
-            deal.stage !== "won" &&
-
-            deal.stage !== "lost"
-
+        deal => deal.stage !== "won" && deal.stage !== "lost",
     ).length;
-
-    const overdueActivities = activities.filter(
-
-        activity => {
-
-            const ageDays =
-
-                (Date.now() -
-
-                    new Date(activity.createdAt).getTime()) /
-
-                (1000 * 60 * 60 * 24);
-
-            return ageDays > 7;
-
-        }
-
-    ).length;
-
-    const topPriorityCompany =
-
-        companies[0]?.name;
+    const overdueActivities = activities.filter(activity => {
+        const ageDays =
+            (Date.now() - new Date(activity.createdAt).getTime()) /
+            (1000 * 60 * 60 * 24);
+        return ageDays > 7;
+    }).length;
 
     if (activeDeals === 0) {
-
-        messages.push(
-
-            "No active sales opportunities."
-
-        );
-
+        messages.push("No active sales opportunities.");
     }
-
     if (overdueActivities > 0) {
-
-        messages.push(
-
-            `${overdueActivities} CRM activity(ies) require follow-up.`
-
-        );
-
+        messages.push(`${overdueActivities} CRM activity(ies) require follow-up.`);
     }
 
     return {
-
         pipelineValue,
-
         activeDeals,
-
         overdueActivities,
-
-        topPriorityCompany,
-
-        messages
-
+        topPriorityCompany: companies[0]?.name,
+        messages,
     };
-
 }
