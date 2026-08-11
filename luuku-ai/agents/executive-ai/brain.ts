@@ -4,120 +4,46 @@ import { buildExecutiveIntelligence } from "../../shared/executive/intelligence"
 import { buildExecutiveMemory } from "../../shared/executive/memory";
 import { getAgents } from "../../shared/agents/registry";
 import { buildExecutiveObjectives } from "../../shared/executive/objectives";
-import { buildExecutiveSchedule } from "../../shared/executive/scheduler";
 import { buildExecutiveCRM } from "../../shared/executive/crm";
 
 export interface ExecutiveContext {
-
     generatedAt: string;
-
-    intelligence: ReturnType<
-        typeof buildExecutiveIntelligence
-    >;
-
-    memory: ReturnType<
-        typeof buildExecutiveMemory
-    >;
-
-    agentHealth: ReturnType<
-        typeof buildAgentHealth
-    >;
-
-    objectives: ReturnType<
-        typeof buildExecutiveObjectives
-    >;
-
-    crm: ReturnType<
-        typeof buildExecutiveCRM
-    >;
-
-    schedule: ReturnType<
-        typeof buildExecutiveSchedule
-    >;
-
-    insights: ReturnType<
-        typeof buildExecutiveInsights
-    >;
-
+    intelligence: ReturnType<typeof buildExecutiveIntelligence>;
+    memory: ReturnType<typeof buildExecutiveMemory>;
+    agentHealth: ReturnType<typeof buildAgentHealth>;
+    objectives: ReturnType<typeof buildExecutiveObjectives>;
+    crm: Awaited<ReturnType<typeof buildExecutiveCRM>>;
+    schedule: ReturnType<typeof buildExecutiveSchedule>;
+    insights: Awaited<ReturnType<typeof buildExecutiveInsights>>;
     availableAgents: string[];
-
-    systemHealth:
-        | "excellent"
-        | "good"
-        | "warning"
-        | "critical";
-
+    systemHealth: "excellent" | "good" | "warning" | "critical";
 }
 
-export function buildExecutiveContext(): ExecutiveContext {
+export async function buildExecutiveContext(): Promise<ExecutiveContext> {
+    const agentHealth = buildAgentHealth();
+    const intelligence = buildExecutiveIntelligence();
+    const memory = buildExecutiveMemory();
 
-    const agentHealth =
-        buildAgentHealth();
+    let systemHealth: ExecutiveContext["systemHealth"] = "excellent";
+    if (intelligence.analytics.overdueTasks > 0) systemHealth = "good";
+    if (intelligence.analytics.overdueTasks > 5) systemHealth = "warning";
+    if (intelligence.analytics.overdueTasks > 10) systemHealth = "critical";
 
-    const intelligence =
-        buildExecutiveIntelligence();
-
-    const memory =
-        buildExecutiveMemory();
-
-    let systemHealth:
-        ExecutiveContext["systemHealth"] = "excellent";
-
-    if (intelligence.analytics.overdueTasks > 0) {
-
-        systemHealth = "good";
-
-    }
-
-    if (intelligence.analytics.overdueTasks > 5) {
-
-        systemHealth = "warning";
-
-    }
-
-    if (intelligence.analytics.overdueTasks > 10) {
-
-        systemHealth = "critical";
-
-    }
-
-    const objectives =
-    buildExecutiveObjectives();
-
-    const crm =
-    buildExecutiveCRM();
-
-    const schedule =
-    buildExecutiveSchedule();
-
-    const insights =
-    buildExecutiveInsights();
-
-
+    const objectives = buildExecutiveObjectives();
+    const crm = await buildExecutiveCRM();
+    const schedule = buildExecutiveSchedule();
+    const insights = await buildExecutiveInsights();
 
     return {
-
-    generatedAt: new Date().toISOString(),
-
-    intelligence,
-
-    memory,
-
-    objectives,
-
-    agentHealth,
-
-    crm,
-
-    schedule,
-
-    insights,
-
-    availableAgents:
-        getAgents().map(agent => agent.name),
-
-    systemHealth
-
+        generatedAt: new Date().toISOString(),
+        intelligence,
+        memory,
+        objectives,
+        agentHealth,
+        crm,
+        schedule,
+        insights,
+        availableAgents: getAgents().map(agent => agent.name),
+        systemHealth,
     };
-
 }
