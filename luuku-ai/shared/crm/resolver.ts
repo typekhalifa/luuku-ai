@@ -11,9 +11,8 @@ import {
 } from "../database/services/company.service";
 
 export async function resolveContact(
-
-    companyName: string
-
+    companyName: string,
+    preferredEmail?: string
 ): Promise<Contact | undefined> {
 
     const company =
@@ -30,8 +29,13 @@ export async function resolveContact(
             company.id
         );
 
-    const contact =
-        contacts[0];
+    const contact = preferredEmail
+        ? contacts.find(
+            item =>
+                item.email?.toLowerCase() ===
+                preferredEmail.toLowerCase()
+        ) || contacts[0]
+        : contacts[0];
 
     if (!contact) {
         return undefined;
