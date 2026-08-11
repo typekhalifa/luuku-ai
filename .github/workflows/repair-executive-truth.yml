@@ -28,12 +28,10 @@ jobs:
               'import { buildExecutiveCRM } from "../../shared/executive/crm";\n',
               'import { buildExecutiveCRM } from "../../shared/executive/crm";\nimport { buildExecutiveCapabilities } from "../../shared/executive/capabilities";\n'
           )
-
           text = text.replace(
               '    currentTime: string;\n',
               '    currentTime: string;\n    currentTimeLocal: string;\n    timeZone: string;\n'
           )
-
           text = text.replace(
               '    insights: Awaited<ReturnType<typeof buildExecutiveInsights>>;\n',
               '    insights: Awaited<ReturnType<typeof buildExecutiveInsights>>;\n    capabilities: ReturnType<typeof buildExecutiveCapabilities>;\n'
@@ -48,27 +46,22 @@ jobs:
               '    const agentHealth = buildAgentHealth();\n',
               '    const now = new Date();\n    const agentHealth = buildAgentHealth();\n'
           )
-
           text = text.replace(
               '    const insights = await buildExecutiveInsights();\n',
               '    const insights = await buildExecutiveInsights();\n    const capabilities = buildExecutiveCapabilities();\n'
           )
-
           text = text.replace(
               '        generatedAt: new Date().toISOString(),\n        currentTime: new Date().toISOString(),\n',
               '        generatedAt: now.toISOString(),\n        currentTime: now.toISOString(),\n        currentTimeLocal: getKigaliTime(now),\n        timeZone: "Africa/Kigali (CAT, UTC+02:00)",\n'
           )
-
           text = text.replace(
               '        insights,\n        availableAgents:',
               '        insights,\n        capabilities,\n        availableAgents:'
           )
-
           brain.write_text(text)
 
           prompt = Path("luuku-ai/agents/executive-ai/prompt.ts")
           text = prompt.read_text()
-
           text = text.replace(
               'import { ExecutiveContext } from "./brain";\n',
               'import { ExecutiveContext } from "./brain";\nimport { buildExecutiveCapabilities } from "../../shared/executive/capabilities";\n'
@@ -96,8 +89,10 @@ jobs:
               '- If a requested time has already passed, choose the next reasonable future time and state it explicitly in the task.\n',
               '- If a requested time has already passed, choose the next reasonable future time and state the new time explicitly.\n- Do not preserve stale deadlines merely because they appeared in a previous decision.\n- When the task is immediate, say "immediately" rather than inventing an old clock time.\n- If a meeting or call must be scheduled but calendar/voice capability is unavailable, do not claim it was scheduled; resolve or escalate the capability gap instead.\n'
           )
-
           prompt.write_text(text)
+
+      - name: Install dependencies
+        run: npm ci
 
       - name: Verify TypeScript
         run: npx tsc --noEmit
