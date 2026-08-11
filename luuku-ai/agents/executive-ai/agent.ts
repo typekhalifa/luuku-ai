@@ -79,18 +79,42 @@ async function executeDecisionWithRecovery(
         console.log(
             recoveryAttempts === 0
                 ? "      EXECUTIVE DECISION"
-                : "   RECOVERY DECISION",
+                : "   RECOVERED EXECUTIVE DECISION",
         );
         console.log("========================================");
         console.log("");
         console.log(decision);
 
         if (decisionGuard.allowed) {
-            const result = await runAgent(decision.assignedAgentId, decision.task);
+            console.log("");
+            console.log("✓ Decision guard passed. Dispatching agent...");
+
+            const result = await runAgent(
+                decision.assignedAgentId,
+                {
+                    id: crypto.randomUUID(),
+                    title: decision.task.title,
+                    description: decision.task.description,
+                    priority: decision.task.priority,
+                },
+            );
+
             return { decision, result };
         }
 
+        console.log("");
+        console.log("========================================");
+        console.log("      EXECUTION BLOCKED");
+        console.log("========================================");
+        console.log("");
+        console.log("The Executive decision requires capabilities or timing that are not currently executable.");
+        for (const blocker of decisionGuard.blockers) {
+            console.log(`- ${blocker}`);
+        }
+
         if (recoveryAttempts >= MAX_RECOVERY_ATTEMPTS) {
+            console.log("");
+            console.log(`⚠ Maximum recovery attempts reached (${MAX_RECOVERY_ATTEMPTS}). Escalating without dispatch.`);
             return {
                 decision,
                 result: buildBlockedResult(decisionGuard.blockers),
@@ -206,3 +230,10 @@ async function runExecutiveAI() {
 
         console.log("");
         console.log(`✓ Executive cycle completed for: ${executedDecision.task.title}`);
+
+    } catch (error) {
+        console.error(error);
+    }
+}
+
+runExecutiveAI();
