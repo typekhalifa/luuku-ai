@@ -10,6 +10,20 @@ import { buildFounderNotifications } from "../../shared/executive/notifications"
 import { notifyFounder } from "../../shared/executive/notify";
 import { createFounderDiscordCommunication } from "../../shared/executive/founder-discord";
 
+async function publishFounderNotifications(
+    decision: ReturnType<typeof parseDecision>
+) {
+    const notifications = buildFounderNotifications(decision);
+    notifyFounder(notifications);
+
+    if (notifications.length > 0) {
+        const founderCommunication = createFounderDiscordCommunication();
+        await founderCommunication.publishNotifications(notifications);
+        console.log("");
+        console.log("✓ Executive notifications delivered to Discord.");
+    }
+}
+
 async function runExecutiveAI() {
     await bootstrap();
 
@@ -33,15 +47,12 @@ async function runExecutiveAI() {
 
         saveExecutiveDecision(decision);
 
-        const notifications = buildFounderNotifications(decision);
-        notifyFounder(notifications);
-
-        if (notifications.length > 0) {
-            const founderCommunication = createFounderDiscordCommunication();
-            await founderCommunication.publishNotifications(notifications);
-            console.log("");
-            console.log("✓ Executive notifications delivered to Discord.");
-        }
+        console.log("");
+        console.log("========================================");
+        console.log("      FOUNDER NOTIFICATIONS");
+        console.log("========================================");
+        console.log("");
+        await publishFounderNotifications(decision);
 
         console.log("");
         console.log("========================================");
@@ -69,10 +80,34 @@ async function runExecutiveAI() {
 
         console.log("");
         console.log("========================================");
+        console.log("   POST-EXECUTION EXECUTIVE REVIEW");
+        console.log("========================================");
+        console.log("");
+
+        const finalContext = await runExecutiveReview(result);
+        const followUpResponse = await requestExecutiveReasoning(finalContext);
+        const followUpDecision = parseDecision(followUpResponse);
+
+        if (!validateDecision(followUpDecision)) {
+            throw new Error("Post-execution executive decision failed validation.");
+        }
+
+        saveExecutiveDecision(followUpDecision);
+
+        console.log("");
+        console.log("========================================");
+        console.log("   POST-EXECUTION EXECUTIVE DECISION");
+        console.log("========================================");
+        console.log("");
+        console.log(followUpDecision);
+
+        await publishFounderNotifications(followUpDecision);
+
+        console.log("");
+        console.log("========================================");
         console.log("      EXECUTIVE SUMMARY");
         console.log("========================================");
         console.log("");
-        const finalContext = await runExecutiveReview();
         console.log("CRM");
         console.log("");
         console.log(`Companies   : ${finalContext.crm.companies}`);
