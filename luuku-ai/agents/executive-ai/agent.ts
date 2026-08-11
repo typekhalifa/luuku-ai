@@ -12,8 +12,12 @@ import { buildFounderNotifications } from "../../shared/executive/notifications"
 import { notifyFounder } from "../../shared/executive/notify";
 import { createFounderDiscordCommunication } from "../../shared/executive/founder-discord";
 
+const MAX_RECOVERY_ATTEMPTS = 2;
+
+type ExecutiveDecision = ReturnType<typeof parseDecision>;
+
 async function publishFounderNotifications(
-    decision: ReturnType<typeof parseDecision>,
+    decision: ExecutiveDecision,
     blockers: string[] = [],
 ) {
     const notifications = buildFounderNotifications(decision);
@@ -30,6 +34,111 @@ async function publishFounderNotifications(
         await founderCommunication.publishNotifications(notifications);
         console.log("");
         console.log("✓ Executive notifications delivered to Discord.");
+    }
+}
+
+function buildBlockedResult(blockers: string[]): AgentResult {
+    return {
+        success: false,
+        summary: "Executive task blocked before agent execution because required capabilities or scheduling constraints are not currently executable.",
+        completedAt: new Date().toISOString(),
+        executionStatus: "blocked",
+        executed: false,
+        verified: false,
+        blockers,
+    };
+}
+
+async function executeDecisionWithRecovery(
+    initialDecision: ExecutiveDecision,
+): Promise<{ decision: ExecutiveDecision; result: AgentResult }> {
+    let decision = initialDecision;
+    let recoveryAttempts = 0;
+
+    while (true) {
+        const decisionGuard = guardExecutiveDecision(
+            `${decision.summary}\n${decision.task.title}\n${decision.task.description}`,
+        );
+
+        saveExecutiveDecision(decision);
+
+        console.log("");
+        console.log("========================================");
+        console.log(
+            recoveryAttempts === 0
+                ? "      FOUNDER NOTIFICATIONS"
+                : "   RECOVERY NOTIFICATIONS",
+        );
+        console.log("========================================");
+        console.log("");
+        await publishFounderNotifications(decision, decisionGuard.blockers);
+
+        console.log("");
+        console.log("========================================");
+        console.log(
+            recoveryAttempts === 0
+                ? "      EXECUTIVE DECISION"
+                : "   RECOVERED EXECUTIVE DECISION",
+        );
+        console.log("========================================");
+        console.log("");
+        console.log(decision);
+
+        if (decisionGuard.allowed) {
+            console.log("");
+            console.log("✓ Decision guard passed. Dispatching agent...");
+
+            const result = await runAgent(
+                decision.assignedAgentId,
+                {
+                    id: crypto.randomUUID(),
+                    title: decision.task.title,
+                    description: decision.task.description,
+                    priority: decision.task.priority,
+                },
+            );
+
+            return { decision, result };
+        }
+
+        console.log("");
+        console.log("========================================");
+        console.log("      EXECUTION BLOCKED");
+        console.log("========================================");
+        console.log("");
+        console.log("The Executive decision requires capabilities or timing that are not currently executable.");
+        for (const blocker of decisionGuard.blockers) {
+            console.log(`- ${blocker}`);
+        }
+
+        if (recoveryAttempts >= MAX_RECOVERY_ATTEMPTS) {
+            console.log("");
+            console.log(`⚠ Maximum recovery attempts reached (${MAX_RECOVERY_ATTEMPTS}). Escalating without dispatch.`);
+            return {
+                decision,
+                result: buildBlockedResult(decisionGuard.blockers),
+            };
+        }
+
+        recoveryAttempts += 1;
+
+        console.log("");
+        console.log("========================================");
+        console.log(`   EXECUTIVE RECOVERY ${recoveryAttempts}/${MAX_RECOVERY_ATTEMPTS}`);
+        console.log("========================================");
+        console.log("");
+        console.log("Re-entering executive reasoning with the deterministic blockers above.");
+
+        const blockedResult = buildBlockedResult(decisionGuard.blockers);
+        const recoveryContext = await runExecutiveReview(blockedResult);
+        const recoveryResponse = await requestExecutiveReasoning(recoveryContext);
+        const recoveryDecision = parseDecision(recoveryResponse);
+
+        if (!validateDecision(recoveryDecision)) {
+            throw new Error("Executive recovery decision failed validation.");
+        }
+
+        decision = recoveryDecision;
     }
 }
 
@@ -54,59 +163,8 @@ async function runExecutiveAI() {
             throw new Error("Executive decision failed validation.");
         }
 
-        const decisionGuard = guardExecutiveDecision(
-            `${decision.summary}\n${decision.task.title}\n${decision.task.description}`,
-        );
-
-        saveExecutiveDecision(decision);
-
-        console.log("");
-        console.log("========================================");
-        console.log("      FOUNDER NOTIFICATIONS");
-        console.log("========================================");
-        console.log("");
-        await publishFounderNotifications(decision, decisionGuard.blockers);
-
-        console.log("");
-        console.log("========================================");
-        console.log("      EXECUTIVE DECISION");
-        console.log("========================================");
-        console.log("");
-        console.log(decision);
-
-        let result: AgentResult;
-
-        if (!decisionGuard.allowed) {
-            console.log("");
-            console.log("========================================");
-            console.log("      EXECUTION BLOCKED");
-            console.log("========================================");
-            console.log("");
-            console.log("The Executive decision requires capabilities or timing that are not currently executable.");
-            for (const blocker of decisionGuard.blockers) {
-                console.log(`- ${blocker}`);
-            }
-
-            result = {
-                success: false,
-                summary: "Executive task blocked before agent execution because required capabilities or scheduling constraints are not currently executable.",
-                completedAt: new Date().toISOString(),
-                executionStatus: "blocked",
-                executed: false,
-                verified: false,
-                blockers: decisionGuard.blockers,
-            };
-        } else {
-            result = await runAgent(
-                decision.assignedAgentId,
-                {
-                    id: crypto.randomUUID(),
-                    title: decision.task.title,
-                    description: decision.task.description,
-                    priority: decision.task.priority,
-                },
-            );
-        }
+        const { decision: executedDecision, result } =
+            await executeDecisionWithRecovery(decision);
 
         console.log("");
         console.log("========================================");
@@ -166,6 +224,9 @@ async function runExecutiveAI() {
         console.log(`Deals       : ${finalContext.crm.deals}`);
         console.log(`Activities  : ${finalContext.crm.activities}`);
         console.log(`Timeline    : ${finalContext.crm.timeline}`);
+
+        console.log("");
+        console.log(`✓ Executive cycle completed for: ${executedDecision.task.title}`);
 
     } catch (error) {
         console.error(error);
