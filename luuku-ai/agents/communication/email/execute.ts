@@ -46,6 +46,7 @@ interface InboundReplyData {
     body: string;
     inReplyTo?: string;
     references?: string;
+    from?: string;
 }
 
 function buildEmailSubject(
@@ -101,6 +102,11 @@ function extractInboundReply(
             /^REFERENCES:\s*(.+)$/im
         )?.[1]?.trim();
 
+    const from =
+        task.description.match(
+            /^CONTACT_EMAIL:\s*(.+)$/im
+        )?.[1]?.trim();
+
     const bodyMatch = task.description.match(
         /REPLY_BODY_START\s*\n([\s\S]*?)\nREPLY_BODY_END/i
     );
@@ -119,7 +125,8 @@ function extractInboundReply(
             : "Re: Luuku AI",
         body,
         inReplyTo: inReplyTo || undefined,
-        references: references || undefined
+        references: references || undefined,
+        from: from || undefined
     };
 }
 
@@ -167,6 +174,9 @@ export async function executeEmailTask(
         inboundReply?.body ||
         buildEmailBody(contact);
 
+    const recipient =
+        inboundReply?.from || contact.email;
+
     const idempotencyKey =
         `sales-email/${task.id}`;
 
@@ -179,7 +189,7 @@ export async function executeEmailTask(
     );
     console.log("========================================");
     console.log("");
-    console.log(`To      : ${contact.email}`);
+    console.log(`To      : ${recipient}`);
     console.log(`Subject : ${subject}`);
     console.log(`Request : ${idempotencyKey}`);
     console.log("");
@@ -188,7 +198,7 @@ export async function executeEmailTask(
         await communicationRouter.execute({
             capability: "email.send",
             channel: "email",
-            recipientExternalId: contact.email,
+            recipientExternalId: recipient,
             subject,
             body,
             metadata: {
@@ -278,8 +288,8 @@ export async function executeEmailTask(
     return {
         success: true,
         summary: inboundReply
-            ? `Sales Agent sent and verified an inbound-reply response to ${contact.email}. ${result.summary}`
-            : `Sales Agent sent and verified the follow-up email to ${contact.email}. ${result.summary}`,
+            ? `Sales Agent sent and verified an inbound-reply response to ${recipient}. ${result.summary}`
+            : `Sales Agent sent and verified the follow-up email to ${recipient}. ${result.summary}`,
         completedAt: new Date().toISOString(),
         executionStatus: "verified",
         executed: true,
