@@ -174,6 +174,23 @@ export async function executeSalesWorkflow(
     console.log("CRM ready for communication.");
     console.log("");
 
+    // An inbound reply is always answered on the same email channel.
+    // Do this before generic keyword routing because meeting_request,
+    // call, or phone language inside the classified task must not
+    // accidentally route an email reply into the voice simulation.
+    const isInboundEmailReply =
+        /^INBOUND_REPLY=true$/im.test(task.description);
+
+    if (isInboundEmailReply) {
+        console.log("✓ Inbound email reply — email channel required");
+        console.log("");
+
+        return executeEmailTask(
+            task,
+            activeContact
+        );
+    }
+
     const requiresEmail =
         text.includes("email") ||
         text.includes("e-mail");
