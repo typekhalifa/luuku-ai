@@ -122,7 +122,7 @@ export class PrismaCommunicationService implements CommunicationService {
                 direction: "inbound",
                 role: input.sender.channel === "internal" ? "founder" : "system",
                 content: input.content,
-                sender: input.sender as Prisma.InputJsonValue,
+                sender: input.sender as unknown as Prisma.InputJsonValue,
                 externalMessageId,
                 metadata: toInputJson(input.metadata),
             },
@@ -174,7 +174,7 @@ export class PrismaCommunicationService implements CommunicationService {
                     return prisma.communicationConversation.update({
                         where: { id: existing.id },
                         data: {
-                            participants: participants as Prisma.InputJsonValue,
+                            participants: participants as unknown as Prisma.InputJsonValue,
                             updatedAt: new Date(),
                         },
                     });
@@ -190,7 +190,7 @@ export class PrismaCommunicationService implements CommunicationService {
                 id: crypto.randomUUID(),
                 channel: input.channel,
                 threadKey: input.externalConversationId,
-                participants: [input.sender] as Prisma.InputJsonValue,
+                participants: [input.sender] as unknown as Prisma.InputJsonValue,
                 metadata: toInputJson(input.metadata),
                 createdAt: now,
                 updatedAt: now,
@@ -215,7 +215,7 @@ export class PrismaCommunicationService implements CommunicationService {
                 return prisma.communicationConversation.update({
                     where: { id: existing.id },
                     data: {
-                        participants: participants as Prisma.InputJsonValue,
+                        participants: participants as unknown as Prisma.InputJsonValue,
                         updatedAt: new Date(),
                     },
                 });
@@ -229,7 +229,7 @@ export class PrismaCommunicationService implements CommunicationService {
             data: {
                 id: conversationId,
                 channel,
-                participants: [participant] as Prisma.InputJsonValue,
+                participants: [participant] as unknown as Prisma.InputJsonValue,
                 createdAt: now,
                 updatedAt: now,
             },
