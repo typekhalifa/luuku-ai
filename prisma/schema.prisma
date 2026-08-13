@@ -89,21 +89,56 @@ model Activity {
   @@index([dealId])
 }
 
+model CommunicationConversation {
+  id           String                 @id @default(uuid())
+  channel      String
+  threadKey    String?                @unique
+  status       String                 @default("active")
+  participants Json
+  metadata     Json?
+  createdAt    DateTime               @default(now())
+  updatedAt    DateTime               @updatedAt
+  messages     CommunicationMessage[]
+  events       CommunicationEvent[]
+
+  @@index([channel])
+  @@index([status])
+}
+
+model CommunicationMessage {
+  id                String                    @id @default(uuid())
+  conversationId    String
+  direction         String
+  role              String
+  content           String
+  sender            Json
+  externalMessageId String?
+  timestamp         DateTime                  @default(now())
+  metadata          Json?
+  conversation      CommunicationConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId])
+  @@index([externalMessageId])
+}
+
 model CommunicationEvent {
-  id             String   @id @default(uuid())
-  provider       String
-  providerEventId String  @unique
-  type           String
-  externalId     String?
-  messageId      String?
-  recipient      String?
-  sender         String?
-  subject        String?
-  payload        Json
-  receivedAt     DateTime @default(now())
+  id              String                     @id @default(uuid())
+  provider        String
+  providerEventId String                     @unique
+  type            String
+  externalId      String?
+  messageId       String?
+  conversationId  String?
+  recipient       String?
+  sender          String?
+  subject         String?
+  payload         Json
+  receivedAt      DateTime                   @default(now())
+  conversation    CommunicationConversation? @relation(fields: [conversationId], references: [id], onDelete: SetNull)
 
   @@index([externalId])
   @@index([messageId])
+  @@index([conversationId])
   @@index([type])
 }
 
