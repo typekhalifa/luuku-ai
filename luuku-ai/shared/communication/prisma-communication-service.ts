@@ -50,6 +50,16 @@ function toInputJson(
     return value as Prisma.InputJsonValue | undefined;
 }
 
+function toChannelJson(value: ChannelIdentity): Prisma.InputJsonValue {
+    return value as unknown as Prisma.InputJsonValue;
+}
+
+function toParticipantsJson(
+    value: ChannelIdentity[],
+): Prisma.InputJsonValue {
+    return value as unknown as Prisma.InputJsonValue;
+}
+
 function mergeParticipants(
     existing: ChannelIdentity[],
     incoming: ChannelIdentity,
@@ -76,18 +86,29 @@ export class PrismaCommunicationService implements CommunicationService {
             input.recipient,
         );
 
+        const externalMessageId =
+            typeof input.metadata?.externalMessageId === "string"
+                ? input.metadata.externalMessageId
+                : undefined;
+
         const message = await prisma.communicationMessage.create({
             data: {
                 conversationId: conversation.id,
                 direction: "outbound",
                 role: "agent",
                 content: input.content,
-                sender: {
+                sender: toChannelJson({
                     channel: input.channel,
                     displayName: "Luuku AI",
-                },
+                }),
+                externalMessageId,
                 metadata: toInputJson(input.metadata),
             },
+        });
+
+        await prisma.communicationConversation.update({
+            where: { id: conversation.id },
+            data: { updatedAt: new Date() },
         });
 
         return this.toDomainMessage(message);
@@ -122,7 +143,7 @@ export class PrismaCommunicationService implements CommunicationService {
                 direction: "inbound",
                 role: input.sender.channel === "internal" ? "founder" : "system",
                 content: input.content,
-                sender: input.sender as unknown as Prisma.InputJsonValue,
+                sender: toChannelJson(input.sender),
                 externalMessageId,
                 metadata: toInputJson(input.metadata),
             },
@@ -158,6 +179,32 @@ export class PrismaCommunicationService implements CommunicationService {
     private async getOrCreateInboundConversation(
         input: ReceiveMessageInput,
     ) {
+        if (input.conversationId) {
+            const existing = await prisma.communicationConversation.findUnique({
+                where: { id: input.conversationId },
+            });
+
+            if (existing) {
+                const currentParticipants = asParticipants(existing.participants);
+                const participants = mergeParticipants(
+                    currentParticipants,
+                    input.sender,
+                );
+
+                if (participants.length !== currentParticipants.length) {
+                    return prisma.communicationConversation.update({
+                        where: { id: existing.id },
+                        data: {
+                            participants: toParticipantsJson(participants),
+                            updatedAt: new Date(),
+                        },
+                    });
+                }
+
+                return existing;
+            }
+        }
+
         if (input.externalConversationId) {
             const existing = await prisma.communicationConversation.findUnique({
                 where: { threadKey: input.externalConversationId },
@@ -174,7 +221,7 @@ export class PrismaCommunicationService implements CommunicationService {
                     return prisma.communicationConversation.update({
                         where: { id: existing.id },
                         data: {
-                            participants: participants as unknown as Prisma.InputJsonValue,
+                            participants: toParticipantsJson(participants),
                             updatedAt: new Date(),
                         },
                     });
@@ -190,7 +237,7 @@ export class PrismaCommunicationService implements CommunicationService {
                 id: crypto.randomUUID(),
                 channel: input.channel,
                 threadKey: input.externalConversationId,
-                participants: [input.sender] as unknown as Prisma.InputJsonValue,
+                participants: toParticipantsJson([input.sender]),
                 metadata: toInputJson(input.metadata),
                 createdAt: now,
                 updatedAt: now,
@@ -215,7 +262,7 @@ export class PrismaCommunicationService implements CommunicationService {
                 return prisma.communicationConversation.update({
                     where: { id: existing.id },
                     data: {
-                        participants: participants as unknown as Prisma.InputJsonValue,
+                        participants: toParticipantsJson(participants),
                         updatedAt: new Date(),
                     },
                 });
@@ -229,7 +276,7 @@ export class PrismaCommunicationService implements CommunicationService {
             data: {
                 id: conversationId,
                 channel,
-                participants: [participant] as unknown as Prisma.InputJsonValue,
+                participants: toParticipantsJson([participant]),
                 createdAt: now,
                 updatedAt: now,
             },
@@ -295,3 +342,6 @@ export class PrismaCommunicationService implements CommunicationService {
         };
     }
 }
+
+export const prismaCommunicationService =
+    new PrismaCommunicationService();
