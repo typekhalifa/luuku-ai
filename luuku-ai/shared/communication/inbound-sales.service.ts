@@ -34,6 +34,7 @@ interface HandleInboundSalesReplyInput {
     messageId?: string;
     inReplyTo?: string;
     references?: string;
+    conversationId?: string;
 }
 
 const AUTO_REPLY_INTENTS = new Set<InboundSalesIntent>([
@@ -47,6 +48,7 @@ const AUTO_REPLY_CONFIDENCE_THRESHOLD = 0.75;
 
 function extractJson(text: string): string {
     const fenced = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
+
     if (fenced?.[1]) {
         return fenced[1];
     }
@@ -73,7 +75,8 @@ function normalizeIntent(value: unknown): InboundSalesIntent {
         "other"
     ];
 
-    return typeof value === "string" && allowed.includes(value as InboundSalesIntent)
+    return typeof value === "string" &&
+        allowed.includes(value as InboundSalesIntent)
         ? value as InboundSalesIntent
         : "other";
 }
@@ -118,7 +121,8 @@ ${input.body}
             temperature: 0.1
         });
 
-        const parsed = JSON.parse(extractJson(raw)) as Record<string, unknown>;
+        const parsed =
+            JSON.parse(extractJson(raw)) as Record<string, unknown>;
 
         return {
             intent: normalizeIntent(parsed.intent),
@@ -141,7 +145,8 @@ ${input.body}
         return {
             intent: "other",
             confidence: 0,
-            recommendedAction: "Manual Sales Agent review required because AI classification failed.",
+            recommendedAction:
+                "Manual Sales Agent review required because AI classification failed.",
             draftReply: ""
         };
     }
@@ -150,14 +155,20 @@ ${input.body}
 export async function handleInboundSalesReply(
     input: HandleInboundSalesReplyInput
 ): Promise<void> {
-    if (!input.activityId || !input.contactId || !input.companyId || !input.companyName) {
+    if (
+        !input.activityId ||
+        !input.contactId ||
+        !input.companyId ||
+        !input.companyName
+    ) {
         console.log(
             "[Inbound Sales] No matched CRM contact/company; skipping Sales Agent dispatch."
         );
         return;
     }
 
-    const classification = await classifyInboundEmail(input);
+    const classification =
+        await classifyInboundEmail(input);
 
     await prisma.activity.update({
         where: {
@@ -186,7 +197,9 @@ export async function handleInboundSalesReply(
         classification.confidence < AUTO_REPLY_CONFIDENCE_THRESHOLD ||
         !classification.draftReply
     ) {
-        console.log("Sales Agent dispatch: skipped; manual review is required.");
+        console.log(
+            "Sales Agent dispatch: skipped; manual review is required."
+        );
         return;
     }
 
@@ -195,6 +208,7 @@ export async function handleInboundSalesReply(
         title: `${input.companyName} — Reply to inbound prospect email`,
         description: [
             "INBOUND_REPLY=true",
+            `CONVERSATION_ID: ${input.conversationId || ""}`,
             `CONTACT_EMAIL: ${input.contactEmail || ""}`,
             `ORIGINAL_SUBJECT: ${input.subject || "No subject"}`,
             `MESSAGE_ID: ${input.messageId || ""}`,
@@ -224,6 +238,9 @@ export async function handleInboundSalesReply(
         console.log("Sales Agent inbound reply result:");
         console.log(result);
     } catch (error) {
-        console.error("Sales Agent inbound reply execution failed:", error);
+        console.error(
+            "Sales Agent inbound reply execution failed:",
+            error
+        );
     }
 }
