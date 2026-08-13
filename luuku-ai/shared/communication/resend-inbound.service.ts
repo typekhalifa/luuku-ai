@@ -2,6 +2,10 @@ import { Prisma } from "@prisma/client";
 
 import { prisma } from "../database/client";
 import { handleInboundSalesReply } from "./inbound-sales.service";
+import {
+    appendCommunicationMessage,
+    getOrCreateEmailConversation
+} from "./persistent-communication.service";
 
 const RESEND_RECEIVING_ENDPOINT =
     "https://api.resend.com/emails/receiving";
@@ -40,7 +44,9 @@ function extractEmailAddress(value?: string): string | undefined {
 
     const angleMatch = value.match(/<([^>]+)>/);
     const candidate = angleMatch?.[1] || value;
-    const emailMatch = candidate.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i);
+    const emailMatch = candidate.match(
+        /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i
+    );
 
     return emailMatch?.[0]?.toLowerCase();
 }
@@ -54,6 +60,7 @@ function getHeader(
     }
 
     const target = name.toLowerCase();
+
     const entry = Object.entries(headers).find(
         ([key]) => key.toLowerCase() === target
     )?.[1];
@@ -63,7 +70,9 @@ function getHeader(
     }
 
     if (Array.isArray(entry)) {
-        return entry.filter((value) => typeof value === "string").join(" ");
+        return entry
+            .filter((value) => typeof value === "string")
+            .join(" ");
     }
 
     return undefined;
@@ -75,7 +84,10 @@ function extractMessageIds(value?: string): string[] {
     }
 
     const matches = value.match(/<[^>]+>/g);
-    return matches?.length ? matches : [value.trim()];
+
+    return matches?.length
+        ? matches
+        : [value.trim()];
 }
 
 async function retrieveReceivedEmail(
@@ -96,13 +108,19 @@ async function retrieveReceivedEmail(
         }
     );
 
-    const payload = await response.json() as ReceivedEmail | {
-        message?: string;
-        name?: string;
-    };
+    const payload = await response.json() as
+        | ReceivedEmail
+        | {
+            message?: string;
+            name?: string;
+        };
 
     if (!response.ok || !("id" in payload)) {
-        const errorPayload = payload as { message?: string; name?: string };
+        const errorPayload = payload as {
+            message?: string;
+            name?: string;
+        };
+
         throw new Error(
             errorPayload.message ||
             errorPayload.name ||
@@ -121,6 +139,7 @@ export async function processInboundResendEmail(
     activityId?: string;
     contactId?: string;
     dealId?: string;
+    conversationId?: string;
     emailId: string;
 }> {
     const data = event.data || {};
@@ -153,6 +172,11 @@ export async function processInboundResendEmail(
         ...extractMessageIds(inReplyTo),
         ...extractMessageIds(references)
     ];
+
+    const subject =
+        receivedEmail.subject ||
+        data.subject ||
+        "No subject";
 
     const existingContact = senderEmail
         ? await prisma.contact.findFirst({
@@ -202,6 +226,7 @@ export async function processInboundResendEmail(
             : null);
 
     const companyId = fallbackContact?.companyId;
+
     const deal = companyId
         ? await prisma.deal.findFirst({
             where: {
@@ -215,6 +240,28 @@ export async function processInboundResendEmail(
             }
         })
         : null;
+
+    const participantEmail =
+        senderEmail ||
+        fallbackContact?.email ||
+        threadEvent?.sender ||
+        "unknown@example.invalid";
+
+    const conversation =
+        threadEvent?.conversationId
+            ? {
+                id: threadEvent.conversationId,
+                threadKey: undefined
+            }
+            : await getOrCreateEmailConversation({
+                participantEmail,
+                subject,
+                metadata: {
+                    source: "resend-inbound",
+                    providerEventId,
+                    emailId
+                }
+            });
 
     const storedPayload = {
         webhook: event,
@@ -231,27 +278,30 @@ export async function processInboundResendEmail(
             matchedThreadMessageIds: threadMessageIds,
             matchedContactId: fallbackContact?.id,
             matchedCompanyId: companyId,
-            matchedDealId: deal?.id
+            matchedDealId: deal?.id,
+            conversationId: conversation.id
         }
     } as unknown as Prisma.InputJsonValue;
 
     try {
         const result = await prisma.$transaction(async (tx) => {
-            const communicationEvent = await tx.communicationEvent.create({
-                data: {
-                    provider: "resend",
-                    providerEventId,
-                    type: event.type || "email.received",
-                    externalId: emailId,
-                    messageId,
-                    recipient: Array.isArray(receivedEmail.to)
-                        ? receivedEmail.to[0]
-                        : data.to?.[0],
-                    sender: receivedEmail.from || data.from,
-                    subject: receivedEmail.subject || data.subject,
-                    payload: storedPayload,
-                }
-            });
+            const communicationEvent =
+                await tx.communicationEvent.create({
+                    data: {
+                        provider: "resend",
+                        providerEventId,
+                        type: event.type || "email.received",
+                        externalId: emailId,
+                        messageId,
+                        conversationId: conversation.id,
+                        recipient: Array.isArray(receivedEmail.to)
+                            ? receivedEmail.to[0]
+                            : data.to?.[0],
+                        sender: receivedEmail.from || data.from,
+                        subject,
+                        payload: storedPayload
+                    }
+                });
 
             if (!fallbackContact || !companyId) {
                 return {
@@ -273,7 +323,7 @@ export async function processInboundResendEmail(
                     contactId: fallbackContact.id,
                     dealId: deal?.id,
                     type: "email",
-                    title: `Inbound email: ${receivedEmail.subject || "No subject"}`,
+                    title: `Inbound email: ${subject}`,
                     description: body,
                     outcome: "Inbound reply received through Resend.",
                     createdBy: "resend-inbound",
@@ -300,12 +350,37 @@ export async function processInboundResendEmail(
             };
         });
 
-        if (result.activityId && result.contactId && companyId) {
-            const inboundBody =
-                receivedEmail.text?.trim() ||
-                receivedEmail.html?.trim() ||
-                "Inbound email received without a text body.";
+        const inboundBody =
+            receivedEmail.text?.trim() ||
+            receivedEmail.html?.trim() ||
+            "Inbound email received without a text body.";
 
+        await appendCommunicationMessage({
+            conversationId: conversation.id,
+            direction: "inbound",
+            role: "system",
+            content: inboundBody,
+            sender: {
+                channel: "email",
+                externalId: senderEmail,
+                displayName: senderEmail
+            },
+            externalMessageId: messageId,
+            metadata: {
+                provider: "resend",
+                providerEventId,
+                emailId,
+                subject,
+                inReplyTo,
+                references
+            }
+        });
+
+        if (
+            result.activityId &&
+            result.contactId &&
+            companyId
+        ) {
             void handleInboundSalesReply({
                 activityId: result.activityId,
                 contactId: result.contactId,
@@ -313,11 +388,12 @@ export async function processInboundResendEmail(
                 dealId: result.dealId,
                 companyName: fallbackContact?.company.name,
                 contactEmail: senderEmail,
-                subject: receivedEmail.subject || data.subject || "No subject",
+                subject,
                 body: inboundBody,
                 messageId,
                 inReplyTo,
-                references
+                references,
+                conversationId: conversation.id
             });
         }
 
@@ -326,6 +402,7 @@ export async function processInboundResendEmail(
             activityId: result.activityId,
             contactId: result.contactId,
             dealId: result.dealId,
+            conversationId: conversation.id,
             emailId
         };
     } catch (error) {
