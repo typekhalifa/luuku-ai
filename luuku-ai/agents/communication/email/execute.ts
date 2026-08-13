@@ -42,9 +42,12 @@ import {
 } from "../../../shared/crm/types";
 
 import {
-    appendCommunicationMessage,
     getOrCreateEmailConversation
 } from "../../../shared/communication/persistent-communication.service";
+
+import {
+    prismaCommunicationService
+} from "../../../shared/communication/prisma-communication-service";
 
 interface InboundReplyData {
     subject: string;
@@ -282,20 +285,19 @@ export async function executeEmailTask(
     const externalId = providerEvidence?.externalId;
     const provider = providerEvidence?.provider;
 
-    await appendCommunicationMessage({
+    await prismaCommunicationService.sendMessage({
         conversationId,
-        direction: "outbound",
-        role: "agent",
-        content: body,
-        sender: {
+        channel: "email",
+        recipient: {
             channel: "email",
-            displayName: "Luuku AI",
-            externalId: process.env.RESEND_FROM_EMAIL
+            externalId: recipient,
+            displayName: recipient
         },
-        externalMessageId: externalId,
+        content: body,
         metadata: {
             provider,
             externalId,
+            externalMessageId: externalId,
             taskId: task.id,
             idempotencyKey,
             subject,
