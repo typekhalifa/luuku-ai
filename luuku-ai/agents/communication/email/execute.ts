@@ -41,12 +41,18 @@ import {
     Contact
 } from "../../../shared/crm/types";
 
+import {
+    appendCommunicationMessage,
+    getOrCreateEmailConversation
+} from "../../../shared/communication/persistent-communication.service";
+
 interface InboundReplyData {
     subject: string;
     body: string;
     inReplyTo?: string;
     references?: string;
     from?: string;
+    conversationId?: string;
 }
 
 function buildEmailSubject(
@@ -107,6 +113,11 @@ function extractInboundReply(
             /^CONTACT_EMAIL:\s*(.+)$/im
         )?.[1]?.trim();
 
+    const conversationId =
+        task.description.match(
+            /^CONVERSATION_ID:\s*(.+)$/im
+        )?.[1]?.trim();
+
     const bodyMatch = task.description.match(
         /REPLY_BODY_START\s*\n([\s\S]*?)\nREPLY_BODY_END/i
     );
@@ -126,7 +137,8 @@ function extractInboundReply(
         body,
         inReplyTo: inReplyTo || undefined,
         references: references || undefined,
-        from: from || undefined
+        from: from || undefined,
+        conversationId: conversationId || undefined
     };
 }
 
@@ -137,7 +149,8 @@ export async function executeEmailTask(
     if (!contact.email) {
         return {
             success: false,
-            summary: "Sales email workflow stopped because the CRM contact has no email address.",
+            summary:
+                "Sales email workflow stopped because the CRM contact has no email address.",
             completedAt: new Date().toISOString(),
             executionStatus: "blocked",
             executed: false,
@@ -153,7 +166,8 @@ export async function executeEmailTask(
     if (!company) {
         return {
             success: false,
-            summary: `Sales email workflow stopped because company ${contact.company} could not be resolved in PostgreSQL.`,
+            summary:
+                `Sales email workflow stopped because company ${contact.company} could not be resolved in PostgreSQL.`,
             completedAt: new Date().toISOString(),
             executionStatus: "blocked",
             executed: false,
@@ -175,7 +189,8 @@ export async function executeEmailTask(
         buildEmailBody(contact);
 
     const recipient =
-        inboundReply?.from || contact.email;
+        inboundReply?.from ||
+        contact.email;
 
     const idempotencyKey =
         `sales-email/${task.id}`;
@@ -227,8 +242,12 @@ export async function executeEmailTask(
         console.log("      CRM ACTIVITY NOT LOGGED");
         console.log("========================================");
         console.log("");
-        console.log("Reason: Email was not verified as a real external execution.");
-        console.log(`Status: ${result.status} | executed=${result.executed} | verified=${result.verified}`);
+        console.log(
+            "Reason: Email was not verified as a real external execution."
+        );
+        console.log(
+            `Status: ${result.status} | executed=${result.executed} | verified=${result.verified}`
+        );
 
         return {
             success: false,
@@ -240,15 +259,59 @@ export async function executeEmailTask(
         };
     }
 
+    let conversationId =
+        inboundReply?.conversationId;
+
+    if (!conversationId) {
+        const conversation =
+            await getOrCreateEmailConversation({
+                participantEmail: recipient,
+                subject,
+                metadata: {
+                    source: inboundReply
+                        ? "sales-agent-inbound-reply"
+                        : "sales-agent",
+                    taskId: task.id
+                }
+            });
+
+        conversationId = conversation.id;
+    }
+
+    const providerEvidence = result.evidence;
+    const externalId = providerEvidence?.externalId;
+    const provider = providerEvidence?.provider;
+
+    await appendCommunicationMessage({
+        conversationId,
+        direction: "outbound",
+        role: "agent",
+        content: body,
+        sender: {
+            channel: "email",
+            displayName: "Luuku AI",
+            externalId: process.env.RESEND_FROM_EMAIL
+        },
+        externalMessageId: externalId,
+        metadata: {
+            provider,
+            externalId,
+            taskId: task.id,
+            idempotencyKey,
+            subject,
+            recipient,
+            inReplyTo: inboundReply?.inReplyTo,
+            references: inboundReply?.references,
+            verified: result.verified
+        }
+    });
+
     const deals =
         await dealService.getCompanyDeals(
             company.id
         );
 
     const activeDeal = deals[0];
-    const providerEvidence = result.evidence;
-    const externalId = providerEvidence?.externalId;
-    const provider = providerEvidence?.provider;
 
     const activity: Activity = {
         id: crypto.randomUUID(),
@@ -264,6 +327,7 @@ export async function executeEmailTask(
             inboundReply
                 ? "Triggered by AI-classified inbound prospect reply."
                 : "",
+            `ConversationId: ${conversationId}.`,
             provider && externalId
                 ? `Provider: ${provider}; externalId: ${externalId}; idempotencyKey: ${idempotencyKey}.`
                 : `IdempotencyKey: ${idempotencyKey}.`
