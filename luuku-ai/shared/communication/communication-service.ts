@@ -14,7 +14,7 @@ export interface ReceiveMessageInput {
     channel: CommunicationChannel;
     sender: ChannelIdentity;
     content: string;
-    conversationId?: string;
+    conversationId?: string | null;
     externalConversationId?: string;
     metadata?: Record<string, unknown>;
 }
