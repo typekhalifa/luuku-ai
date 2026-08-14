@@ -4,7 +4,10 @@ import {
     CommunicationRequest,
 } from "./types";
 
-import { placeVoiceCall } from "../voice/call";
+import {
+    getVoiceProviderStatus,
+    placeVoiceCall
+} from "../voice/call";
 
 function blockedResult(
     request: CommunicationRequest,
@@ -35,11 +38,7 @@ export const voiceAdapter: CommunicationAdapter = {
     channel: "voice",
 
     isAvailable(): boolean {
-        // The adapter is intentionally available in simulation mode until a
-        // real voice provider is connected. The execution result remains
-        // `simulated`, so Reality Integrity prevents CRM from treating it as
-        // a real external call.
-        return true;
+        return getVoiceProviderStatus().available;
     },
 
     async execute(
