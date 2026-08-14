@@ -8,9 +8,9 @@ import {
     ChannelCommunicationService,
     DiscordChannelAdapter,
     InMemoryChannelAdapterRegistry,
-    InMemoryCommunicationService,
     EventCommunicationBridge,
     COMMUNICATION_MESSAGE_REQUESTED_EVENT,
+    PrismaCommunicationService,
 } from "..";
 import { loadDiscordEnvironment } from "../discord-config";
 
@@ -25,7 +25,7 @@ async function runDemo() {
         }),
     );
 
-    const communicationStore = new InMemoryCommunicationService();
+    const communicationStore = new PrismaCommunicationService();
     const communicationService = new ChannelCommunicationService(
         communicationStore,
         adapterRegistry,
@@ -41,7 +41,7 @@ async function runDemo() {
 
     const conversationId = "founder-executive";
     const content =
-        "🧠 LEX: Event-driven communication is now live. This message reached Discord through the Luuku event bus.";
+        "🧠 LEX: Event-driven communication is now live through the persistent Communication Core.";
 
     await eventBus.publish({
         id: `evt_real_discord_${Date.now()}`,
@@ -69,7 +69,7 @@ async function runDemo() {
         conversationId,
     );
 
-    if (!conversation || conversation.messages.length !== 1) {
+    if (!conversation || conversation.messages.length < 1) {
         throw new Error(
             "Real event Discord demo failed: communication message was not persisted",
         );
@@ -84,9 +84,10 @@ async function runDemo() {
     console.log(`Source       : executive-ai`);
     console.log(`Channel      : discord`);
     console.log(`Conversation : ${conversation.id}`);
-    console.log(`Message      : ${content}`);
+    console.log(`Messages     : ${conversation.messages.length}`);
+    console.log(`Latest       : ${conversation.messages.at(-1)?.content}`);
     console.log("");
-    console.log("Real event → Discord delivery passed.");
+    console.log("Real event → persistent Communication Core → Discord delivery passed.");
     console.log("");
 }
 
