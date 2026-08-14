@@ -17,4 +17,5 @@ export * from "./types";
 export * from "./brief";
 export * from "./router";
 export * from "./resend-email-adapter";
+export * from "./voice-adapter";
 export * from "./providers";
