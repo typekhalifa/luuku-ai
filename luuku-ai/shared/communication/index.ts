@@ -9,6 +9,7 @@ export * from "./in-memory-channel-adapter";
 export * from "./channel-communication-service";
 export * from "./discord-adapter";
 export * from "./discord-config";
+export * from "./discord-gateway-listener";
 export * from "./events";
 export * from "./event-communication-bridge";
 export * from "./founder-communication";
