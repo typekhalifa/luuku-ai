@@ -64,13 +64,33 @@ function formatExecutionResult(
     result: AgentResult,
 ): string {
     const status = result.executionStatus ?? (result.success ? "completed" : "failed");
+    const evidenceLines = result.evidence
+        ? [
+              "",
+              "Execution evidence:",
+              `Provider: ${result.evidence.provider ?? "internal"}`,
+              `Reference: ${result.evidence.reference ?? result.evidence.externalId ?? "none"}`,
+          ]
+        : [];
+
+    const verificationLines = result.verificationNotes?.length
+        ? ["", "Verification:", ...result.verificationNotes.map((note) => `- ${note}`)]
+        : [];
+
+    const blockerLines = result.blockers?.length
+        ? ["", "Blockers:", ...result.blockers.map((blocker) => `- ${blocker}`)]
+        : [];
 
     return [
         `Founder command executed through ${decision.assignedAgentId} Agent.`,
         "",
         `Task: ${decision.task.title}`,
         `Status: ${status}`,
+        `Executed: ${result.executed === true ? "yes" : "no"}`,
         `Verified: ${result.verified === true ? "yes" : "no"}`,
+        ...evidenceLines,
+        ...verificationLines,
+        ...blockerLines,
         "",
         result.summary,
     ].join("\n");
@@ -95,6 +115,7 @@ IMPORTANT EXECUTION RULES
 - Never invent business facts.
 - Use the executive context below as runtime truth.
 - Never claim an external action happened unless the returned agent result provides execution evidence.
+- Never turn "completed" into "verified". Verification requires domain-specific evidence.
 - Capabilities are hard constraints.
 - "available" means executable now.
 - "simulation_only" means the action may be simulated but must never be presented as externally completed.
@@ -178,17 +199,40 @@ For mode="execute", decision must be:
         };
     }
 
-    const result = await runAgent(decision.assignedAgentId, {
-        id: crypto.randomUUID(),
-        title: decision.task.title,
-        description: decision.task.description,
-        priority: decision.task.priority,
-    });
+    try {
+        const result = await runAgent(decision.assignedAgentId, {
+            id: crypto.randomUUID(),
+            title: decision.task.title,
+            description: decision.task.description,
+            priority: decision.task.priority,
+        });
 
-    return {
-        response: formatExecutionResult(decision, result),
-        executed: true,
-        decision,
-        result,
-    };
+        return {
+            response: formatExecutionResult(decision, result),
+            executed: result.executed === true,
+            decision,
+            result,
+        };
+    } catch (error) {
+        const message = error instanceof Error ? error.message : "Unknown agent execution error.";
+        const failedResult: AgentResult = {
+            success: false,
+            summary: `Agent execution failed: ${message}`,
+            completedAt: new Date().toISOString(),
+            executionStatus: "failed",
+            executed: false,
+            verified: false,
+            blockers: [message],
+            verificationNotes: [
+                "No successful agent execution evidence was produced.",
+            ],
+        };
+
+        return {
+            response: formatExecutionResult(decision, failedResult),
+            executed: false,
+            decision,
+            result: failedResult,
+        };
+    }
 }
