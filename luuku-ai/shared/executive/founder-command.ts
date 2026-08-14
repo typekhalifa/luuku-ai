@@ -28,6 +28,14 @@ export interface FounderCommandResult {
     result?: AgentResult;
 }
 
+function looksLikeExplicitFounderCommand(message: string): boolean {
+    const normalized = message.trim().replace(/^lex[,\s:]*/i, "");
+
+    return /^(ask|tell|have|assign|delegate|instruct|run|execute|research|analyze|check|review|create|draft|find|contact|call|schedule|send|follow\s+up|update|prepare|audit|enrich)\b/i.test(
+        normalized,
+    ) || /\b(ask|assign|delegate|instruct)\s+(the\s+)?(sales|research|voice)\s+agent\b/i.test(normalized);
+}
+
 function parseFounderCommandPlan(text: string): FounderCommandPlan {
     try {
         const parsed = JSON.parse(text) as FounderCommandPlan;
@@ -101,6 +109,7 @@ export async function executeFounderCommand(
 ): Promise<FounderCommandResult> {
     const context = await buildExecutiveContext();
     const capabilities = buildExecutiveCapabilities();
+    const explicitCommand = looksLikeExplicitFounderCommand(input.message);
 
     const planningPrompt = `
 You are Lex, the Executive AI of Luuku AI.
@@ -110,6 +119,15 @@ The founder is communicating directly with you through the company's executive D
 Your job is to determine whether the founder's latest message is:
 1. an informational question that should be answered from authoritative runtime context, or
 2. an explicit operational command that should be delegated to an available agent.
+
+CRITICAL FOUNDER-INTENT RULE
+- The LATEST FOUNDER MESSAGE is authoritative for the founder's current intent.
+- RECENT PERSISTENT FOUNDER CONVERSATION is context only. It must never override or cancel an explicit command in the latest message.
+- If the latest message explicitly asks Lex to ask, assign, delegate, instruct, run, execute, research, analyze, check, review, create, draft, find, contact, call, schedule, send, follow up, update, prepare, audit, or enrich something, treat it as a NEW EXECUTION REQUEST even if the same or a similar task appears in recent conversation as already completed.
+- A prior completion may be mentioned after execution, but it is never a reason to convert the new command into an informational answer.
+- When the latest message is an explicit command, mode MUST be "execute" unless the command is impossible to map to any registered agent. If impossible, explain the blocker rather than pretending it was completed.
+- The application has also classified the latest message as an explicit command: ${explicitCommand ? "true" : "false"}.
+- When that application classification is true, do not choose mode="answer" merely because recent conversation says the task was completed.
 
 IMPORTANT EXECUTION RULES
 - Never invent business facts.
