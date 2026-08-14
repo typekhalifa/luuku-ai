@@ -185,7 +185,22 @@ For mode="execute", decision must be:
         temperature: 0.1,
     });
 
-    const plan = parseFounderCommandPlan(planningResponse);
+    let plan = parseFounderCommandPlan(planningResponse);
+
+    if (explicitCommand && plan.mode === "answer") {
+        const correctionResponse = await requestAI({
+            prompt: `${planningPrompt}\n\nHARD OVERRIDE: The application classifier detected an explicit founder command. Your previous plan incorrectly chose answer mode. Re-plan the LATEST FOUNDER MESSAGE as an execution request. Return mode="execute" with a valid decision assigned to the appropriate registered agent. Do not use prior conversation history as a reason to answer instead of execute.`,
+            temperature: 0.0,
+        });
+
+        plan = parseFounderCommandPlan(correctionResponse);
+
+        if (plan.mode === "answer" || !plan.decision) {
+            throw new Error(
+                "Founder command planner failed to produce an executable decision for an explicit founder command.",
+            );
+        }
+    }
 
     if (plan.mode === "answer" || !plan.decision) {
         return {
