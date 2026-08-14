@@ -5,8 +5,8 @@ import {
     DiscordChannelAdapter,
     FounderCommunication,
     InMemoryChannelAdapterRegistry,
-    InMemoryCommunicationService,
 } from "..";
+import { PrismaCommunicationService } from "../prisma-communication-service";
 import { loadDiscordEnvironment } from "../discord-config";
 
 async function runDemo() {
@@ -20,7 +20,7 @@ async function runDemo() {
         }),
     );
 
-    const communicationStore = new InMemoryCommunicationService();
+    const communicationStore = new PrismaCommunicationService();
     const communicationService = new ChannelCommunicationService(
         communicationStore,
         adapterRegistry,
@@ -41,13 +41,13 @@ async function runDemo() {
             level: "info",
             title: "Executive Communication Online",
             message:
-                "LEX is now connected to the founder notification pipeline. Executive notifications can reach Discord through the Luuku event bus.",
+                "LEX is now connected to the founder notification pipeline. Executive notifications can reach Discord through the persistent Communication Core.",
         },
     ]);
 
     const conversation = await founderCommunication.getFounderConversation();
 
-    if (!conversation || conversation.messages.length !== 1) {
+    if (!conversation || conversation.messages.length < 1) {
         throw new Error(
             "Real founder Discord demo failed: notification was not persisted",
         );
@@ -61,9 +61,9 @@ async function runDemo() {
     console.log(`Channel      : discord`);
     console.log(`Conversation : ${conversation.id}`);
     console.log(`Messages     : ${conversation.messages.length}`);
-    console.log(`Message      : ${conversation.messages[0].content}`);
+    console.log(`Latest       : ${conversation.messages.at(-1)?.content}`);
     console.log("");
-    console.log("Founder notification → Discord delivery passed.");
+    console.log("Founder notification → persistent Communication Core → Discord passed.");
     console.log("");
 }
 
