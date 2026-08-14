@@ -26,6 +26,23 @@ const GUILDS_INTENT = 1;
 const GUILD_MESSAGES_INTENT = 512;
 const MESSAGE_CONTENT_INTENT = 32768;
 
+function gatewayCloseExplanation(code: number): string {
+    switch (code) {
+        case 4004:
+            return "Authentication failed. Check DISCORD_BOT_TOKEN.";
+        case 4013:
+            return "Disallowed intent(s). Enable the required privileged intents for the bot in the Discord Developer Portal, especially Message Content Intent.";
+        case 4014:
+            return "Privileged intent(s) are required but not enabled/approved for this bot.";
+        case 4007:
+            return "Invalid sequence number. A fresh Gateway session is required.";
+        case 4009:
+            return "Session timed out. A fresh Gateway session is required.";
+        default:
+            return "See the Discord Gateway close code for the exact cause.";
+    }
+}
+
 export class DiscordGatewayListener {
     private readonly apiBaseUrl: string;
     private socket: WebSocket | undefined;
@@ -51,6 +68,8 @@ export class DiscordGatewayListener {
     async start(): Promise<void> {
         this.stopped = false;
 
+        console.log("Checking Discord bot identity...");
+
         const meResponse = await fetch(`${this.apiBaseUrl}/users/@me`, {
             headers: {
                 Authorization: `Bot ${this.config.botToken}`,
@@ -63,8 +82,9 @@ export class DiscordGatewayListener {
             );
         }
 
-        const me = await meResponse.json() as { id?: string };
+        const me = await meResponse.json() as { id?: string; username?: string };
         this.botUserId = me.id;
+        console.log(`✓ Discord bot authenticated${me.username ? ` as ${me.username}` : ""}.`);
 
         const response = await fetch(`${this.apiBaseUrl}/gateway`);
         if (!response.ok) {
@@ -79,9 +99,11 @@ export class DiscordGatewayListener {
         }
 
         const gatewayUrl = `${payload.url}?v=${DISCORD_GATEWAY_VERSION}&encoding=json`;
+        console.log("Connecting to Discord Gateway...");
         this.socket = new WebSocket(gatewayUrl);
 
         this.socket.addEventListener("open", () => {
+            console.log("✓ Discord Gateway socket opened. Identifying bot...");
             this.identify();
         });
 
@@ -89,16 +111,21 @@ export class DiscordGatewayListener {
             void this.handleMessage(String(event.data));
         });
 
-        this.socket.addEventListener("close", () => {
+        this.socket.addEventListener("close", (event) => {
             this.stopHeartbeat();
 
+            console.error(
+                `Discord Gateway connection closed (code ${event.code}, reason: ${event.reason || "none"}).`,
+            );
+            console.error(`Reason: ${gatewayCloseExplanation(event.code)}`);
+
             if (!this.stopped) {
-                console.error("Discord gateway connection closed.");
+                console.error("The listener stopped because the Gateway session was not kept alive.");
             }
         });
 
         this.socket.addEventListener("error", () => {
-            console.error("Discord gateway connection error.");
+            console.error("Discord Gateway socket error.");
         });
     }
 
@@ -141,11 +168,22 @@ export class DiscordGatewayListener {
         }
 
         if (payload.op === 10) {
+            console.log("✓ Discord Gateway HELLO received.");
             this.startHeartbeat(payload.d?.heartbeat_interval);
             return;
         }
 
         if (payload.op === 11) {
+            return;
+        }
+
+        if (payload.op === 9) {
+            console.error("Discord Gateway rejected the session: INVALID_SESSION.");
+            return;
+        }
+
+        if (payload.op === 0 && payload.t === "READY") {
+            console.log("✓ Discord Gateway READY. Lex is now listening for founder messages.");
             return;
         }
 
