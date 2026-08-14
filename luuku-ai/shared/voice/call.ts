@@ -1,46 +1,80 @@
 import {
-
     VoiceCallRequest,
-
     VoiceCallResult
-
 } from "./types";
 
-export async function placeVoiceCall(
+import {
+    VoiceProvider
+} from "./provider";
 
-    request: VoiceCallRequest
+import {
+    simulationVoiceProvider
+} from "./providers/simulation";
 
-): Promise<VoiceCallResult> {
+import {
+    elevenLabsTwilioProvider
+} from "./providers/elevenlabs-twilio";
 
-    console.log("");
+function getVoiceMode(): "simulation" | "live" {
+    return process.env.VOICE_MODE?.trim().toLowerCase() === "live"
+        ? "live"
+        : "simulation";
+}
 
-    console.log("========================================");
+function getProvider(): VoiceProvider {
+    if (getVoiceMode() === "live") {
+        return elevenLabsTwilioProvider;
+    }
 
-    console.log("        VOICE CALL");
+    return simulationVoiceProvider;
+}
 
-    console.log("========================================");
-
-    console.log("");
-
-    console.log(request);
+export function getVoiceProviderStatus(): {
+    mode: "simulation" | "live";
+    provider: string;
+    available: boolean;
+} {
+    const provider = getProvider();
 
     return {
-
-        success: false,
-
-        status: "simulated",
-
-        executed: false,
-
-        verified: false,
-
-        transcript: "",
-
-        summary:
-            "Call simulation completed. Real voice execution is not connected yet.",
-
-        durationSeconds: 0
-
+        mode: getVoiceMode(),
+        provider: provider.name,
+        available: provider.isAvailable()
     };
+}
 
+export async function placeVoiceCall(
+    request: VoiceCallRequest
+): Promise<VoiceCallResult> {
+    const mode = getVoiceMode();
+    const provider = getProvider();
+
+    console.log("");
+    console.log("========================================");
+    console.log("        VOICE CALL EXECUTION");
+    console.log("========================================");
+    console.log("");
+    console.log(`Mode     : ${mode}`);
+    console.log(`Provider : ${provider.name}`);
+    console.log(`Recipient: ${request.phoneNumber}`);
+
+    if (!provider.isAvailable()) {
+        return {
+            success: false,
+            status: "blocked",
+            executed: false,
+            verified: false,
+            transcript: "",
+            summary:
+                mode === "live"
+                    ? "Live voice provider is unavailable because the required ElevenLabs configuration is incomplete."
+                    : "Voice simulation provider is unavailable.",
+            durationSeconds: 0,
+            evidence: {
+                provider: provider.name
+            }
+        };
+    }
+
+    return provider.placeCall(request);
 }
