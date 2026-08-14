@@ -4,20 +4,32 @@ import { DiscordChannelAdapter } from "../communication/discord-adapter";
 import { DiscordGatewayListener, DiscordInboundGatewayMessage } from "../communication/discord-gateway";
 import { PrismaCommunicationService } from "../communication/prisma-communication-service";
 import { loadDiscordEnvironment } from "../communication/discord-config";
+import {
+    ChannelCommunicationService,
+    InMemoryChannelAdapterRegistry,
+} from "../communication";
 
 const FOUNDER_CONVERSATION_ID = "founder-executive";
 
 export class FounderDiscordInboundService {
-    private readonly communicationService = new PrismaCommunicationService();
+    private readonly communicationService: ChannelCommunicationService;
     private readonly discord: ReturnType<typeof loadDiscordEnvironment>;
-    private readonly adapter: DiscordChannelAdapter;
 
     constructor() {
         this.discord = loadDiscordEnvironment();
-        this.adapter = new DiscordChannelAdapter({
-            botToken: this.discord.botToken,
-            defaultChannelId: this.discord.channelId,
-        });
+
+        const adapterRegistry = new InMemoryChannelAdapterRegistry();
+        adapterRegistry.register(
+            new DiscordChannelAdapter({
+                botToken: this.discord.botToken,
+                defaultChannelId: this.discord.channelId,
+            }),
+        );
+
+        this.communicationService = new ChannelCommunicationService(
+            new PrismaCommunicationService(),
+            adapterRegistry,
+        );
     }
 
     async handle(message: DiscordInboundGatewayMessage): Promise<void> {
@@ -89,19 +101,6 @@ Respond as Lex in a concise, executive style.
                 source: "lex-founder-response",
                 inReplyTo: message.id,
                 inboundMessageId: inbound.id,
-            },
-        });
-
-        await this.adapter.send({
-            conversationId: FOUNDER_CONVERSATION_ID,
-            recipient: {
-                channel: "discord",
-                externalId: this.discord.channelId,
-                displayName: "Founder",
-            },
-            content: response,
-            metadata: {
-                source: "lex-founder-response",
             },
         });
     }

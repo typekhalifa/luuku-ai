@@ -17,7 +17,6 @@ export class ChannelCommunicationService implements CommunicationService {
     ) {}
 
     async sendMessage(input: SendMessageInput): Promise<CommunicationMessage> {
-        const message = await this.store.sendMessage(input);
         const adapter = this.adapters.get(input.channel);
 
         if (!adapter) {
@@ -33,8 +32,18 @@ export class ChannelCommunicationService implements CommunicationService {
             metadata: input.metadata,
         };
 
+        // External delivery is the source of truth. Do not persist an outbound
+        // message as if it was sent before the channel adapter confirms success.
         await adapter.send(outbound);
-        return message;
+
+        return this.store.sendMessage({
+            ...input,
+            metadata: {
+                ...input.metadata,
+                deliveryStatus: "sent",
+                deliveredAt: new Date().toISOString(),
+            },
+        });
     }
 
     async receiveMessage(input: ReceiveMessageInput): Promise<CommunicationMessage> {
