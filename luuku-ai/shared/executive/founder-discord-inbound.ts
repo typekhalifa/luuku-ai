@@ -75,7 +75,7 @@ Respond as Lex in a concise, executive style.
             temperature: 0.2,
         });
 
-        const outbound = await this.communicationService.sendMessage({
+        await this.communicationService.sendMessage({
             conversationId: FOUNDER_CONVERSATION_ID,
             channel: "discord",
             recipient: {
@@ -101,7 +101,6 @@ Respond as Lex in a concise, executive style.
             },
             content: response,
             metadata: {
-                externalMessageId: outbound.externalMessageId,
                 source: "lex-founder-response",
             },
         });
