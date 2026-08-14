@@ -51,6 +51,21 @@ export class DiscordGatewayListener {
     async start(): Promise<void> {
         this.stopped = false;
 
+        const meResponse = await fetch(`${this.apiBaseUrl}/users/@me`, {
+            headers: {
+                Authorization: `Bot ${this.config.botToken}`,
+            },
+        });
+
+        if (!meResponse.ok) {
+            throw new Error(
+                `Discord bot identity check failed (${meResponse.status} ${meResponse.statusText})`,
+            );
+        }
+
+        const me = await meResponse.json() as { id?: string };
+        this.botUserId = me.id;
+
         const response = await fetch(`${this.apiBaseUrl}/gateway`);
         if (!response.ok) {
             throw new Error(
