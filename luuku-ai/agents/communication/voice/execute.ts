@@ -6,8 +6,8 @@ import {
 } from "../../../shared/agents/interface";
 
 import {
-    placeVoiceCall
-} from "../../../shared/voice/call";
+    communicationRouter
+} from "../../../shared/communication/router";
 
 import {
     isVerifiedRealExecution
@@ -53,6 +53,10 @@ import {
     Contact
 } from "../../../shared/crm/types";
 
+import {
+    registerCommunicationProviders
+} from "../../../shared/communication/providers";
+
 export async function executeVoiceTask(
 
     task: AgentTask,
@@ -68,6 +72,8 @@ export async function executeVoiceTask(
         );
 
     }
+
+    registerCommunicationProviders();
 
     const brief =
         buildCommunicationBrief(
@@ -157,28 +163,29 @@ export async function executeVoiceTask(
     console.log("");
     console.log(transcript);
 
-    const result =
-        await placeVoiceCall({
-
-            contactName:
-                brief.contactName,
-
-            company:
-                brief.company,
-
-            phoneNumber:
-                contact.phoneNumber,
-
-            purpose:
-                brief.objective,
-
-            language:
-                contact.preferredLanguage,
-
-            tone:
-                brief.tone
-
+    const communicationResult =
+        await communicationRouter.execute({
+            capability: "voice.call",
+            channel: "voice",
+            recipient: contact.phoneNumber,
+            body: brief.objective,
+            metadata: {
+                contactName: brief.contactName,
+                company: brief.company,
+                purpose: brief.objective,
+                language: contact.preferredLanguage || "English",
+                tone: brief.tone,
+                taskId: task.id,
+            },
         });
+
+    const result = {
+        ...communicationResult,
+        success:
+            communicationResult.executed &&
+            communicationResult.status !== "failed" &&
+            communicationResult.status !== "blocked",
+    };
 
     const company =
         await companyService.findCompany(
