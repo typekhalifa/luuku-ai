@@ -6,6 +6,10 @@ import {
     resendEmailAdapter
 } from "./resend-email-adapter";
 
+import {
+    voiceAdapter
+} from "./voice-adapter";
+
 let registered = false;
 
 export function registerCommunicationProviders(): void {
@@ -18,12 +22,19 @@ export function registerCommunicationProviders(): void {
         resendEmailAdapter
     );
 
+    communicationRouter.register(
+        voiceAdapter
+    );
+
     registered = true;
 }
 
 export function getCommunicationProviderStatus() {
     return {
         email: resendEmailAdapter.isAvailable()
+            ? "available"
+            : "unavailable",
+        voice: voiceAdapter.isAvailable()
             ? "available"
             : "unavailable"
     } as const;
