@@ -2,10 +2,7 @@ import { Prisma } from "@prisma/client";
 
 import { prisma } from "../database/client";
 import { handleInboundSalesReply } from "./inbound-sales.service";
-import {
-    appendCommunicationMessage,
-    getOrCreateEmailConversation
-} from "./persistent-communication.service";
+import { prismaCommunicationService } from "./prisma-communication-service";
 
 const RESEND_RECEIVING_ENDPOINT =
     "https://api.resend.com/emails/receiving";
@@ -45,7 +42,7 @@ function extractEmailAddress(value?: string): string | undefined {
     const angleMatch = value.match(/<([^>]+)>/);
     const candidate = angleMatch?.[1] || value;
     const emailMatch = candidate.match(
-        /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i
+        /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i,
     );
 
     return emailMatch?.[0]?.toLowerCase();
@@ -53,7 +50,7 @@ function extractEmailAddress(value?: string): string | undefined {
 
 function getHeader(
     headers: Record<string, unknown> | undefined,
-    name: string
+    name: string,
 ): string | undefined {
     if (!headers) {
         return undefined;
@@ -62,7 +59,7 @@ function getHeader(
     const target = name.toLowerCase();
 
     const entry = Object.entries(headers).find(
-        ([key]) => key.toLowerCase() === target
+        ([key]) => key.toLowerCase() === target,
     )?.[1];
 
     if (typeof entry === "string") {
@@ -90,8 +87,23 @@ function extractMessageIds(value?: string): string[] {
         : [value.trim()];
 }
 
+function normalizeSubject(value: string): string {
+    return value
+        .replace(/^(?:(?:re|fw|fwd)\s*:\s*)+/i, "")
+        .replace(/\s+/g, " ")
+        .trim()
+        .toLowerCase();
+}
+
+function buildEmailThreadKey(
+    participantEmail: string,
+    subject: string,
+): string {
+    return `email:${participantEmail.trim().toLowerCase()}:${normalizeSubject(subject) || "no-subject"}`;
+}
+
 async function retrieveReceivedEmail(
-    emailId: string
+    emailId: string,
 ): Promise<ReceivedEmail> {
     const apiKey = process.env.RESEND_API_KEY;
 
@@ -103,9 +115,9 @@ async function retrieveReceivedEmail(
         `${RESEND_RECEIVING_ENDPOINT}/${encodeURIComponent(emailId)}`,
         {
             headers: {
-                Authorization: `Bearer ${apiKey}`
-            }
-        }
+                Authorization: `Bearer ${apiKey}`,
+            },
+        },
     );
 
     const payload = await response.json() as
@@ -124,7 +136,7 @@ async function retrieveReceivedEmail(
         throw new Error(
             errorPayload.message ||
             errorPayload.name ||
-            `RESEND_RECEIVING_HTTP_${response.status}`
+            `RESEND_RECEIVING_HTTP_${response.status}`,
         );
     }
 
@@ -133,7 +145,7 @@ async function retrieveReceivedEmail(
 
 export async function processInboundResendEmail(
     event: ResendInboundEvent,
-    providerEventId: string
+    providerEventId: string,
 ): Promise<{
     duplicate: boolean;
     activityId?: string;
@@ -152,7 +164,7 @@ export async function processInboundResendEmail(
     const receivedEmail = await retrieveReceivedEmail(emailId);
 
     const senderEmail = extractEmailAddress(
-        receivedEmail.from || data.from
+        receivedEmail.from || data.from,
     );
 
     const messageId =
@@ -160,17 +172,17 @@ export async function processInboundResendEmail(
 
     const inReplyTo = getHeader(
         receivedEmail.headers,
-        "in-reply-to"
+        "in-reply-to",
     );
 
     const references = getHeader(
         receivedEmail.headers,
-        "references"
+        "references",
     );
 
     const threadMessageIds = [
         ...extractMessageIds(inReplyTo),
-        ...extractMessageIds(references)
+        ...extractMessageIds(references),
     ];
 
     const subject =
@@ -183,12 +195,12 @@ export async function processInboundResendEmail(
             where: {
                 email: {
                     equals: senderEmail,
-                    mode: "insensitive"
-                }
+                    mode: "insensitive",
+                },
             },
             include: {
-                company: true
-            }
+                company: true,
+            },
         })
         : null;
 
@@ -200,12 +212,12 @@ export async function processInboundResendEmail(
         threadEvent = await prisma.communicationEvent.findFirst({
             where: {
                 messageId: {
-                    in: threadMessageIds
-                }
+                    in: threadMessageIds,
+                },
             },
             orderBy: {
-                receivedAt: "desc"
-            }
+                receivedAt: "desc",
+            },
         });
     }
 
@@ -216,12 +228,12 @@ export async function processInboundResendEmail(
                 where: {
                     email: {
                         equals: threadEvent.recipient,
-                        mode: "insensitive"
-                    }
+                        mode: "insensitive",
+                    },
                 },
                 include: {
-                    company: true
-                }
+                    company: true,
+                },
             })
             : null);
 
@@ -232,12 +244,12 @@ export async function processInboundResendEmail(
             where: {
                 companyId,
                 stage: {
-                    notIn: ["won", "lost"]
-                }
+                    notIn: ["won", "lost"],
+                },
             },
             orderBy: {
-                updatedAt: "desc"
-            }
+                updatedAt: "desc",
+            },
         })
         : null;
 
@@ -247,28 +259,41 @@ export async function processInboundResendEmail(
         threadEvent?.sender ||
         "unknown@example.invalid";
 
-    const conversation =
-        threadEvent?.conversationId
-            ? {
-                id: threadEvent.conversationId,
-                threadKey: undefined
-            }
-            : await getOrCreateEmailConversation({
-                participantEmail,
-                subject,
-                metadata: {
-                    source: "resend-inbound",
-                    providerEventId,
-                    emailId
-                }
-            });
+    const inboundBody =
+        receivedEmail.text?.trim() ||
+        receivedEmail.html?.trim() ||
+        "Inbound email received without a text body.";
+
+    const conversation = await prismaCommunicationService.receiveMessage({
+        channel: "email",
+        conversationId: threadEvent?.conversationId,
+        externalConversationId: buildEmailThreadKey(
+            participantEmail,
+            subject,
+        ),
+        sender: {
+            channel: "email",
+            externalId: senderEmail || participantEmail,
+            displayName: senderEmail || participantEmail,
+        },
+        content: inboundBody,
+        metadata: {
+            provider: "resend",
+            providerEventId,
+            emailId,
+            messageId,
+            subject,
+            inReplyTo,
+            references,
+        },
+    });
 
     const storedPayload = {
         webhook: event,
         receivedEmail: {
             ...receivedEmail,
             html: receivedEmail.html || undefined,
-            text: receivedEmail.text || undefined
+            text: receivedEmail.text || undefined,
         },
         correlation: {
             senderEmail,
@@ -279,8 +304,8 @@ export async function processInboundResendEmail(
             matchedContactId: fallbackContact?.id,
             matchedCompanyId: companyId,
             matchedDealId: deal?.id,
-            conversationId: conversation.id
-        }
+            conversationId: conversation.conversationId,
+        },
     } as unknown as Prisma.InputJsonValue;
 
     try {
@@ -293,14 +318,14 @@ export async function processInboundResendEmail(
                         type: event.type || "email.received",
                         externalId: emailId,
                         messageId,
-                        conversationId: conversation.id,
+                        conversationId: conversation.conversationId,
                         recipient: Array.isArray(receivedEmail.to)
                             ? receivedEmail.to[0]
                             : data.to?.[0],
                         sender: receivedEmail.from || data.from,
                         subject,
-                        payload: storedPayload
-                    }
+                        payload: storedPayload,
+                    },
                 });
 
             if (!fallbackContact || !companyId) {
@@ -308,14 +333,9 @@ export async function processInboundResendEmail(
                     communicationEventId: communicationEvent.id,
                     activityId: undefined,
                     contactId: undefined,
-                    dealId: undefined
+                    dealId: undefined,
                 };
             }
-
-            const body =
-                receivedEmail.text?.trim() ||
-                receivedEmail.html?.trim() ||
-                "Inbound email received without a text body.";
 
             const activity = await tx.activity.create({
                 data: {
@@ -324,21 +344,21 @@ export async function processInboundResendEmail(
                     dealId: deal?.id,
                     type: "email",
                     title: `Inbound email: ${subject}`,
-                    description: body,
+                    description: inboundBody,
                     outcome: "Inbound reply received through Resend.",
                     createdBy: "resend-inbound",
-                    completed: true
-                }
+                    completed: true,
+                },
             });
 
             if (deal) {
                 await tx.deal.update({
                     where: {
-                        id: deal.id
+                        id: deal.id,
                     },
                     data: {
-                        lastActivityAt: new Date()
-                    }
+                        lastActivityAt: new Date(),
+                    },
                 });
             }
 
@@ -346,34 +366,8 @@ export async function processInboundResendEmail(
                 communicationEventId: communicationEvent.id,
                 activityId: activity.id,
                 contactId: fallbackContact.id,
-                dealId: deal?.id
+                dealId: deal?.id,
             };
-        });
-
-        const inboundBody =
-            receivedEmail.text?.trim() ||
-            receivedEmail.html?.trim() ||
-            "Inbound email received without a text body.";
-
-        await appendCommunicationMessage({
-            conversationId: conversation.id,
-            direction: "inbound",
-            role: "system",
-            content: inboundBody,
-            sender: {
-                channel: "email",
-                externalId: senderEmail,
-                displayName: senderEmail
-            },
-            externalMessageId: messageId,
-            metadata: {
-                provider: "resend",
-                providerEventId,
-                emailId,
-                subject,
-                inReplyTo,
-                references
-            }
         });
 
         if (
@@ -393,7 +387,7 @@ export async function processInboundResendEmail(
                 messageId,
                 inReplyTo,
                 references,
-                conversationId: conversation.id
+                conversationId: conversation.conversationId,
             });
         }
 
@@ -402,8 +396,8 @@ export async function processInboundResendEmail(
             activityId: result.activityId,
             contactId: result.contactId,
             dealId: result.dealId,
-            conversationId: conversation.id,
-            emailId
+            conversationId: conversation.conversationId,
+            emailId,
         };
     } catch (error) {
         if (
@@ -412,7 +406,8 @@ export async function processInboundResendEmail(
         ) {
             return {
                 duplicate: true,
-                emailId
+                conversationId: conversation.conversationId,
+                emailId,
             };
         }
 
