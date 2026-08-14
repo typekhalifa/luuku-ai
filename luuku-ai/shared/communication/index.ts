@@ -3,6 +3,7 @@ export * from "./message";
 export * from "./conversation";
 export * from "./communication-service";
 export * from "./in-memory-communication-service";
+export * from "./prisma-communication-service";
 export * from "./channel-adapter";
 export * from "./in-memory-channel-adapter";
 export * from "./channel-communication-service";
