@@ -2,10 +2,10 @@ import {
     DiscordChannelAdapter,
     FounderCommunication,
     InMemoryChannelAdapterRegistry,
-    InMemoryCommunicationService,
     ChannelCommunicationService,
 } from "../communication";
 
+import { PrismaCommunicationService } from "../communication/prisma-communication-service";
 import { loadDiscordEnvironment } from "../communication/discord-config";
 
 export function createFounderDiscordCommunication(): FounderCommunication {
@@ -20,7 +20,7 @@ export function createFounderDiscordCommunication(): FounderCommunication {
         }),
     );
 
-    const communicationStore = new InMemoryCommunicationService();
+    const communicationStore = new PrismaCommunicationService();
 
     const communicationService = new ChannelCommunicationService(
         communicationStore,
