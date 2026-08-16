@@ -18,4 +18,5 @@ export * from "./brief";
 export * from "./router";
 export * from "./resend-email-adapter";
 export * from "./voice-adapter";
+export * from "./calendar-adapter";
 export * from "./providers";
