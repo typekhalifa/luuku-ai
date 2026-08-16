@@ -119,6 +119,7 @@ model CommunicationMessage {
 
   @@index([conversationId])
   @@index([externalMessageId])
+  @@unique([conversationId, externalMessageId])
 }
 
 model CommunicationEvent {
