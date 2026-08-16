@@ -10,6 +10,10 @@ import {
     voiceAdapter
 } from "./voice-adapter";
 
+import {
+    calendarAdapter
+} from "./calendar-adapter";
+
 let registered = false;
 
 export function registerCommunicationProviders(): void {
@@ -26,6 +30,10 @@ export function registerCommunicationProviders(): void {
         voiceAdapter
     );
 
+    communicationRouter.register(
+        calendarAdapter
+    );
+
     registered = true;
 }
 
@@ -35,6 +43,9 @@ export function getCommunicationProviderStatus() {
             ? "available"
             : "unavailable",
         voice: voiceAdapter.isAvailable()
+            ? "available"
+            : "unavailable",
+        calendar: calendarAdapter.isAvailable()
             ? "available"
             : "unavailable"
     } as const;
