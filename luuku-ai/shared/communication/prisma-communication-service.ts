@@ -10,6 +10,7 @@ import {
 import { CommunicationConversation } from "./conversation";
 import { CommunicationMessage } from "./message";
 import { ChannelIdentity } from "./channel";
+import { CommunicationIdentityResolver } from "./identity-resolver";
 
 function asChannelIdentity(value: unknown): ChannelIdentity {
     if (!value || typeof value !== "object") {
@@ -79,6 +80,8 @@ function mergeParticipants(
 }
 
 export class PrismaCommunicationService implements CommunicationService {
+    private readonly identityResolver = new CommunicationIdentityResolver();
+
     async sendMessage(input: SendMessageInput): Promise<CommunicationMessage> {
         const conversation = await this.getOrCreateConversation(
             input.conversationId,
@@ -137,6 +140,24 @@ export class PrismaCommunicationService implements CommunicationService {
             }
         }
 
+        const identityResolution = await this.identityResolver.resolve({
+            channel: input.channel,
+            externalId: input.sender.externalId,
+            email: input.sender.channel === "email"
+                ? input.sender.externalId
+                : undefined,
+            phoneNumber:
+                input.sender.channel === "voice" || input.sender.channel === "whatsapp"
+                    ? input.sender.externalId
+                    : undefined,
+            conversationId: conversation.id,
+        });
+
+        const enrichedMetadata: Record<string, unknown> = {
+            ...(input.metadata ?? {}),
+            identityResolution,
+        };
+
         const message = await prisma.communicationMessage.create({
             data: {
                 conversationId: conversation.id,
@@ -145,13 +166,22 @@ export class PrismaCommunicationService implements CommunicationService {
                 content: input.content,
                 sender: toChannelJson(input.sender),
                 externalMessageId,
-                metadata: toInputJson(input.metadata),
+                metadata: toInputJson(enrichedMetadata),
             },
         });
 
+        const existingConversationMetadata =
+            asMetadata(conversation.metadata) ?? {};
+
         await prisma.communicationConversation.update({
             where: { id: conversation.id },
-            data: { updatedAt: new Date() },
+            data: {
+                updatedAt: new Date(),
+                metadata: toInputJson({
+                    ...existingConversationMetadata,
+                    identityResolution,
+                }),
+            },
         });
 
         return this.toDomainMessage(message);
