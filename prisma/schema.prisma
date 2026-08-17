@@ -100,6 +100,7 @@ model CommunicationConversation {
   updatedAt    DateTime               @updatedAt
   messages     CommunicationMessage[]
   events       CommunicationEvent[]
+  executions   CommunicationExecution[]
 
   @@index([channel])
   @@index([status])
@@ -141,6 +142,37 @@ model CommunicationEvent {
   @@index([messageId])
   @@index([conversationId])
   @@index([type])
+}
+
+model CommunicationExecution {
+  id                String                     @id @default(uuid())
+  conversationId    String?
+  taskId            String?
+  idempotencyKey    String?
+  capability        String
+  channel           String
+  recipient         Json?
+  audience          String?
+  executionMode     String?
+  policyDecision    String
+  policyReason      String
+  status            String
+  executed          Boolean                    @default(false)
+  verified          Boolean                    @default(false)
+  provider          String?
+  externalId        String?
+  evidence          Json?
+  error             String?
+  createdAt         DateTime                   @default(now())
+  updatedAt         DateTime                   @updatedAt
+  conversation      CommunicationConversation? @relation(fields: [conversationId], references: [id], onDelete: SetNull)
+
+  @@index([conversationId])
+  @@index([taskId])
+  @@index([status])
+  @@index([createdAt])
+  @@index([provider])
+  @@unique([idempotencyKey])
 }
 
 enum CompanyStatus {
