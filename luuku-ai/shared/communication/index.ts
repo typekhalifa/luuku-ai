@@ -29,3 +29,4 @@ export * from "./discord-space-binding";
 export * from "./discord-space-bridge";
 export * from "./discord-inbound-bridge";
 export * from "./agent-communication";
+export * from "./agent-delegation.service";
