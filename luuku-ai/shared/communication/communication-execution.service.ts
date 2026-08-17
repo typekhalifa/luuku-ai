@@ -17,14 +17,6 @@ function metadataString(
         : undefined;
 }
 
-function metadataBoolean(
-    request: CommunicationRequest,
-    key: string,
-): boolean | undefined {
-    const value = request.metadata?.[key];
-    return typeof value === "boolean" ? value : undefined;
-}
-
 function jsonValue(value: unknown): Prisma.InputJsonValue {
     return JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
 }
@@ -46,6 +38,23 @@ function requestRecipient(
     };
 }
 
+function isTerminalStatus(
+    status: string,
+): boolean {
+    return [
+        "blocked",
+        "failed",
+        "completed",
+        "verified",
+    ].includes(status);
+}
+
+export interface CommunicationExecutionHandle {
+    id: string;
+    reused: boolean;
+    existingResult?: CommunicationExecutionResult;
+}
+
 export class CommunicationExecutionService {
     constructor(
         private readonly db: PrismaClient = prisma,
@@ -54,7 +63,7 @@ export class CommunicationExecutionService {
     async start(
         request: CommunicationRequest,
         policy: CommunicationPolicyResult,
-    ): Promise<string> {
+    ): Promise<CommunicationExecutionHandle> {
         const idempotencyKey =
             metadataString(request, "idempotencyKey") ||
             metadataString(request, "taskId");
@@ -66,7 +75,30 @@ export class CommunicationExecutionService {
                 });
 
             if (existing) {
-                return existing.id;
+                return {
+                    id: existing.id,
+                    reused: true,
+                    existingResult:
+                        isTerminalStatus(existing.status)
+                            ? {
+                                  capability:
+                                      existing.capability as CommunicationExecutionResult["capability"],
+                                  channel:
+                                      existing.channel as CommunicationExecutionResult["channel"],
+                                  status:
+                                      existing.status as CommunicationExecutionResult["status"],
+                                  executed: existing.executed,
+                                  verified: existing.verified,
+                                  evidence:
+                                      existing.evidence
+                                          ? (existing.evidence as unknown as CommunicationExecutionResult["evidence"])
+                                          : undefined,
+                                  summary:
+                                      existing.policyReason,
+                                  error: existing.error ?? undefined,
+                              }
+                            : undefined,
+                };
             }
         }
 
@@ -99,7 +131,21 @@ export class CommunicationExecutionService {
                 },
             });
 
-        return record.id;
+        return {
+            id: record.id,
+            reused: false,
+        };
+    }
+
+    async markExecuting(
+        executionId: string,
+    ): Promise<void> {
+        await this.db.communicationExecution.update({
+            where: { id: executionId },
+            data: {
+                status: "executing",
+            },
+        });
     }
 
     async complete(
@@ -119,14 +165,6 @@ export class CommunicationExecutionService {
                     : undefined,
                 error: result.error,
             },
-        });
-    }
-
-    async findByIdempotencyKey(
-        idempotencyKey: string,
-    ) {
-        return this.db.communicationExecution.findUnique({
-            where: { idempotencyKey },
         });
     }
 }
