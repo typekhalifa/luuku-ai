@@ -136,6 +136,18 @@ export class CommunicationExecutionService {
         };
     }
 
+    async attachConversationByIdempotencyKey(
+        idempotencyKey: string,
+        conversationId: string,
+    ): Promise<void> {
+        await this.db.communicationExecution.updateMany({
+            where: { idempotencyKey },
+            data: {
+                conversationId,
+            },
+        });
+    }
+
     async markExecuting(
         executionId: string,
     ): Promise<void> {
