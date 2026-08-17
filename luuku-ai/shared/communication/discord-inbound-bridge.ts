@@ -15,10 +15,7 @@ export interface DiscordInboundCommunicationMessage {
 
 export interface DiscordInboundBridgeResult {
     accepted: boolean;
-    reason:
-        | "space-not-found"
-        | "sender-not-allowed"
-        | "received";
+    reason: "space-not-found" | "received";
     spaceId?: string;
     message?: CommunicationMessage;
 }
