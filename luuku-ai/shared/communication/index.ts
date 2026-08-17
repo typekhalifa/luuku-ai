@@ -23,3 +23,5 @@ export * from "./providers";
 export * from "./identity-resolver";
 export * from "./communication-policy";
 export * from "./communication-execution.service";
+export * from "./agent-presence";
+export * from "./department-space";
