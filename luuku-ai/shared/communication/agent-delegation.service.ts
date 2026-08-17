@@ -4,6 +4,7 @@ import {
 } from "../agents/registry";
 import {
     AgentCommunicationTarget,
+    AgentPresence,
     canCommunicate,
 } from "./agent-presence";
 import {
@@ -17,6 +18,7 @@ export interface AgentDelegationRequest {
     fromAgentId: string;
     toAgentId: string;
     task: AgentTask;
+    fromPresence?: AgentPresence;
 }
 
 export interface AgentDelegationResult {
@@ -41,8 +43,9 @@ export class AgentDelegationService {
     ): Promise<AgentDelegationResult> {
         const source = getRegisteredAgent(request.fromAgentId);
         const target = getRegisteredAgent(request.toAgentId);
+        const presence = source?.presence ?? request.fromPresence;
 
-        if (!source) {
+        if (!source && !request.fromPresence) {
             return {
                 status: "blocked",
                 error: "SOURCE_AGENT_NOT_REGISTERED",
@@ -56,14 +59,12 @@ export class AgentDelegationService {
             };
         }
 
-        if (source.agent.id === target.agent.id) {
+        if (source?.agent.id === target.agent.id) {
             return {
                 status: "blocked",
                 error: "SELF_DELEGATION_NOT_ALLOWED",
             };
         }
-
-        const presence = source.presence;
 
         if (!presence || !canCommunicate(presence, "agent" as AgentCommunicationTarget)) {
             return {
@@ -83,7 +84,9 @@ export class AgentDelegationService {
             };
         }
 
-        const conversationId = `agent:${source.agent.id}:${target.agent.id}`;
+        const sourceId = source?.agent.id ?? request.fromAgentId;
+        const sourceName = source?.agent.name ?? presence.name;
+        const conversationId = `agent:${sourceId}:${target.agent.id}`;
 
         const message = await this.communicationService.sendMessage({
             conversationId,
@@ -96,7 +99,8 @@ export class AgentDelegationService {
             content: request.task.description,
             metadata: {
                 type: "agent-delegation",
-                fromAgentId: source.agent.id,
+                fromAgentId: sourceId,
+                fromAgentName: sourceName,
                 toAgentId: target.agent.id,
                 taskId: request.task.id,
                 taskTitle: request.task.title,
