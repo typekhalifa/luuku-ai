@@ -223,6 +223,11 @@ export async function executeEmailTask(
                 source: inboundReply
                     ? "sales-agent-inbound-reply"
                     : "sales-agent",
+                audience: "external",
+                executionMode:
+                    process.env.EMAIL_MODE === "test"
+                        ? "test"
+                        : "live",
                 taskId: task.id,
                 idempotencyKey,
                 replyTo: process.env.RESEND_REPLY_TO || "",
