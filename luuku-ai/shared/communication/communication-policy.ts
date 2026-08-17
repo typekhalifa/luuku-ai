@@ -1,11 +1,20 @@
 import {
     CommunicationRequest,
+    CommunicationTarget,
 } from "./types";
 
 import {
     CommunicationIdentityResolver,
     IdentityResolutionResult,
 } from "./identity-resolver";
+
+import {
+    getAgentPresence,
+} from "../agents/registry";
+
+import {
+    canCommunicate,
+} from "./agent-presence";
 
 export type CommunicationPolicyDecision =
     | "allow"
@@ -69,6 +78,12 @@ function recipientExternalId(
         : undefined;
 }
 
+function targetForRequest(
+    request: CommunicationRequest,
+): CommunicationTarget | undefined {
+    return request.target;
+}
+
 export class CommunicationPolicy {
     constructor(
         private readonly identityResolver =
@@ -88,6 +103,96 @@ export class CommunicationPolicy {
                 errorCode:
                     "COMMUNICATION_SIMULATION_BLOCKED",
             };
+        }
+
+        if (request.requesterAgentId) {
+            const presence =
+                getAgentPresence(request.requesterAgentId);
+
+            if (!presence) {
+                return {
+                    decision: "block",
+                    reason:
+                        `Requester agent ${request.requesterAgentId} has no registered communication presence.`,
+                    errorCode:
+                        "COMMUNICATION_REQUESTER_PRESENCE_MISSING",
+                };
+            }
+
+            const target = targetForRequest(request);
+
+            if (!target) {
+                return {
+                    decision: "block",
+                    reason:
+                        "Agent-originated communication requires an explicit target.",
+                    errorCode:
+                        "COMMUNICATION_TARGET_MISSING",
+                };
+            }
+
+            if (target === "agent" && !request.targetAgentId) {
+                return {
+                    decision: "block",
+                    reason:
+                        "Agent-to-agent communication requires a target agent id.",
+                    errorCode:
+                        "COMMUNICATION_TARGET_AGENT_MISSING",
+                };
+            }
+
+            if (!canCommunicate(presence, target)) {
+                return {
+                    decision: "block",
+                    reason:
+                        `Agent ${presence.id} is not permitted to communicate with ${target}.`,
+                    errorCode:
+                        "COMMUNICATION_AGENT_SCOPE_BLOCKED",
+                };
+            }
+
+            if (
+                target === "agent" &&
+                request.targetAgentId === request.requesterAgentId
+            ) {
+                return {
+                    decision: "block",
+                    reason:
+                        "An agent cannot address itself as another agent.",
+                    errorCode:
+                        "COMMUNICATION_SELF_TARGET_BLOCKED",
+                };
+            }
+
+            if (target === "agent" && request.targetAgentId) {
+                const targetPresence =
+                    getAgentPresence(request.targetAgentId);
+
+                if (!targetPresence) {
+                    return {
+                        decision: "block",
+                        reason:
+                            `Target agent ${request.targetAgentId} has no registered communication presence.`,
+                        errorCode:
+                            "COMMUNICATION_TARGET_PRESENCE_MISSING",
+                    };
+                }
+
+                if (
+                    presence.scope.allowedTargetDepartments?.length &&
+                    !presence.scope.allowedTargetDepartments.includes(
+                        targetPresence.department,
+                    )
+                ) {
+                    return {
+                        decision: "block",
+                        reason:
+                            `Agent ${presence.id} is not permitted to communicate with the ${targetPresence.department} department.`,
+                        errorCode:
+                            "COMMUNICATION_TARGET_DEPARTMENT_BLOCKED",
+                    };
+                }
+            }
         }
 
         if (metadata.audience === "internal") {
