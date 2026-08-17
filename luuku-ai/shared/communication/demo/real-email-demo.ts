@@ -27,7 +27,12 @@ async function main() {
             recipientExternalId: recipient,
             subject: "Luuku AI — Real Communication Layer Test",
             body:
-                "This is a controlled test email sent through Luuku AI's provider-neutral communication layer."
+                "This is a controlled test email sent through Luuku AI's provider-neutral communication layer.",
+            metadata: {
+                audience: "external",
+                executionMode: "test",
+                source: "real-email-demo",
+            },
         });
 
     console.log("");
