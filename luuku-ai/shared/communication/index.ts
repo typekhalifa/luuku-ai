@@ -30,3 +30,4 @@ export * from "./discord-space-bridge";
 export * from "./discord-inbound-bridge";
 export * from "./agent-communication";
 export * from "./agent-delegation.service";
+export * from "./agent-task-lifecycle.service";
