@@ -7,6 +7,12 @@ import {
     ExecutionStatus
 } from "../execution/types";
 
+export type CommunicationTarget =
+    | "founder"
+    | "lex"
+    | "agent"
+    | "external";
+
 export interface CommunicationBrief {
 
     contactName: string;
@@ -46,6 +52,8 @@ export interface CommunicationRequest {
     recipientExternalId?: string;
 
     requesterAgentId?: string;
+
+    target?: CommunicationTarget;
 
     targetAgentId?: string;
 
