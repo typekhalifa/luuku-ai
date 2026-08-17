@@ -1,4 +1,7 @@
+import crypto from "crypto";
+
 import { prisma } from "../../database/client";
+import { prismaCommunicationService } from "../prisma-communication-service";
 import { communicationRouter } from "../router";
 import {
     CommunicationAdapter,
@@ -8,6 +11,9 @@ import {
 
 const idempotencyKey =
     `ledger-demo/${Date.now()}`;
+
+const conversationId =
+    crypto.randomUUID();
 
 const demoAdapter: CommunicationAdapter = {
     capability: "email.send",
@@ -56,9 +62,33 @@ async function main(): Promise<void> {
             },
         });
 
+    await prismaCommunicationService.sendMessage({
+        conversationId,
+        channel: "internal",
+        recipient: {
+            channel: "internal",
+            externalId: "ledger-demo",
+            displayName: "Ledger Demo",
+        },
+        content: "Execution ledger correlation regression test.",
+        metadata: {
+            idempotencyKey,
+            externalMessageId: `message-${idempotencyKey}`,
+            source: "communication-execution-ledger-demo",
+        },
+    });
+
     const execution =
         await prisma.communicationExecution.findUnique({
             where: { idempotencyKey },
+        });
+
+    const message =
+        await prisma.communicationMessage.findFirst({
+            where: {
+                conversationId,
+                externalMessageId: `message-${idempotencyKey}`,
+            },
         });
 
     console.log("");
@@ -73,6 +103,8 @@ async function main(): Promise<void> {
     console.log(`Ledger status : ${execution?.status ?? "missing"}`);
     console.log(`Provider      : ${execution?.provider ?? "missing"}`);
     console.log(`External ID   : ${execution?.externalId ?? "missing"}`);
+    console.log(`Conversation  : ${execution?.conversationId ?? "missing"}`);
+    console.log(`Message ID    : ${message?.id ?? "missing"}`);
     console.log("");
 
     if (
@@ -83,7 +115,10 @@ async function main(): Promise<void> {
         execution.status !== "verified" ||
         execution.executed !== true ||
         execution.verified !== true ||
-        execution.provider !== "communication-ledger-demo"
+        execution.provider !== "communication-ledger-demo" ||
+        execution.conversationId !== conversationId ||
+        !message ||
+        message.conversationId !== conversationId
     ) {
         throw new Error(
             "Communication execution ledger regression failed.",
@@ -91,7 +126,7 @@ async function main(): Promise<void> {
     }
 
     console.log(
-        "GREEN: provider result was persisted to CommunicationExecution.",
+        "GREEN: execution, provider result, conversation, and outbound message are correlated.",
     );
 }
 
