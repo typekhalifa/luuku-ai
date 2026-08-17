@@ -6,9 +6,11 @@ import { parseDecision } from "../../agents/executive-ai/parser";
 import { validateDecision, ExecutiveDecision } from "../../agents/executive-ai/decision";
 import { guardExecutiveDecision } from "./decision-guard";
 import { saveExecutiveDecision } from "./history";
-import { runAgent } from "../agents/runner";
 import { AgentResult } from "../agents/interface";
 import { buildExecutiveCapabilities } from "./capabilities";
+import { AgentDelegationService } from "../communication/agent-delegation.service";
+import { PrismaCommunicationService } from "../communication/prisma-communication-service";
+import { lexPresence } from "./lex-presence";
 
 interface FounderCommandPlan {
     mode: "answer" | "execute";
@@ -232,32 +234,65 @@ For mode="execute", decision must be:
         };
     }
 
+    const task = {
+        id: crypto.randomUUID(),
+        title: decision.task.title,
+        description: decision.task.description,
+        priority: decision.task.priority,
+    };
+
     try {
-        const result = await runAgent(decision.assignedAgentId, {
-            id: crypto.randomUUID(),
-            title: decision.task.title,
-            description: decision.task.description,
-            priority: decision.task.priority,
+        const delegation = await new AgentDelegationService(
+            new PrismaCommunicationService(),
+        ).delegate({
+            fromAgentId: lexPresence.id,
+            fromPresence: lexPresence,
+            toAgentId: decision.assignedAgentId,
+            task,
         });
 
+        if (!delegation.agentResult) {
+            const failedResult: AgentResult = {
+                success: false,
+                summary: delegation.error
+                    ? `Agent delegation failed: ${delegation.error}`
+                    : "Agent delegation did not produce an execution result.",
+                completedAt: new Date().toISOString(),
+                executionStatus: delegation.status === "blocked" ? "blocked" : "failed",
+                executed: false,
+                verified: false,
+                blockers: delegation.error ? [delegation.error] : ["DELEGATION_RESULT_MISSING"],
+                verificationNotes: [
+                    "No successful target-agent execution evidence was produced.",
+                ],
+            };
+
+            return {
+                response: formatExecutionResult(decision, failedResult),
+                executed: false,
+                decision,
+                result: failedResult,
+            };
+        }
+
         return {
-            response: formatExecutionResult(decision, result),
-            executed: result.executed === true,
+            response: formatExecutionResult(decision, delegation.agentResult),
+            executed: delegation.agentResult.executed === true,
             decision,
-            result,
+            result: delegation.agentResult,
         };
     } catch (error) {
-        const message = error instanceof Error ? error.message : "Unknown agent execution error.";
+        const message = error instanceof Error ? error.message : "Unknown agent delegation error.";
         const failedResult: AgentResult = {
             success: false,
-            summary: `Agent execution failed: ${message}`,
+            summary: `Agent delegation failed: ${message}`,
             completedAt: new Date().toISOString(),
             executionStatus: "failed",
             executed: false,
             verified: false,
             blockers: [message],
             verificationNotes: [
-                "No successful agent execution evidence was produced.",
+                "No successful target-agent execution evidence was produced.",
             ],
         };
 
