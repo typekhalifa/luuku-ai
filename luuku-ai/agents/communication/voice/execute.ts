@@ -175,6 +175,8 @@ export async function executeVoiceTask(
                 purpose: brief.objective,
                 language: contact.preferredLanguage || "English",
                 tone: brief.tone,
+                audience: "external",
+                executionMode: "simulation",
                 taskId: task.id,
             },
         });
