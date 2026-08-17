@@ -45,6 +45,10 @@ export interface CommunicationRequest {
 
     recipientExternalId?: string;
 
+    requesterAgentId?: string;
+
+    targetAgentId?: string;
+
     subject?: string;
 
     body?: string;
