@@ -25,3 +25,4 @@ export * from "./communication-policy";
 export * from "./communication-execution.service";
 export * from "./agent-presence";
 export * from "./department-space";
+export * from "./discord-space-binding";
