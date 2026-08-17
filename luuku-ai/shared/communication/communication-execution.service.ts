@@ -65,8 +65,7 @@ export class CommunicationExecutionService {
         policy: CommunicationPolicyResult,
     ): Promise<CommunicationExecutionHandle> {
         const idempotencyKey =
-            metadataString(request, "idempotencyKey") ||
-            metadataString(request, "taskId");
+            metadataString(request, "idempotencyKey");
 
         if (idempotencyKey) {
             const existing =
