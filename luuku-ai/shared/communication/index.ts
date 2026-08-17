@@ -22,3 +22,4 @@ export * from "./calendar-adapter";
 export * from "./providers";
 export * from "./identity-resolver";
 export * from "./communication-policy";
+export * from "./communication-execution.service";
