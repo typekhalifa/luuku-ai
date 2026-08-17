@@ -109,6 +109,20 @@ export class PrismaCommunicationService implements CommunicationService {
             },
         });
 
+        const idempotencyKey =
+            typeof input.metadata?.idempotencyKey === "string"
+                ? input.metadata.idempotencyKey
+                : undefined;
+
+        if (idempotencyKey) {
+            await prisma.communicationExecution.updateMany({
+                where: { idempotencyKey },
+                data: {
+                    conversationId: conversation.id,
+                },
+            });
+        }
+
         await prisma.communicationConversation.update({
             where: { id: conversation.id },
             data: { updatedAt: new Date() },
