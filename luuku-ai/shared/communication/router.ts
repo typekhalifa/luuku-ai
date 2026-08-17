@@ -9,6 +9,10 @@ import {
     communicationPolicy
 } from "./communication-policy";
 
+import {
+    communicationExecutionService
+} from "./communication-execution.service";
+
 export class CommunicationRouter {
 
     private readonly adapters =
@@ -59,8 +63,18 @@ export class CommunicationRouter {
         const policy =
             await communicationPolicy.evaluate(request);
 
+        const execution =
+            await communicationExecutionService.start(
+                request,
+                policy
+            );
+
+        if (execution.existingResult) {
+            return execution.existingResult;
+        }
+
         if (policy.decision !== "allow") {
-            return {
+            const result: CommunicationExecutionResult = {
                 capability: request.capability,
                 channel: request.channel,
                 status: "blocked",
@@ -69,6 +83,13 @@ export class CommunicationRouter {
                 summary: policy.reason,
                 error: policy.errorCode,
             };
+
+            await communicationExecutionService.complete(
+                execution.id,
+                result
+            );
+
+            return result;
         }
 
         const adapter =
@@ -78,7 +99,7 @@ export class CommunicationRouter {
 
         if (!adapter) {
 
-            return {
+            const result: CommunicationExecutionResult = {
                 capability: request.capability,
                 channel: request.channel,
                 status: "blocked",
@@ -90,11 +111,18 @@ export class CommunicationRouter {
                     "CAPABILITY_NOT_REGISTERED"
             };
 
+            await communicationExecutionService.complete(
+                execution.id,
+                result
+            );
+
+            return result;
+
         }
 
         if (!adapter.isAvailable()) {
 
-            return {
+            const result: CommunicationExecutionResult = {
                 capability: request.capability,
                 channel: request.channel,
                 status: "blocked",
@@ -106,9 +134,51 @@ export class CommunicationRouter {
                     "CAPABILITY_UNAVAILABLE"
             };
 
+            await communicationExecutionService.complete(
+                execution.id,
+                result
+            );
+
+            return result;
+
         }
 
-        return adapter.execute(request);
+        await communicationExecutionService.markExecuting(
+            execution.id
+        );
+
+        try {
+            const result =
+                await adapter.execute(request);
+
+            await communicationExecutionService.complete(
+                execution.id,
+                result
+            );
+
+            return result;
+        } catch (error) {
+            const result: CommunicationExecutionResult = {
+                capability: request.capability,
+                channel: request.channel,
+                status: "failed",
+                executed: false,
+                verified: false,
+                summary:
+                    "Communication adapter execution failed before completion.",
+                error:
+                    error instanceof Error
+                        ? error.message
+                        : String(error),
+            };
+
+            await communicationExecutionService.complete(
+                execution.id,
+                result
+            );
+
+            return result;
+        }
 
     }
 
