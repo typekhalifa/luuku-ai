@@ -5,6 +5,10 @@ import {
     CommunicationRequest
 } from "./types";
 
+import {
+    communicationPolicy
+} from "./communication-policy";
+
 export class CommunicationRouter {
 
     private readonly adapters =
@@ -51,6 +55,21 @@ export class CommunicationRouter {
     async execute(
         request: CommunicationRequest
     ): Promise<CommunicationExecutionResult> {
+
+        const policy =
+            await communicationPolicy.evaluate(request);
+
+        if (policy.decision !== "allow") {
+            return {
+                capability: request.capability,
+                channel: request.channel,
+                status: "blocked",
+                executed: false,
+                verified: false,
+                summary: policy.reason,
+                error: policy.errorCode,
+            };
+        }
 
         const adapter =
             this.adapters.get(
