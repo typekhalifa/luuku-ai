@@ -1,9 +1,7 @@
 import { AgentResult } from "../agents/interface";
+import { AgentDelegationRequest } from "./agent-delegation.service";
 import {
-    AgentDelegationRequest,
-} from "./agent-delegation.service";
-import {
-    AgentTaskLifecycleRecord,
+    AgentTaskRecord,
     AgentTaskLifecycleService,
 } from "./agent-task-lifecycle.service";
 import {
@@ -20,7 +18,7 @@ export interface AgentTaskReturnRequest {
 
 export interface AgentTaskReturnResult {
     returnResult: AgentReturnResult;
-    taskRecord: AgentTaskLifecycleRecord;
+    taskRecord: AgentTaskRecord;
 }
 
 /**
@@ -58,7 +56,7 @@ export class AgentTaskReturnService {
         };
     }
 
-    getTask(taskId: string): AgentTaskLifecycleRecord | undefined {
+    getTask(taskId: string): AgentTaskRecord | undefined {
         return this.lifecycleService.get(taskId);
     }
 }
