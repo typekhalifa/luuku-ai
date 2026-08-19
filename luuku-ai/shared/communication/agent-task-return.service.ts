@@ -27,8 +27,8 @@ export interface AgentTaskReturnResult {
  */
 export class AgentTaskReturnService {
     constructor(
-        private readonly returnService = new AgentReturnService(),
-        private readonly lifecycleService = new AgentTaskLifecycleService(),
+        readonly returnService = new AgentReturnService(),
+        readonly lifecycleService = new AgentTaskLifecycleService(),
     ) {}
 
     async returnAndClose(
