@@ -78,6 +78,40 @@ export class AgentTaskLifecycleService {
         return this.records.get(taskId);
     }
 
+    applyReturnedResult(
+        taskId: string,
+        agentResult: AgentResult,
+        communicationMessageId?: string,
+        conversationId?: string,
+        error?: string,
+    ): AgentTaskRecord {
+        const record = this.records.get(taskId);
+
+        if (!record) {
+            throw new Error(`AGENT_TASK_NOT_FOUND:${taskId}`);
+        }
+
+        record.agentResult = agentResult;
+        record.communicationMessageId =
+            communicationMessageId ?? record.communicationMessageId;
+        record.conversationId = conversationId ?? record.conversationId;
+        record.error = error;
+
+        if (agentResult.success) {
+            record.status = "completed";
+            record.completedAt =
+                agentResult.completedAt || new Date().toISOString();
+            return record;
+        }
+
+        record.status =
+            agentResult.blockers && agentResult.blockers.length > 0
+                ? "blocked"
+                : "failed";
+        record.completedAt = new Date().toISOString();
+        return record;
+    }
+
     private applyDelegationResult(
         record: AgentTaskRecord,
         result: AgentDelegationResult,
@@ -89,7 +123,8 @@ export class AgentTaskLifecycleService {
 
         if (result.status === "completed") {
             record.status = "completed";
-            record.completedAt = result.agentResult?.completedAt ?? new Date().toISOString();
+            record.completedAt =
+                result.agentResult?.completedAt ?? new Date().toISOString();
             return;
         }
 
