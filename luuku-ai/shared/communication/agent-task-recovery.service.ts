@@ -46,7 +46,7 @@ export class AgentTaskRecoveryService {
         if (current.status === "completed") {
             return {
                 decision: "completed",
-                record: current,
+                record: this.snapshot(current),
                 attemptsRemaining: Math.max(maxAttempts - current.attemptCount, 0),
                 reason: "Task is already completed.",
             };
@@ -55,7 +55,7 @@ export class AgentTaskRecoveryService {
         if (current.status === "blocked") {
             return {
                 decision: "blocked",
-                record: current,
+                record: this.snapshot(current),
                 attemptsRemaining: 0,
                 reason: "Blocked tasks require review and are never auto-retried.",
             };
@@ -64,7 +64,7 @@ export class AgentTaskRecoveryService {
         if (current.attemptCount >= maxAttempts) {
             return {
                 decision: "failed",
-                record: current,
+                record: this.snapshot(current),
                 attemptsRemaining: 0,
                 reason: "Retry budget has been exhausted.",
             };
@@ -78,10 +78,12 @@ export class AgentTaskRecoveryService {
         record: AgentTaskRecord,
         maxAttempts: number,
     ): AgentTaskRecoveryResult {
+        const snapshot = this.snapshot(record);
+
         if (record.status === "completed") {
             return {
                 decision: "completed",
-                record,
+                record: snapshot,
                 attemptsRemaining: Math.max(maxAttempts - record.attemptCount, 0),
                 reason: "Task completed successfully.",
             };
@@ -90,7 +92,7 @@ export class AgentTaskRecoveryService {
         if (record.status === "blocked") {
             return {
                 decision: "blocked",
-                record,
+                record: snapshot,
                 attemptsRemaining: 0,
                 reason: "Task is blocked and requires review.",
             };
@@ -99,7 +101,7 @@ export class AgentTaskRecoveryService {
         if (record.attemptCount < maxAttempts) {
             return {
                 decision: "retry",
-                record,
+                record: snapshot,
                 attemptsRemaining: maxAttempts - record.attemptCount,
                 reason: "Task failed and has retry budget remaining.",
             };
@@ -107,9 +109,30 @@ export class AgentTaskRecoveryService {
 
         return {
             decision: "failed",
-            record,
+            record: snapshot,
             attemptsRemaining: 0,
             reason: "Task failed and has no retry budget remaining.",
+        };
+    }
+
+    private snapshot(record: AgentTaskRecord): AgentTaskRecord {
+        return {
+            ...record,
+            task: { ...record.task },
+            agentResult: record.agentResult
+                ? {
+                      ...record.agentResult,
+                      evidence: record.agentResult.evidence
+                          ? { ...record.agentResult.evidence }
+                          : undefined,
+                      verificationNotes: record.agentResult.verificationNotes
+                          ? [...record.agentResult.verificationNotes]
+                          : undefined,
+                      blockers: record.agentResult.blockers
+                          ? [...record.agentResult.blockers]
+                          : undefined,
+                  }
+                : undefined,
         };
     }
 }
