@@ -32,3 +32,4 @@ export * from "./agent-communication";
 export * from "./agent-delegation.service";
 export * from "./agent-task-lifecycle.service";
 export * from "./agent-return.service";
+export * from "./agent-task-return.service";
