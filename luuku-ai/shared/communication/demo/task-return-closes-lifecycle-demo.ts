@@ -1,6 +1,8 @@
 import { Agent, AgentResult, AgentTask } from "../../agents/interface";
 import { registerAgent } from "../../agents/registry";
 import { AgentDelegationRequest } from "../agent-delegation.service";
+import { AgentReturnService } from "../agent-return.service";
+import { AgentTaskLifecycleService } from "../agent-task-lifecycle.service";
 import { AgentTaskReturnService } from "../agent-task-return.service";
 import { InMemoryCommunicationService } from "../in-memory-communication-service";
 
@@ -47,9 +49,11 @@ async function main(): Promise<void> {
     registerAgent(research);
 
     const communicationService = new InMemoryCommunicationService();
+    const lifecycleService = new AgentTaskLifecycleService();
+    const returnService = new AgentReturnService(communicationService);
     const taskReturnService = new AgentTaskReturnService(
-        undefined,
-        undefined,
+        returnService,
+        lifecycleService,
     );
 
     const task: AgentTask = {
@@ -65,9 +69,7 @@ async function main(): Promise<void> {
         task,
     };
 
-    // Seed the lifecycle record before applying the returned result.
-    const lifecycle = taskReturnService["lifecycleService"];
-    lifecycle.plan(delegation);
+    lifecycleService.plan(delegation);
 
     const result = await research.execute(task);
 
@@ -86,7 +88,8 @@ async function main(): Promise<void> {
         returned.taskRecord.status !== "completed" ||
         returned.taskRecord.agentResult?.verified !== true ||
         returned.taskRecord.communicationMessageId !==
-            returned.returnResult.communicationMessageId
+            returned.returnResult.communicationMessageId ||
+        conversation?.messages.length !== 1
     ) {
         throw new Error("Returned result did not close the originating task lifecycle.");
     }
