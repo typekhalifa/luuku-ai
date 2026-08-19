@@ -22,6 +22,8 @@ export interface AgentTaskRecord {
     assignedAt?: string;
     startedAt?: string;
     completedAt?: string;
+    attemptCount: number;
+    lastAttemptAt?: string;
     error?: string;
     agentResult?: AgentResult;
     communicationMessageId?: string;
@@ -47,6 +49,7 @@ export class AgentTaskLifecycleService {
             toAgentId: request.toAgentId,
             status: "planned",
             createdAt: new Date().toISOString(),
+            attemptCount: 0,
         };
 
         this.records.set(request.task.id, record);
@@ -64,9 +67,10 @@ export class AgentTaskLifecycleService {
 
         record.status = "assigned";
         record.assignedAt = new Date().toISOString();
-
         record.status = "executing";
         record.startedAt = new Date().toISOString();
+        record.attemptCount += 1;
+        record.lastAttemptAt = record.startedAt;
 
         const result = await this.delegationService.delegate(request);
 
