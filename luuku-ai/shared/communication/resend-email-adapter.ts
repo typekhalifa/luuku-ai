@@ -67,6 +67,20 @@ export const resendEmailAdapter: CommunicationAdapter = {
             );
         }
 
+        // Defense in depth: the adapter itself refuses every non-live request.
+        // This means test/simulation traffic can never reach Resend even if a
+        // caller bypasses the communication policy.
+        const executionMode =
+            metadataString(request, "executionMode");
+
+        if (executionMode !== "live") {
+            return blockedResult(
+                request,
+                "External email delivery is disabled unless executionMode is explicitly live.",
+                "EMAIL_EXTERNAL_EXECUTION_DISABLED"
+            );
+        }
+
         const recipient =
             request.recipientExternalId ||
             request.recipient;
