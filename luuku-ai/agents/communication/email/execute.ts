@@ -201,7 +201,9 @@ export async function executeEmailTask(
     const executionMode =
         process.env.EMAIL_MODE === "live"
             ? "live"
-            : "test";
+            : process.env.EMAIL_MODE === "sandbox"
+                ? "sandbox"
+                : "test";
 
     console.log("");
     console.log("========================================");
@@ -230,12 +232,9 @@ export async function executeEmailTask(
                     ? "sales-agent-inbound-reply"
                     : "sales-agent",
                 audience: "external",
-                // Safe by default: only an explicit EMAIL_MODE=live can
-                // authorize the communication policy to reach the provider.
+                // Only live or sandbox can execute. Normal demo/test mode is
+                // still blocked before any external provider call.
                 executionMode,
-                // The CRM workflow already resolved this exact Contact.
-                // The communication policy re-checks that the recipient
-                // address matches this contact before allowing execution.
                 crmContactId: contact.id,
                 taskId: task.id,
                 idempotencyKey,
@@ -318,7 +317,8 @@ export async function executeEmailTask(
             recipient,
             inReplyTo: inboundReply?.inReplyTo,
             references: inboundReply?.references,
-            verified: result.verified
+            verified: result.verified,
+            executionMode
         }
     });
 
