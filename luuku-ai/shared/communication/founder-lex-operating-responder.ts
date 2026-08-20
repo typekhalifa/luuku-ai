@@ -21,6 +21,7 @@ export interface LexProposedAction {
     agentId: string;
     priority: "low" | "medium" | "high";
     requiresFounderApproval: true;
+    proposedAt: string;
 }
 
 const APPROVAL_PATTERN = /^(?:yes|yep|yeah|approved?|approve|do it|go ahead|proceed|execute(?: it)?|make it happen|let'?s do it|handle it|start it)\b[.!\s]*$/i;
@@ -40,9 +41,6 @@ function inferProposedAction(
     response: LexStructuredResponse,
 ): LexProposedAction | null {
     if (response.actions.length === 0) return null;
-    if (response.type !== "recommendation" && response.type !== "decision") {
-        return null;
-    }
 
     const agents = getAgents();
 
@@ -55,6 +53,31 @@ function inferProposedAction(
 
         if (!target) continue;
 
+        const isControlledTest =
+            /controlled test contact|test follow-up email|autonomous communication system/i.test(
+                action,
+            );
+
+        let description = action;
+
+        if (isControlledTest) {
+            const testEmail = process.env.LUUKU_TEST_CONTACT_EMAIL?.trim();
+            const testCompany = process.env.LUUKU_TEST_CONTACT_COMPANY?.trim();
+
+            // Never turn a vague "controlled test contact" recommendation into
+            // an executable Sales task. The exact test identity must be supplied
+            // explicitly by the environment and then carried into the task.
+            if (!testEmail || !testCompany) {
+                continue;
+            }
+
+            description = [
+                action,
+                `TEST_CONTACT_COMPANY: ${testCompany}`,
+                `CONTACT_EMAIL: ${testEmail}`,
+            ].join("\n");
+        }
+
         const priority: LexProposedAction["priority"] =
             /urgent|immediately|critical|highest priority|asap/i.test(action)
                 ? "high"
@@ -64,11 +87,12 @@ function inferProposedAction(
 
         return {
             id: `lex-action:${randomUUID()}`,
-            title: action.slice(0, 140),
-            description: action,
+            title: action,
+            description,
             agentId: target.id,
             priority,
             requiresFounderApproval: true,
+            proposedAt: new Date().toISOString(),
         };
     }
 
@@ -91,6 +115,7 @@ function findLatestPendingAction(
             typeof action.title === "string" &&
             typeof action.description === "string" &&
             typeof action.agentId === "string" &&
+            typeof action.proposedAt === "string" &&
             (action.priority === "low" ||
                 action.priority === "medium" ||
                 action.priority === "high")
@@ -102,6 +127,7 @@ function findLatestPendingAction(
                 agentId: action.agentId,
                 priority: action.priority,
                 requiresFounderApproval: true,
+                proposedAt: action.proposedAt,
             };
         }
     }
@@ -176,7 +202,7 @@ export class FounderLexOperatingResponder {
             if (!action) {
                 return this.sendResponse(
                     message,
-                    "💬 **No Pending Action**\n\nI don't have a pending founder-approved action in this conversation yet. Ask me what I recommend first, then approve the specific action.",
+                    "💬 **No Pending Action**\n\nI don't have a current executable proposal in this conversation. Ask me for the recommendation again, then approve that specific proposal.",
                     "action_request_missing",
                 );
             }
@@ -256,6 +282,13 @@ export class FounderLexOperatingResponder {
                 "Execution-ready means naming the responsible registered agent and the concrete operation it should perform. If the operation communicates externally, explicitly name the channel (for example email) so the existing capability guard can evaluate it.",
                 "Never assume founder approval. A recommendation is not an execution command.",
                 "",
+                "CONTROLLED TEST CONTACT RULE:",
+                "- If the founder asks for a controlled test email, do not invent a recipient email or company.",
+                "- The exact test identity is supplied below through LUUKU_TEST_CONTACT_EMAIL and LUUKU_TEST_CONTACT_COMPANY.",
+                "- If either value is missing, explain that the controlled test identity has not been configured and do not propose an executable external email action.",
+                "- If both are supplied, the executable action must target that exact company and email.",
+                "- Never substitute a prospect such as Rwanda Revenue Authority for the controlled test contact.",
+                "",
                 "Choose the response type:",
                 "- company_update",
                 "- analysis",
@@ -276,6 +309,15 @@ export class FounderLexOperatingResponder {
                 `FOUNDER MESSAGE:\n${message.content}`,
                 "",
                 `RECENT CONVERSATION:\n${recentConversation(conversation.messages) || "No prior messages."}`,
+                "",
+                `CONTROLLED TEST CONTACT CONFIGURATION:\n${JSON.stringify(
+                    {
+                        email: process.env.LUUKU_TEST_CONTACT_EMAIL || null,
+                        company: process.env.LUUKU_TEST_CONTACT_COMPANY || null,
+                    },
+                    null,
+                    2,
+                )}`,
                 "",
                 `CURRENT COMPANY SNAPSHOT:\n${JSON.stringify(
                     {
