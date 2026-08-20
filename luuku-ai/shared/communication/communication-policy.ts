@@ -40,6 +40,7 @@ export interface CommunicationPolicyResult {
 interface CommunicationPolicyMetadata {
     audience?: CommunicationAudience;
     executionMode?: CommunicationExecutionMode;
+    crmContactId?: string;
 }
 
 function readMetadata(
@@ -60,9 +61,15 @@ function readMetadata(
             ? metadata.executionMode
             : undefined;
 
+    const crmContactId =
+        typeof metadata.crmContactId === "string" && metadata.crmContactId.trim()
+            ? metadata.crmContactId.trim()
+            : undefined;
+
     return {
         audience,
         executionMode,
+        crmContactId,
     };
 }
 
@@ -229,6 +236,7 @@ export class CommunicationPolicy {
             await this.identityResolver.resolve({
                 channel: request.channel,
                 externalId,
+                crmContactId: metadata.crmContactId,
             });
 
         if (
@@ -256,9 +264,6 @@ export class CommunicationPolicy {
             };
         }
 
-        // Test mode is deliberately allowed to resolve the real CRM recipient
-        // so the full identity path can be exercised, but it must never reach
-        // an external provider. Live execution requires an explicit live mode.
         if (metadata.executionMode === "test") {
             return {
                 decision: "block",
