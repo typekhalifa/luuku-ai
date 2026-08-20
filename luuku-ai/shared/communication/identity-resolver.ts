@@ -21,6 +21,7 @@ export interface IdentityResolutionInput {
     email?: string;
     phoneNumber?: string;
     conversationId?: string;
+    crmContactId?: string;
 }
 
 export interface IdentityResolutionResult {
@@ -63,10 +64,6 @@ function normalizePhone(value?: string): string | undefined {
 function normalizeExternalId(value?: string): string | undefined {
     const normalized = value?.trim();
     return normalized || undefined;
-}
-
-function identityKey(identity: ChannelIdentity): string {
-    return `${identity.channel}:${identity.externalId ?? ""}`;
 }
 
 function asChannelIdentity(value: unknown): ChannelIdentity | undefined {
@@ -113,10 +110,6 @@ export class CommunicationIdentityResolver {
         const channel = input.channel;
         const externalId = normalizeExternalId(input.externalId);
 
-        // A channel external id already carries enough information to select
-        // the CRM identifier type for common outbound channels. This keeps
-        // email addresses on the email path and phone numbers on the phone path
-        // instead of requiring every caller to duplicate that mapping.
         const email = normalizeEmail(
             input.email || (channel === "email" ? externalId : undefined),
         );
@@ -126,6 +119,59 @@ export class CommunicationIdentityResolver {
                     ? externalId
                     : undefined),
         );
+
+        // The upstream CRM workflow may already have resolved and validated
+        // the exact Contact record. Reuse that authoritative identity instead
+        // of forcing communication to rediscover the contact from an external
+        // address. The external address is still checked against the CRM record
+        // so an agent cannot pair an arbitrary recipient with another contact.
+        if (input.crmContactId) {
+            const contact = await this.db.contact.findUnique({
+                where: { id: input.crmContactId },
+                select: {
+                    id: true,
+                    companyId: true,
+                    email: true,
+                    phoneNumber: true,
+                },
+            });
+
+            if (contact) {
+                const normalizedContactEmail = normalizeEmail(contact.email ?? undefined);
+                const normalizedContactPhone = normalizePhone(contact.phoneNumber ?? undefined);
+
+                const emailMatches =
+                    channel === "email"
+                        ? Boolean(email && normalizedContactEmail === email)
+                        : true;
+                const phoneMatches =
+                    channel === "voice" || channel === "whatsapp"
+                        ? Boolean(phoneNumber && normalizedContactPhone === phoneNumber)
+                        : true;
+
+                if (emailMatches && phoneMatches) {
+                    return {
+                        status: "resolved",
+                        method: email ? "email" : phoneNumber ? "phone" : "none",
+                        confidence: 100,
+                        contactId: contact.id,
+                        companyId: contact.companyId,
+                        matchedIdentities: this.contactIdentities(contact),
+                        requiresReview: false,
+                        reason: "Upstream CRM validation resolved and verified the exact recipient contact.",
+                    };
+                }
+
+                return {
+                    status: "unresolved",
+                    method: "none",
+                    confidence: 0,
+                    matchedIdentities: [],
+                    requiresReview: true,
+                    reason: "The validated CRM contact does not match the requested external recipient identity.",
+                };
+            }
+        }
 
         if (channel && externalId) {
             const byChannel = await this.resolveByChannelIdentity(channel, externalId);
