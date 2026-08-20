@@ -30,7 +30,7 @@ export async function requestAI(
     return response.output_text;
 }
 
-export interface StructuredAIRequest<TSchema extends object> {
+export interface StructuredAIRequest<TSchema extends Record<string, unknown>> {
     prompt: string;
     schemaName: string;
     schema: TSchema;
@@ -38,7 +38,7 @@ export interface StructuredAIRequest<TSchema extends object> {
 }
 
 export async function requestAIStructured<TResponse>(
-    request: StructuredAIRequest<object>,
+    request: StructuredAIRequest<Record<string, unknown>>,
 ): Promise<TResponse> {
     const response = await client.responses.create({
         model: request.model ?? config.openaiModel,
