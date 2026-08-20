@@ -35,50 +35,59 @@ async function runDemo() {
         [space],
     );
 
-    let handled = false;
+    let messageCount = 0;
 
     const listener = new DiscordGatewayListener({
         botToken: discord.botToken,
         channelId: discord.channelId,
         onMessage: async (message) => {
-            if (handled) return;
-            handled = true;
+            messageCount += 1;
 
-            const result = await bridge.handleMessage(message);
+            try {
+                const result = await bridge.handleMessage(message);
 
-            if (!result.accepted || !result.message) {
-                throw new Error(`Founder message was not accepted: ${result.reason}`);
+                if (!result.accepted || !result.message) {
+                    console.warn(
+                        `Founder message was not accepted: ${result.reason}`,
+                    );
+                    return;
+                }
+
+                const response = await founderLexResponder.respond(result.message);
+
+                console.log("");
+                console.log("========================================");
+                console.log(`   FOUNDER → LEX → DISCORD TURN #${messageCount}`);
+                console.log("========================================");
+                console.log("");
+                console.log(`Inbound message : ${message.id}`);
+                console.log(`Author          : ${message.authorName}`);
+                console.log(`Conversation    : ${response.conversationId}`);
+                console.log(`Execution       : ${response.executionStatus}`);
+                console.log(`Executed        : ${response.executed}`);
+                console.log(`Verified        : ${response.verified}`);
+                console.log(`LEX response    : ${response.response}`);
+                console.log("");
+                console.log(
+                    "✓ Turn completed. LEX remains online and ready for the next founder message.",
+                );
+                console.log("");
+            } catch (error) {
+                console.error("Founder → LEX turn failed:", error);
+                console.log("LEX remains online. You can send another message.");
             }
-
-            const response = await founderLexResponder.respond(result.message);
-
-            console.log("");
-            console.log("========================================");
-            console.log("   FOUNDER → LEX → DISCORD LIVE LOOP");
-            console.log("========================================");
-            console.log("");
-            console.log(`Inbound message : ${message.id}`);
-            console.log(`Author          : ${message.authorName}`);
-            console.log(`Conversation    : ${response.conversationId}`);
-            console.log(`Execution       : ${response.executionStatus}`);
-            console.log(`Executed        : ${response.executed}`);
-            console.log(`Verified        : ${response.verified}`);
-            console.log(`LEX response    : ${response.response}`);
-            console.log("");
-            console.log("Founder → LEX → Router → Discord loop passed.");
-            console.log("");
-
-            listener.stop();
         },
     });
 
-    console.log(`Founder LEX Discord loop started (${randomUUID()}).`);
-    console.log("Send one founder message in the configured Discord channel.");
+    console.log(`Founder LEX Discord session started (${randomUUID()}).`);
+    console.log("Send messages in the configured Discord channel to talk with LEX.");
+    console.log("Press Ctrl+C to stop the session.");
+    console.log("");
 
     await listener.start();
 }
 
 runDemo().catch((error) => {
-    console.error("Founder LEX Discord loop failed:", error);
+    console.error("Founder LEX Discord session failed:", error);
     process.exitCode = 1;
 });
