@@ -84,6 +84,26 @@ export async function executeSalesWorkflow(
     const controlledTest =
         isControlledTestTask(rawText);
 
+    const isInboundEmailReply =
+        /^INBOUND_REPLY=true$/im.test(task.description);
+
+    const requiresEmail =
+        isInboundEmailReply ||
+        text.includes("email") ||
+        text.includes("e-mail");
+
+    const requiresVoice =
+        text.includes("call") ||
+        text.includes("phone") ||
+        text.includes("meeting");
+
+    const validationChannel =
+        requiresEmail && !requiresVoice
+            ? "email"
+            : requiresVoice
+                ? "voice"
+                : undefined;
+
     // Controlled test actions carry their own exact CRM identity.
     // Never let a stale conversation/task context replace it with an
     // unrelated prospect or company.
@@ -166,7 +186,10 @@ export async function executeSalesWorkflow(
     }
 
     let validation =
-        validateContact(activeContact);
+        validateContact(
+            activeContact,
+            validationChannel
+        );
 
     console.log("");
     console.log("========================================");
@@ -221,7 +244,10 @@ export async function executeSalesWorkflow(
         activeContact = enrichment.contact;
 
         validation =
-            validateContact(activeContact);
+            validateContact(
+                activeContact,
+                validationChannel
+            );
 
         if (!validation.ready) {
             console.log("");
@@ -247,9 +273,6 @@ export async function executeSalesWorkflow(
     console.log("CRM ready for communication.");
     console.log("");
 
-    const isInboundEmailReply =
-        /^INBOUND_REPLY=true$/im.test(task.description);
-
     if (isInboundEmailReply) {
         console.log("✓ Inbound email reply — email channel required");
         console.log("");
@@ -259,15 +282,6 @@ export async function executeSalesWorkflow(
             activeContact
         );
     }
-
-    const requiresEmail =
-        text.includes("email") ||
-        text.includes("e-mail");
-
-    const requiresVoice =
-        text.includes("call") ||
-        text.includes("phone") ||
-        text.includes("meeting");
 
     if (requiresEmail && !requiresVoice) {
         console.log("✓ Real email communication required");
