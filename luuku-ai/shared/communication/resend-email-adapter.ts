@@ -1,3 +1,5 @@
+import crypto from "node:crypto";
+
 import {
     CommunicationAdapter,
     CommunicationExecutionResult,
@@ -59,6 +61,67 @@ export const resendEmailAdapter: CommunicationAdapter = {
 
         const { apiKey, from, mode, testRecipient } = getConfig();
 
+        // Sandbox mode deliberately does not require provider credentials.
+        // It exercises the execution pipeline and returns deterministic
+        // evidence without making any network request.
+        const executionMode =
+            metadataString(request, "executionMode");
+
+        if (executionMode === "sandbox") {
+            const recipient =
+                request.recipientExternalId ||
+                request.recipient;
+
+            if (!recipient) {
+                return blockedResult(
+                    request,
+                    "Sandbox email recipient is missing.",
+                    "EMAIL_RECIPIENT_MISSING"
+                );
+            }
+
+            if (!request.subject) {
+                return blockedResult(
+                    request,
+                    "Sandbox email subject is missing.",
+                    "EMAIL_SUBJECT_MISSING"
+                );
+            }
+
+            if (!request.body) {
+                return blockedResult(
+                    request,
+                    "Sandbox email body is missing.",
+                    "EMAIL_BODY_MISSING"
+                );
+            }
+
+            const sandboxId =
+                `sandbox-email-${crypto.randomUUID()}`;
+
+            return {
+                capability: request.capability,
+                channel: request.channel,
+                status: "verified",
+                executed: true,
+                verified: true,
+                evidence: {
+                    provider: "sandbox-email",
+                    externalId: sandboxId,
+                    details: {
+                        recipient,
+                        subject: request.subject,
+                        transport: "local-sandbox",
+                        networkRequestMade: false,
+                        providerAccepted: true,
+                        mode: "sandbox"
+                    }
+                },
+                summary:
+                    `Sandbox email execution verified for ${recipient}. No external network request was made.`
+            };
+        }
+
         if (!apiKey || !from) {
             return blockedResult(
                 request,
@@ -67,13 +130,11 @@ export const resendEmailAdapter: CommunicationAdapter = {
             );
         }
 
-        // Defense in depth: the adapter itself refuses every non-live request.
-        // This means test/simulation traffic can never reach Resend even if a
-        // caller bypasses the communication policy.
-        const executionMode =
+        // Defense in depth: only an explicitly live request can reach Resend.
+        const liveExecutionMode =
             metadataString(request, "executionMode");
 
-        if (executionMode !== "live") {
+        if (liveExecutionMode !== "live") {
             return blockedResult(
                 request,
                 "External email delivery is disabled unless executionMode is explicitly live.",
