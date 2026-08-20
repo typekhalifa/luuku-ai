@@ -112,8 +112,20 @@ export class CommunicationIdentityResolver {
     async resolve(input: IdentityResolutionInput): Promise<IdentityResolutionResult> {
         const channel = input.channel;
         const externalId = normalizeExternalId(input.externalId);
-        const email = normalizeEmail(input.email);
-        const phoneNumber = normalizePhone(input.phoneNumber);
+
+        // A channel external id already carries enough information to select
+        // the CRM identifier type for common outbound channels. This keeps
+        // email addresses on the email path and phone numbers on the phone path
+        // instead of requiring every caller to duplicate that mapping.
+        const email = normalizeEmail(
+            input.email || (channel === "email" ? externalId : undefined),
+        );
+        const phoneNumber = normalizePhone(
+            input.phoneNumber ||
+                (channel === "voice" || channel === "whatsapp"
+                    ? externalId
+                    : undefined),
+        );
 
         if (channel && externalId) {
             const byChannel = await this.resolveByChannelIdentity(channel, externalId);
