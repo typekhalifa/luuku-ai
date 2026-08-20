@@ -1,5 +1,6 @@
 import {
     communicationPolicy,
+    CommunicationPolicyResult,
 } from "../communication-policy";
 
 import {
@@ -12,7 +13,6 @@ import {
 
 import {
     CommunicationAdapter,
-    CommunicationPolicyResult,
 } from "../types";
 
 const reviewPolicy: CommunicationPolicyResult = {
