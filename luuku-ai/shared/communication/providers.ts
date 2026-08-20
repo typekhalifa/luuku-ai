@@ -14,6 +14,10 @@ import {
     calendarAdapter
 } from "./calendar-adapter";
 
+import {
+    discordRouterAdapter
+} from "./discord-router-adapter";
+
 let registered = false;
 
 export function registerCommunicationProviders(): void {
@@ -34,6 +38,12 @@ export function registerCommunicationProviders(): void {
         calendarAdapter
     );
 
+    if (discordRouterAdapter.isAvailable()) {
+        communicationRouter.register(
+            discordRouterAdapter
+        );
+    }
+
     registered = true;
 }
 
@@ -46,6 +56,9 @@ export function getCommunicationProviderStatus() {
             ? "available"
             : "unavailable",
         calendar: calendarAdapter.isAvailable()
+            ? "available"
+            : "unavailable",
+        discord: discordRouterAdapter.isAvailable()
             ? "available"
             : "unavailable"
     } as const;
