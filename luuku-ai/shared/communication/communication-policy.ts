@@ -256,6 +256,20 @@ export class CommunicationPolicy {
             };
         }
 
+        // Test mode is deliberately allowed to resolve the real CRM recipient
+        // so the full identity path can be exercised, but it must never reach
+        // an external provider. Live execution requires an explicit live mode.
+        if (metadata.executionMode === "test") {
+            return {
+                decision: "block",
+                reason:
+                    "Test mode resolved the CRM recipient but external communication execution is disabled.",
+                errorCode:
+                    "COMMUNICATION_TEST_MODE_BLOCKED",
+                identityResolution,
+            };
+        }
+
         return {
             decision: "allow",
             reason:
