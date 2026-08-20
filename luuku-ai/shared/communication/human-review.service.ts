@@ -86,6 +86,33 @@ export class HumanReviewService {
     canExecute(reviewId: string): boolean {
         return this.reviews.get(reviewId)?.status === "approved";
     }
+
+    canExecuteFor(input: {
+        reviewId: string;
+        taskId?: string;
+        requestedBy?: string;
+        action: string;
+    }): boolean {
+        const review = this.reviews.get(input.reviewId);
+
+        if (!review || review.status !== "approved") {
+            return false;
+        }
+
+        if (review.action !== input.action) {
+            return false;
+        }
+
+        if (input.taskId && review.taskId !== input.taskId) {
+            return false;
+        }
+
+        if (input.requestedBy && review.requestedBy !== input.requestedBy) {
+            return false;
+        }
+
+        return true;
+    }
 }
 
 export const humanReviewService = new HumanReviewService();
