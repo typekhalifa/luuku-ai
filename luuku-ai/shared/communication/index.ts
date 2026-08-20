@@ -29,6 +29,8 @@ export * from "./department-space";
 export * from "./discord-space-binding";
 export * from "./discord-space-bridge";
 export * from "./discord-inbound-bridge";
+export * from "./discord-router-adapter";
+export * from "./founder-lex-responder";
 export * from "./agent-communication";
 export * from "./agent-delegation.service";
 export * from "./agent-task-lifecycle.service";
