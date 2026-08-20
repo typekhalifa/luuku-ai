@@ -1,3 +1,4 @@
+import { config } from "../config/env";
 import { DiscordChannelAdapter } from "./discord-adapter";
 import { loadDiscordEnvironment } from "./discord-config";
 import {
@@ -13,8 +14,8 @@ export class DiscordRouterAdapter implements CommunicationAdapter {
     private readonly adapter: DiscordChannelAdapter | null;
 
     constructor() {
-        const botToken = process.env.DISCORD_BOT_TOKEN?.trim() ?? "";
-        const channelId = process.env.DISCORD_CHANNEL_ID?.trim() ?? "";
+        const botToken = config.discordBotToken.trim();
+        const channelId = config.discordChannelId.trim();
 
         this.adapter = botToken && channelId
             ? new DiscordChannelAdapter({
