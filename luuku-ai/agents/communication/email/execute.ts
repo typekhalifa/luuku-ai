@@ -198,15 +198,21 @@ export async function executeEmailTask(
     const idempotencyKey =
         `sales-email/${task.id}`;
 
+    const executionMode =
+        process.env.EMAIL_MODE === "live"
+            ? "live"
+            : "test";
+
     console.log("");
     console.log("========================================");
     console.log(
         inboundReply
-            ? "       REAL EMAIL REPLY EXECUTION"
-            : "       REAL EMAIL EXECUTION"
+            ? "       EMAIL REPLY EXECUTION"
+            : "       EMAIL EXECUTION"
     );
     console.log("========================================");
     console.log("");
+    console.log(`Mode    : ${executionMode}`);
     console.log(`To      : ${recipient}`);
     console.log(`Subject : ${subject}`);
     console.log(`Request : ${idempotencyKey}`);
@@ -226,10 +232,11 @@ export async function executeEmailTask(
                 audience: "external",
                 // Safe by default: only an explicit EMAIL_MODE=live can
                 // authorize the communication policy to reach the provider.
-                executionMode:
-                    process.env.EMAIL_MODE === "live"
-                        ? "live"
-                        : "test",
+                executionMode,
+                // The CRM workflow already resolved this exact Contact.
+                // The communication policy re-checks that the recipient
+                // address matches this contact before allowing execution.
+                crmContactId: contact.id,
                 taskId: task.id,
                 idempotencyKey,
                 replyTo: process.env.RESEND_REPLY_TO || "",
