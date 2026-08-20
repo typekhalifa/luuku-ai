@@ -37,6 +37,24 @@ function extractContactEmail(
     return match?.[1]?.trim() || undefined;
 }
 
+function extractTestContactCompany(
+    text: string
+): string | undefined {
+    const match = text.match(
+        /TEST_CONTACT_COMPANY:\s*([^\n\r]+)/i
+    );
+
+    return match?.[1]?.trim() || undefined;
+}
+
+function isControlledTestTask(
+    text: string
+): boolean {
+    return /TEST_CONTACT_COMPANY\s*:|CONTROLLED TEST CONTACT|test follow-up email/i.test(
+        text
+    );
+}
+
 export async function executeSalesWorkflow(
 
     task: AgentTask
@@ -50,25 +68,47 @@ export async function executeSalesWorkflow(
     console.log("========================================");
     console.log("");
 
-    const text = (
+    const rawText =
         task.title +
-        " " +
-        task.description
-    ).toLowerCase();
+        "\n" +
+        task.description;
+
+    const text = rawText.toLowerCase();
 
     const context =
         await resolveTaskContext(task);
 
     const preferredContactEmail =
-        extractContactEmail(
-            task.title + "\n" + task.description
-        );
+        extractContactEmail(rawText);
+
+    const controlledTest =
+        isControlledTestTask(rawText);
+
+    // Controlled test actions carry their own exact CRM identity.
+    // Never let a stale conversation/task context replace it with an
+    // unrelated prospect or company.
+    const requestedCompany =
+        extractTestContactCompany(rawText) ||
+        context.companyName;
 
     let activeContact =
         await resolveContact(
-            context.companyName,
+            requestedCompany,
             preferredContactEmail
         );
+
+    // resolveContact historically falls back to the first company contact
+    // when the preferred email is not found. That is acceptable for generic
+    // sales work, but never safe for a controlled test action: the exact test
+    // email must be the resolved CRM identity.
+    if (
+        controlledTest &&
+        preferredContactEmail &&
+        activeContact?.email?.toLowerCase() !==
+            preferredContactEmail.toLowerCase()
+    ) {
+        activeContact = undefined;
+    }
 
     if (!activeContact) {
 
@@ -80,8 +120,27 @@ export async function executeSalesWorkflow(
         console.log("Status : FAILED");
         console.log("");
         console.log("Reason:");
-        console.log("• No contact found in PostgreSQL.");
+        console.log(
+            controlledTest && preferredContactEmail
+                ? `• Controlled test contact ${preferredContactEmail} was not found in PostgreSQL for company ${requestedCompany}.`
+                : "• No contact found in PostgreSQL."
+        );
         console.log("");
+
+        // Never use web enrichment as a fallback for a controlled test.
+        // That could create an unrelated real prospect and violate the test
+        // recipient boundary.
+        if (controlledTest) {
+            return {
+                success: false,
+                summary:
+                    `Controlled test stopped: CRM contact ${preferredContactEmail || ""} at ${requestedCompany} was not found. No enrichment or external communication was attempted.`,
+                completedAt: new Date().toISOString(),
+                executionStatus: "blocked",
+                executed: false,
+                verified: false
+            };
+        }
 
         const enrichment =
             await requestContactEnrichment({
@@ -126,6 +185,20 @@ export async function executeSalesWorkflow(
         }
 
         console.log("");
+
+        // A controlled test must never be enriched into a different
+        // recipient merely because validation failed.
+        if (controlledTest) {
+            return {
+                success: false,
+                summary:
+                    `Controlled test stopped because CRM validation for ${preferredContactEmail || requestedCompany} is incomplete. No enrichment or external communication was attempted.`,
+                completedAt: new Date().toISOString(),
+                executionStatus: "blocked",
+                executed: false,
+                verified: false
+            };
+        }
 
         const enrichment =
             await requestContactEnrichment({
@@ -174,10 +247,6 @@ export async function executeSalesWorkflow(
     console.log("CRM ready for communication.");
     console.log("");
 
-    // An inbound reply is always answered on the same email channel.
-    // Do this before generic keyword routing because meeting_request,
-    // call, or phone language inside the classified task must not
-    // accidentally route an email reply into the voice simulation.
     const isInboundEmailReply =
         /^INBOUND_REPLY=true$/im.test(task.description);
 
