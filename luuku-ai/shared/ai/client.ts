@@ -29,3 +29,43 @@ export async function requestAI(
 
     return response.output_text;
 }
+
+export interface StructuredAIRequest<TSchema extends object> {
+    prompt: string;
+    schemaName: string;
+    schema: TSchema;
+    model?: string;
+}
+
+export async function requestAIStructured<TResponse>(
+    request: StructuredAIRequest<object>,
+): Promise<TResponse> {
+    const response = await client.responses.create({
+        model: request.model ?? config.openaiModel,
+        input: request.prompt,
+        text: {
+            format: {
+                type: "json_schema",
+                name: request.schemaName,
+                schema: request.schema,
+                strict: true,
+            },
+        },
+    });
+
+    if (!response.output_text) {
+        throw new Error(
+            "The AI model returned an empty structured response.",
+        );
+    }
+
+    try {
+        return JSON.parse(response.output_text) as TResponse;
+    } catch (error) {
+        throw new Error(
+            `The AI model returned invalid structured JSON: ${
+                error instanceof Error ? error.message : "unknown error"
+            }`,
+        );
+    }
+}
