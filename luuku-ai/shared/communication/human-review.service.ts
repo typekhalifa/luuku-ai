@@ -87,3 +87,5 @@ export class HumanReviewService {
         return this.reviews.get(reviewId)?.status === "approved";
     }
 }
+
+export const humanReviewService = new HumanReviewService();
