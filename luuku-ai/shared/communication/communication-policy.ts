@@ -232,12 +232,37 @@ export class CommunicationPolicy {
             };
         }
 
+        // Diagnostic visibility for the controlled EMAIL_MODE=test demo.
+        // This does not alter policy decisions or enable external sending.
+        if (metadata.executionMode === "test") {
+            console.log("");
+            console.log("========================================");
+            console.log("   COMMUNICATION IDENTITY DEBUG");
+            console.log("========================================");
+            console.log(`CRM Contact ID : ${metadata.crmContactId ?? "<missing>"}`);
+            console.log(`Recipient      : ${externalId}`);
+            console.log(`Channel        : ${request.channel}`);
+            console.log(`Audience       : ${metadata.audience}`);
+            console.log(`Execution Mode : ${metadata.executionMode}`);
+            console.log("");
+        }
+
         const identityResolution =
             await this.identityResolver.resolve({
                 channel: request.channel,
                 externalId,
                 crmContactId: metadata.crmContactId,
             });
+
+        if (metadata.executionMode === "test") {
+            console.log("Identity Resolution:");
+            console.log(`  Status     : ${identityResolution.status}`);
+            console.log(`  Method     : ${identityResolution.method}`);
+            console.log(`  Confidence : ${identityResolution.confidence}`);
+            console.log(`  Contact ID : ${identityResolution.contactId ?? "<none>"}`);
+            console.log(`  Reason     : ${identityResolution.reason}`);
+            console.log("");
+        }
 
         if (
             identityResolution.requiresReview ||
