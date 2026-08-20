@@ -64,7 +64,7 @@ function inferProposedAction(
 
         return {
             id: `lex-action:${randomUUID()}`,
-            title: response.title || action.slice(0, 80),
+            title: action.slice(0, 140),
             description: action,
             agentId: target.id,
             priority,
@@ -252,7 +252,8 @@ export class FounderLexOperatingResponder {
                 "Use only facts supported by the company snapshot and conversation context.",
                 "Do not invent metrics, completed work, agents, or capabilities.",
                 "Operational actions must never be claimed as executed unless the execution result is explicitly supplied.",
-                "When recommending an operational action that can be assigned to a currently registered agent, put that action in actions and make it concrete enough to execute after explicit founder approval.",
+                "When recommending an operational action that can be assigned to a currently registered agent, put that action in actions and make it execution-ready after explicit founder approval.",
+                "Execution-ready means naming the responsible registered agent and the concrete operation it should perform. If the operation communicates externally, explicitly name the channel (for example email) so the existing capability guard can evaluate it.",
                 "Never assume founder approval. A recommendation is not an execution command.",
                 "",
                 "Choose the response type:",
