@@ -80,8 +80,6 @@ export class FounderLexResponder {
         const execution = await communicationRouter.execute({
             capability: "discord.send",
             channel: "discord",
-            recipientExternalId:
-                message.sender.externalId || undefined,
             target: "founder",
             body: response,
             metadata: {
@@ -106,8 +104,7 @@ export class FounderLexResponder {
             channel: "discord",
             recipient: {
                 channel: "discord",
-                externalId: message.sender.externalId,
-                displayName: message.sender.displayName ?? "Founder",
+                displayName: "Founder",
             },
             content: response,
             metadata: {
