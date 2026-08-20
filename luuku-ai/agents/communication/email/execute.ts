@@ -224,10 +224,12 @@ export async function executeEmailTask(
                     ? "sales-agent-inbound-reply"
                     : "sales-agent",
                 audience: "external",
+                // Safe by default: only an explicit EMAIL_MODE=live can
+                // authorize the communication policy to reach the provider.
                 executionMode:
-                    process.env.EMAIL_MODE === "test"
-                        ? "test"
-                        : "live",
+                    process.env.EMAIL_MODE === "live"
+                        ? "live"
+                        : "test",
                 taskId: task.id,
                 idempotencyKey,
                 replyTo: process.env.RESEND_REPLY_TO || "",
