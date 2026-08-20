@@ -24,10 +24,19 @@ export interface LexProposedAction {
     proposedAt: string;
 }
 
-const APPROVAL_PATTERN = /^(?:yes|yep|yeah|approved?|approve|do it|go ahead|proceed|execute(?: it)?|make it happen|let'?s do it|handle it|start it)\b[.!\s]*$/i;
-
 function isFounderApproval(message: string): boolean {
-    return APPROVAL_PATTERN.test(message.trim());
+    const normalized = message
+        .trim()
+        .toLowerCase()
+        .replace(/[.!?,;:]+/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+
+    return /^(?:yes|yep|yeah|approved?|approve|do it|go ahead|proceed|execute(?: it)?|make it happen|let'?s do it|handle it|start it)$/.test(
+        normalized,
+    ) || /^(?:yes|yep|yeah)\s+(?:please\s+)?(?:do it|go ahead|proceed|execute(?: it)?|make it happen|let'?s do it|handle it|start it)$/.test(
+        normalized,
+    );
 }
 
 function recentConversation(messages: CommunicationMessage[]): string {
@@ -64,9 +73,6 @@ function inferProposedAction(
             const testEmail = process.env.LUUKU_TEST_CONTACT_EMAIL?.trim();
             const testCompany = process.env.LUUKU_TEST_CONTACT_COMPANY?.trim();
 
-            // Never turn a vague "controlled test contact" recommendation into
-            // an executable Sales task. The exact test identity must be supplied
-            // explicitly by the environment and then carried into the task.
             if (!testEmail || !testCompany) {
                 continue;
             }
