@@ -58,6 +58,7 @@ export class DiscordInboundCommunicationBridge {
                 spaceName: space.name,
                 discordChannelId: input.channelId,
                 discordMessageId: input.id,
+                externalMessageId: input.id,
                 receivedAt: input.timestamp,
             },
         });
