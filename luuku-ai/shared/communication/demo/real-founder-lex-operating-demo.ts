@@ -9,6 +9,11 @@ import { registerCommunicationProviders } from "../providers";
 import { founderLexOperatingResponder } from "../founder-lex-operating-responder";
 import { CommunicationSpace } from "../department-space";
 
+// This is an integration demo, not a production sender. Even if a developer
+// has EMAIL_MODE=live in the shell or .env, this demo must never contact a
+// real prospect. A separate controlled live-email test will be used later.
+process.env.EMAIL_MODE = "test";
+
 async function runDemo() {
     await bootstrap();
     registerCommunicationProviders();
@@ -80,6 +85,7 @@ async function runDemo() {
     });
 
     console.log(`Founder LEX operating session started (${randomUUID()}).`);
+    console.log("EMAIL_MODE forced to TEST for this demo. No external email can be sent.");
     console.log("Send messages in the configured Discord channel.");
     console.log("Ask for a recommendation, then explicitly approve it with 'Do it'.");
     console.log("Press Ctrl+C to stop the session.");
