@@ -49,6 +49,16 @@ function isTerminalStatus(
     ].includes(status);
 }
 
+function isSafeToRetry(existing: {
+    status: string;
+    executed: boolean;
+    verified: boolean;
+}): boolean {
+    // A request that never executed externally may be safely re-evaluated.
+    // Once anything external has executed or been verified, idempotency wins.
+    return !existing.executed && !existing.verified;
+}
+
 export interface CommunicationExecutionHandle {
     id: string;
     reused: boolean;
@@ -73,7 +83,7 @@ export class CommunicationExecutionService {
                     where: { idempotencyKey },
                 });
 
-            if (existing) {
+            if (existing && !isSafeToRetry(existing)) {
                 return {
                     id: existing.id,
                     reused: true,
@@ -97,6 +107,34 @@ export class CommunicationExecutionService {
                                   error: existing.error ?? undefined,
                               }
                             : undefined,
+                };
+            }
+
+            if (existing && isSafeToRetry(existing)) {
+                await this.db.communicationExecution.update({
+                    where: { id: existing.id },
+                    data: {
+                        policyDecision: policy.decision,
+                        policyReason: policy.reason,
+                        executionMode:
+                            metadataString(request, "executionMode"),
+                        recipient: requestRecipient(request),
+                        audience:
+                            metadataString(request, "audience"),
+                        evidence: policy.identityResolution
+                            ? jsonValue({
+                                  identityResolution:
+                                      policy.identityResolution,
+                              })
+                            : undefined,
+                        status: "planned",
+                        error: null,
+                    },
+                });
+
+                return {
+                    id: existing.id,
+                    reused: false,
                 };
             }
         }
