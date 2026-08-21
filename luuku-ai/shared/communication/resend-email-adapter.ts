@@ -9,6 +9,9 @@ import {
 const RESEND_ENDPOINT =
     "https://api.resend.com/emails";
 
+const LIVE_TEST_CONFIRMATION =
+    "SEND_TO_CONTROLLED_TEST_CONTACT";
+
 function getConfig() {
     return {
         apiKey: process.env.RESEND_API_KEY,
@@ -16,7 +19,9 @@ function getConfig() {
         mode: process.env.EMAIL_MODE || "test",
         testRecipient:
             process.env.EMAIL_TEST_RECIPIENT ||
-            process.env.LUUKU_TEST_CONTACT_EMAIL
+            process.env.LUUKU_TEST_CONTACT_EMAIL,
+        liveTestConfirmation:
+            process.env.LUUKU_LIVE_EMAIL_CONFIRMATION
     };
 }
 
@@ -61,11 +66,14 @@ export const resendEmailAdapter: CommunicationAdapter = {
         request: CommunicationRequest
     ): Promise<CommunicationExecutionResult> {
 
-        const { apiKey, from, mode, testRecipient } = getConfig();
+        const {
+            apiKey,
+            from,
+            mode,
+            testRecipient,
+            liveTestConfirmation
+        } = getConfig();
 
-        // Sandbox mode deliberately does not require provider credentials.
-        // It exercises the execution pipeline and returns deterministic
-        // evidence without making any network request.
         const executionMode =
             metadataString(request, "executionMode");
 
@@ -82,9 +90,6 @@ export const resendEmailAdapter: CommunicationAdapter = {
                 );
             }
 
-            // Sandbox is never allowed to silently accept an arbitrary
-            // recipient. It must have an explicit controlled recipient and
-            // the requested recipient must match it exactly.
             if (!testRecipient) {
                 return blockedResult(
                     request,
@@ -154,10 +159,7 @@ export const resendEmailAdapter: CommunicationAdapter = {
         }
 
         // Defense in depth: only an explicitly live request can reach Resend.
-        const liveExecutionMode =
-            metadataString(request, "executionMode");
-
-        if (liveExecutionMode !== "live") {
+        if (executionMode !== "live") {
             return blockedResult(
                 request,
                 "External email delivery is disabled unless executionMode is explicitly live.",
@@ -177,22 +179,36 @@ export const resendEmailAdapter: CommunicationAdapter = {
             );
         }
 
-        if (mode === "test") {
-            if (!testRecipient) {
-                return blockedResult(
-                    request,
-                    "Test email mode requires EMAIL_TEST_RECIPIENT or LUUKU_TEST_CONTACT_EMAIL.",
-                    "EMAIL_TEST_RECIPIENT_NOT_CONFIGURED"
-                );
-            }
+        // The first live test is intentionally restricted to the founder's
+        // controlled test inbox. A live provider call cannot be enabled for
+        // arbitrary CRM contacts by merely switching EMAIL_MODE to live.
+        if (!testRecipient) {
+            return blockedResult(
+                request,
+                "Live controlled email requires LUUKU_TEST_CONTACT_EMAIL or EMAIL_TEST_RECIPIENT.",
+                "LIVE_TEST_RECIPIENT_NOT_CONFIGURED"
+            );
+        }
 
-            if (recipient.toLowerCase() !== testRecipient.toLowerCase()) {
-                return blockedResult(
-                    request,
-                    `Test mode only permits delivery to ${testRecipient}.`,
-                    "EMAIL_TEST_RECIPIENT_BLOCKED"
-                );
-            }
+        if (
+            recipient.toLowerCase() !== testRecipient.toLowerCase()
+        ) {
+            return blockedResult(
+                request,
+                `Live controlled execution only permits the configured test recipient ${testRecipient}.`,
+                "LIVE_TEST_RECIPIENT_BLOCKED"
+            );
+        }
+
+        // Require an explicit opt-in phrase before making the first real
+        // network request. This prevents a stale environment setting from
+        // accidentally turning a demo into external communication.
+        if (liveTestConfirmation !== LIVE_TEST_CONFIRMATION) {
+            return blockedResult(
+                request,
+                `Live delivery to the controlled test contact requires LUUKU_LIVE_EMAIL_CONFIRMATION=${LIVE_TEST_CONFIRMATION}.`,
+                "LIVE_TEST_CONFIRMATION_REQUIRED"
+            );
         }
 
         if (!request.subject) {
