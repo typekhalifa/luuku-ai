@@ -14,7 +14,9 @@ function getConfig() {
         apiKey: process.env.RESEND_API_KEY,
         from: process.env.RESEND_FROM_EMAIL,
         mode: process.env.EMAIL_MODE || "test",
-        testRecipient: process.env.EMAIL_TEST_RECIPIENT
+        testRecipient:
+            process.env.EMAIL_TEST_RECIPIENT ||
+            process.env.LUUKU_TEST_CONTACT_EMAIL
     };
 }
 
@@ -80,11 +82,18 @@ export const resendEmailAdapter: CommunicationAdapter = {
                 );
             }
 
-            // Defense in depth: sandbox must honor the configured controlled
-            // test recipient. Stale CRM/context data must never turn a
-            // controlled test into a different recipient.
+            // Sandbox is never allowed to silently accept an arbitrary
+            // recipient. It must have an explicit controlled recipient and
+            // the requested recipient must match it exactly.
+            if (!testRecipient) {
+                return blockedResult(
+                    request,
+                    "Sandbox email requires a configured controlled test recipient.",
+                    "SANDBOX_TEST_RECIPIENT_NOT_CONFIGURED"
+                );
+            }
+
             if (
-                testRecipient &&
                 recipient.toLowerCase() !== testRecipient.toLowerCase()
             ) {
                 return blockedResult(
@@ -172,7 +181,7 @@ export const resendEmailAdapter: CommunicationAdapter = {
             if (!testRecipient) {
                 return blockedResult(
                     request,
-                    "Test email mode requires EMAIL_TEST_RECIPIENT.",
+                    "Test email mode requires EMAIL_TEST_RECIPIENT or LUUKU_TEST_CONTACT_EMAIL.",
                     "EMAIL_TEST_RECIPIENT_NOT_CONFIGURED"
                 );
             }
