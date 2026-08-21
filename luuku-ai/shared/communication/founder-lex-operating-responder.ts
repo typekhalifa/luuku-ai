@@ -149,24 +149,23 @@ function inferProposedAction(
 function findLatestPendingAction(
     messages: CommunicationMessage[],
 ): LexProposedAction | null {
-    let latestFounderMessageIndex = -1;
+    const approvalIndex = messages.length - 1;
 
-    for (let index = messages.length - 1; index >= 0; index -= 1) {
-        if (messages[index].direction === "inbound") {
-            latestFounderMessageIndex = index;
-            break;
-        }
+    // The approval must be the latest founder message, and the proposal must be
+    // the most recent outbound proposal with no newer founder message between them.
+    if (messages[approvalIndex]?.direction !== "inbound") {
+        return null;
     }
 
-    for (let index = messages.length - 1; index >= 0; index -= 1) {
+    for (let index = approvalIndex - 1; index >= 0; index -= 1) {
         const message = messages[index];
-        if (message.direction !== "outbound") continue;
+
+        if (message.direction === "inbound") {
+            return null;
+        }
 
         const candidate = message.metadata?.proposedAction;
         if (!candidate || typeof candidate !== "object") continue;
-
-        // Only the proposal immediately preceding the approval can be executed.
-        if (index < latestFounderMessageIndex) continue;
 
         const action = candidate as Partial<LexProposedAction>;
         if (
