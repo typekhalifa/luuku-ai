@@ -9,13 +9,17 @@ import { registerCommunicationProviders } from "../providers";
 import { founderLexOperatingResponder } from "../founder-lex-operating-responder";
 import { CommunicationSpace } from "../department-space";
 
-// This is an integration demo, not a production sender. The default remains
-// test mode. A developer may explicitly opt into the network-free sandbox
-// with LUUKU_EMAIL_DEMO_MODE=sandbox; sandbox never contacts an email provider.
+// Integration demo. Default is test mode. Sandbox and the deliberately
+// restricted live controlled-email mode require explicit opt-in.
+const requestedMode =
+    process.env.LUUKU_EMAIL_DEMO_MODE;
+
 const demoMode =
-    process.env.LUUKU_EMAIL_DEMO_MODE === "sandbox"
+    requestedMode === "sandbox"
         ? "sandbox"
-        : "test";
+        : requestedMode === "live"
+            ? "live"
+            : "test";
 
 process.env.EMAIL_MODE = demoMode;
 
@@ -95,9 +99,13 @@ async function runDemo() {
         console.log(
             "EMAIL_MODE set to SANDBOX. Email execution is real inside the local sandbox, but no external network request can be made.",
         );
+    } else if (demoMode === "live") {
+        console.log(
+            "EMAIL_MODE set to LIVE CONTROLLED TEST. Real network email is restricted to the configured controlled test recipient and requires explicit confirmation.",
+        );
     } else {
         console.log(
-            "EMAIL_MODE forced to TEST for this demo. No external email can be sent.",
+            "EMAIL_MODE set to TEST for this demo. No external email can be sent.",
         );
     }
 
