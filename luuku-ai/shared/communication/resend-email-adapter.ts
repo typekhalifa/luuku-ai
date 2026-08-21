@@ -80,6 +80,20 @@ export const resendEmailAdapter: CommunicationAdapter = {
                 );
             }
 
+            // Defense in depth: sandbox must honor the configured controlled
+            // test recipient. Stale CRM/context data must never turn a
+            // controlled test into a different recipient.
+            if (
+                testRecipient &&
+                recipient.toLowerCase() !== testRecipient.toLowerCase()
+            ) {
+                return blockedResult(
+                    request,
+                    `Sandbox execution only permits the configured test recipient ${testRecipient}.`,
+                    "SANDBOX_RECIPIENT_MISMATCH"
+                );
+            }
+
             if (!request.subject) {
                 return blockedResult(
                     request,
