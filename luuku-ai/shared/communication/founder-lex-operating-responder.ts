@@ -11,7 +11,7 @@ import { communicationRouter } from "./router";
 import {
     LEX_RESPONSE_SCHEMA,
     LexStructuredResponse,
-    renderLexDiscordResponse,
+    renderLexDiscordMessages,
 } from "./lex-response";
 
 export interface LexProposedAction {
@@ -24,19 +24,55 @@ export interface LexProposedAction {
     proposedAt: string;
 }
 
-function isFounderApproval(message: string): boolean {
-    const normalized = message
+function normalizeMessage(message: string): string {
+    return message
         .trim()
         .toLowerCase()
         .replace(/[.!?,;:]+/g, " ")
         .replace(/\s+/g, " ")
         .trim();
+}
+
+function isFounderApproval(message: string): boolean {
+    const normalized = normalizeMessage(message);
 
     return /^(?:yes|yep|yeah|approved?|approve|do it|go ahead|proceed|execute(?: it)?|make it happen|let'?s do it|handle it|start it)$/.test(
         normalized,
     ) || /^(?:yes|yep|yeah)\s+(?:please\s+)?(?:do it|go ahead|proceed|execute(?: it)?|make it happen|let'?s do it|handle it|start it)$/.test(
         normalized,
     );
+}
+
+function simpleCasualReply(message: string): string | null {
+    const normalized = normalizeMessage(message);
+
+    if (
+        /^(?:hey|hi|hello|yo|sup|what'?s up|good morning|good afternoon|good evening)(?: lex| founder)?$/.test(
+            normalized,
+        ) ||
+        /^(?:hey|hi|hello) lex$/.test(normalized) ||
+        /^(?:thanks|thank you|nice|great|good job|well done)$/.test(normalized)
+    ) {
+        if (normalized.includes("good morning")) {
+            return "Good morning, Founder 👋 I’m online and ready. What are we tackling today?";
+        }
+
+        if (normalized.includes("good afternoon")) {
+            return "Good afternoon, Founder 👋 I’m here. What are we working on?";
+        }
+
+        if (normalized.includes("good evening")) {
+            return "Good evening, Founder 👋 I’m here. What’s on the agenda?";
+        }
+
+        if (/^(?:thanks|thank you|nice|great|good job|well done)$/.test(normalized)) {
+            return "Appreciate it, Founder 👊 What’s next?";
+        }
+
+        return "Hey Founder 👋 I’m here. What’s on your mind?";
+    }
+
+    return null;
 }
 
 function recentConversation(messages: CommunicationMessage[]): string {
@@ -49,7 +85,12 @@ function recentConversation(messages: CommunicationMessage[]): string {
 function inferProposedAction(
     response: LexStructuredResponse,
 ): LexProposedAction | null {
-    if (response.actions.length === 0) return null;
+    if (
+        response.actions.length === 0 ||
+        (response.type !== "recommendation" && response.type !== "decision")
+    ) {
+        return null;
+    }
 
     const agents = getAgents();
 
@@ -108,12 +149,24 @@ function inferProposedAction(
 function findLatestPendingAction(
     messages: CommunicationMessage[],
 ): LexProposedAction | null {
+    let latestFounderMessageIndex = -1;
+
+    for (let index = messages.length - 1; index >= 0; index -= 1) {
+        if (messages[index].direction === "inbound") {
+            latestFounderMessageIndex = index;
+            break;
+        }
+    }
+
     for (let index = messages.length - 1; index >= 0; index -= 1) {
         const message = messages[index];
         if (message.direction !== "outbound") continue;
 
         const candidate = message.metadata?.proposedAction;
         if (!candidate || typeof candidate !== "object") continue;
+
+        // Only the proposal immediately preceding the approval can be executed.
+        if (index < latestFounderMessageIndex) continue;
 
         const action = candidate as Partial<LexProposedAction>;
         if (
@@ -208,7 +261,7 @@ export class FounderLexOperatingResponder {
             if (!action) {
                 return this.sendResponse(
                     message,
-                    "💬 **No Pending Action**\n\nI don't have a current executable proposal in this conversation. Ask me for the recommendation again, then approve that specific proposal.",
+                    "💬 **No Pending Action**\n\nI don’t have a current executable proposal in this conversation. Ask me what I recommend, then approve that specific proposal.",
                     "action_request_missing",
                 );
             }
@@ -216,7 +269,7 @@ export class FounderLexOperatingResponder {
             if (hasCompletedAction(conversation.messages, action.id)) {
                 return this.sendResponse(
                     message,
-                    "ℹ️ **Already Completed**\n\nThat approved action has already been executed. I won't run it twice.",
+                    "ℹ️ **Already Completed**\n\nThat approved action has already been executed. I won’t run it twice.",
                     "action_already_completed",
                 );
             }
@@ -275,25 +328,48 @@ export class FounderLexOperatingResponder {
             );
         }
 
+        const casualReply = simpleCasualReply(message.content);
+        if (casualReply) {
+            return this.sendResponse(message, casualReply, "casual");
+        }
+
         const context = await buildExecutiveContext();
         const structured = await requestAIStructured<LexStructuredResponse>({
             prompt: [
                 "You are LEX, the executive principal of Luuku AI.",
                 "You are speaking directly with the founder through the company's internal Discord channel.",
-                "Think like an executive, but return a structured communication plan for the presentation layer.",
+                "Your job is to communicate like a sharp, warm, capable executive partner — not like a reporting dashboard.",
+                "Understand the founder's intent before deciding how much information to provide.",
                 "Use only facts supported by the company snapshot and conversation context.",
                 "Do not invent metrics, completed work, agents, or capabilities.",
                 "Operational actions must never be claimed as executed unless the execution result is explicitly supplied.",
-                "When recommending an operational action that can be assigned to a currently registered agent, put that action in actions and make it execution-ready after explicit founder approval.",
-                "Execution-ready means naming the responsible registered agent and the concrete operation it should perform. If the operation communicates externally, explicitly name the channel (for example email) so the existing capability guard can evaluate it.",
-                "Never assume founder approval. A recommendation is not an execution command.",
+                "Never execute, dispatch, assign, or imply approval merely because you generated a recommendation.",
+                "A recommendation is only a proposal. Execution requires a later explicit founder approval message.",
+                "",
+                "CONVERSATION STYLE:",
+                "- If the founder is greeting you, saying hello, thanking you, joking, or making simple small talk, respond naturally and briefly. Do not turn a greeting into a company report.",
+                "- For casual messages, use 1-3 natural sentences. Keep sections and actions empty.",
+                "- If the founder asks a simple direct question, answer the question first. Do not dump the entire company snapshot unless requested.",
+                "- If the founder asks for a company update, give a concise executive briefing. Do not automatically turn the update into an execution plan.",
+                "- Only propose operational actions when the founder asks what we should do, asks for a recommendation, asks for next steps, or explicitly asks you to take/assign an action.",
+                "- If an action is proposed, make the approval boundary obvious: the founder must explicitly approve it before execution.",
+                "- Sound like a real executive teammate. Prefer natural transitions such as 'Here’s what I’m seeing', 'The main issue is', or 'I’d prioritize' when appropriate.",
+                "- Do not make every response sound like a formal report. Use structure only when it improves clarity.",
+                "",
+                "ACTION SAFETY:",
+                "- Actions may only be proposed in recommendation or decision responses.",
+                "- Casual, question, and ordinary company_update responses should normally have an empty actions array unless the founder explicitly requested an operational action.",
+                "- When recommending an operational action that can be assigned to a currently registered agent, put that action in actions and name the responsible registered agent and concrete operation.",
+                "- If the operation communicates externally, explicitly name the channel so the existing capability guard can evaluate it.",
+                "- Never treat a sentence, recommendation, task description, or generic business phrase as a company or prospect name.",
+                "- Research should only be requested for an explicitly named organization, person, or market. If there is no explicit target, do not invent one.",
                 "",
                 "CONTROLLED TEST CONTACT RULE:",
                 "- If the founder asks for a controlled test email, do not invent a recipient email or company.",
                 "- The exact test identity is supplied below through LUUKU_TEST_CONTACT_EMAIL and LUUKU_TEST_CONTACT_COMPANY.",
                 "- If either value is missing, explain that the controlled test identity has not been configured and do not propose an executable external email action.",
                 "- If both are supplied, the executable action must target that exact company and email.",
-                "- Never substitute a prospect such as Rwanda Revenue Authority for the controlled test contact.",
+                "- Never substitute a real prospect such as Rwanda Revenue Authority for the controlled test contact.",
                 "",
                 "Choose the response type:",
                 "- company_update",
@@ -304,9 +380,9 @@ export class FounderLexOperatingResponder {
                 "- casual",
                 "",
                 "Presentation rules:",
-                "- title should be short and executive-friendly",
-                "- summary should be 1-3 concise sentences",
-                "- use sections only when they improve clarity",
+                "- title should be short and human; for casual messages it can be a simple greeting or omitted",
+                "- summary should normally be 1-3 concise sentences",
+                "- sections should be used only when they genuinely help explain something",
                 "- bullets must be concrete and useful",
                 "- actions should be ordered from highest priority to lowest",
                 "- closing_question should be empty unless a response from the founder is genuinely useful",
@@ -349,11 +425,11 @@ export class FounderLexOperatingResponder {
         });
 
         const proposedAction = inferProposedAction(structured);
-        const response = renderLexDiscordResponse(structured);
+        const responseMessages = renderLexDiscordMessages(structured);
 
         return this.sendResponse(
             message,
-            response,
+            responseMessages,
             structured.type,
             proposedAction
                 ? {
@@ -365,60 +441,68 @@ export class FounderLexOperatingResponder {
 
     private async sendResponse(
         message: CommunicationMessage,
-        response: string,
+        response: string | string[],
         responseType: string,
         extraMetadata: Record<string, unknown> = {},
     ) {
-        const idempotencyKey = `founder-lex-operating-response:${message.id}`;
-        const execution = await communicationRouter.execute({
-            capability: "discord.send",
-            channel: "discord",
-            target: "founder",
-            body: response,
-            metadata: {
+        const responseMessages = Array.isArray(response) ? response : [response];
+        const idempotencyBase = `founder-lex-operating-response:${message.id}`;
+
+        for (let index = 0; index < responseMessages.length; index += 1) {
+            const content = responseMessages[index].trim();
+            if (!content) continue;
+
+            const idempotencyKey = `${idempotencyBase}:${index + 1}`;
+            const partMetadata = {
                 audience: "internal",
                 executionMode: "live",
                 conversationId: message.conversationId,
-                taskId: `founder-lex-operating-response-${message.id}`,
+                taskId: `founder-lex-operating-response-${message.id}-${index + 1}`,
                 idempotencyKey,
                 source: "founder-lex-operating-responder",
                 inboundMessageId: message.id,
                 responseType,
-                ...extraMetadata,
-            },
-        });
+                responsePart: index + 1,
+                responseParts: responseMessages.length,
+                ...(index === 0 ? extraMetadata : {}),
+            };
 
-        if (!execution.executed || !execution.verified) {
-            throw new Error(
-                `LEX Discord response was not verified: ${execution.summary}`,
-            );
+            const execution = await communicationRouter.execute({
+                capability: "discord.send",
+                channel: "discord",
+                target: "founder",
+                body: content,
+                metadata: partMetadata,
+            });
+
+            if (!execution.executed || !execution.verified) {
+                throw new Error(
+                    `LEX Discord response part ${index + 1} was not verified: ${execution.summary}`,
+                );
+            }
+
+            await prismaCommunicationService.sendMessage({
+                conversationId: message.conversationId,
+                channel: "discord",
+                recipient: {
+                    channel: "discord",
+                    displayName: "Founder",
+                },
+                content,
+                metadata: {
+                    ...partMetadata,
+                    executionStatus: execution.status,
+                    verified: execution.verified,
+                    responseId: randomUUID(),
+                },
+            });
         }
 
-        await prismaCommunicationService.sendMessage({
-            conversationId: message.conversationId,
-            channel: "discord",
-            recipient: {
-                channel: "discord",
-                displayName: "Founder",
-            },
-            content: response,
-            metadata: {
-                source: "founder-lex-operating-responder",
-                executionStatus: execution.status,
-                verified: execution.verified,
-                idempotencyKey,
-                inboundMessageId: message.id,
-                responseId: randomUUID(),
-                responseType,
-                ...extraMetadata,
-            },
-        });
-
         return {
-            response,
-            executionStatus: execution.status,
-            executed: execution.executed,
-            verified: execution.verified,
+            response: responseMessages.filter(Boolean).join("\n\n"),
+            executionStatus: "verified",
+            executed: true,
+            verified: true,
             conversationId: message.conversationId,
         };
     }
