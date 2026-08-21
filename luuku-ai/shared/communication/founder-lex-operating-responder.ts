@@ -51,7 +51,7 @@ function recentConversation(messages: CommunicationMessage[]): string {
 }
 
 function isControlledTestEmailRequest(message: string): boolean {
-    return /controlled test email|test email|test follow-up email|autonomous (?:email|communication) system/i.test(message);
+    return /\b(?:send|email|test)\b[^\n]{0,120}\b(?:test email|email system|communication system|controlled test)\b|\bcontrolled test email\b|\btest follow-up email\b|\bautonomous (?:email|communication) system\b/i.test(message);
 }
 
 function salesAgentId(): string | undefined {
@@ -60,40 +60,43 @@ function salesAgentId(): string | undefined {
         ?? agents.find(agent => /sales/i.test(`${agent.id} ${agent.name}`))?.id;
 }
 
+function buildControlledTestProposal(): LexProposedAction | null {
+    const testEmail = process.env.LUUKU_TEST_CONTACT_EMAIL?.trim();
+    const testCompany = process.env.LUUKU_TEST_CONTACT_COMPANY?.trim();
+    const agentId = salesAgentId();
+    if (!testEmail || !testCompany || !agentId) return null;
+
+    const title = `Send controlled test email to ${testEmail}`;
+    return {
+        id: `lex-action:${randomUUID()}`,
+        title,
+        description: [
+            title,
+            `TEST_CONTACT_COMPANY: ${testCompany}`,
+            `CONTACT_EMAIL: ${testEmail}`,
+            "CONTROLLED_TEST_EMAIL=true",
+        ].join("\n"),
+        agentId,
+        priority: "medium",
+        requiresFounderApproval: true,
+        proposedAt: new Date().toISOString(),
+    };
+}
+
 function inferProposedAction(
     response: LexStructuredResponse,
     founderMessage: string,
 ): LexProposedAction | null {
-    if (response.type !== "recommendation" && response.type !== "decision") return null;
-
-    // Controlled-test email proposals are deterministic. Do not depend on the
-    // LLM remembering to mention "Sales Agent" in the action text: the previous
-    // failure showed that omission could make an approved action disappear.
+    // Controlled test email requests are handled deterministically before the
+    // response-type gate. The LLM must never be able to classify an explicit
+    // send request as a company_update and thereby claim it was sent.
     if (isControlledTestEmailRequest(founderMessage)) {
-        const testEmail = process.env.LUUKU_TEST_CONTACT_EMAIL?.trim();
-        const testCompany = process.env.LUUKU_TEST_CONTACT_COMPANY?.trim();
-        const agentId = salesAgentId();
-        if (!testEmail || !testCompany || !agentId) return null;
-
-        const modelAction = response.actions.find(action => /email|test|controlled|autonomous communication/i.test(action));
-        const title = modelAction?.trim() || `Send controlled test email to ${testEmail}`;
-        return {
-            id: `lex-action:${randomUUID()}`,
-            title,
-            description: [
-                title,
-                `TEST_CONTACT_COMPANY: ${testCompany}`,
-                `CONTACT_EMAIL: ${testEmail}`,
-                "CONTROLLED_TEST_EMAIL=true",
-            ].join("\n"),
-            agentId,
-            priority: "medium",
-            requiresFounderApproval: true,
-            proposedAt: new Date().toISOString(),
-        };
+        return buildControlledTestProposal();
     }
 
+    if (response.type !== "recommendation" && response.type !== "decision") return null;
     if (response.actions.length === 0) return null;
+
     const agents = getAgents();
     for (const action of response.actions) {
         const normalized = action.toLowerCase();
@@ -124,7 +127,7 @@ function findLatestPendingAction(messages: CommunicationMessage[]): LexProposedA
         const candidate = message.metadata?.proposedAction;
         if (!candidate || typeof candidate !== "object") continue;
         const action = candidate as Partial<LexProposedAction>;
-        if (typeof action.id !== "string" || typeof action.title !== "string" || typeof action.description !== "string" || typeof action.agentId !== "string" || typeof action.proposedAt !== "string") continue;
+        if (typeof action.id !== "string' || typeof action.title !== "string" || typeof action.description !== "string" || typeof action.agentId !== "string" || typeof action.proposedAt !== "string") continue;
         if (action.priority !== "low" && action.priority !== "medium" && action.priority !== "high") continue;
         return {
             id: action.id,
@@ -207,6 +210,27 @@ export class FounderLexOperatingResponder {
         const casualReply = simpleCasualReply(message.content);
         if (casualReply) return this.sendResponse(message, casualReply, "casual");
 
+        const controlledTestProposal = isControlledTestEmailRequest(message.content)
+            ? buildControlledTestProposal()
+            : null;
+
+        // Explicit controlled-test email requests never go through the LLM for
+        // the decision itself. This prevents a model response from claiming an
+        // email was sent when no Sales Agent execution happened.
+        if (controlledTestProposal) {
+            const response = [
+                "🎯 **Controlled Test Email Ready**",
+                "",
+                `I’ve prepared the controlled test email for **${process.env.LUUKU_TEST_CONTACT_EMAIL}** at **${process.env.LUUKU_TEST_CONTACT_COMPANY}**.`,
+                "",
+                "Nothing has been sent yet. Explicit founder approval is required.",
+                "",
+                "**Next move**",
+                "1. Approve with `Do it`",
+            ].join("\n");
+            return this.sendResponse(message, response, "recommendation", { proposedAction: controlledTestProposal });
+        }
+
         const context = await buildExecutiveContext();
         const structured = await requestAIStructured<LexStructuredResponse>({
             prompt: [
@@ -216,6 +240,7 @@ export class FounderLexOperatingResponder {
                 "Understand the founder's intent before deciding how much information to provide.",
                 "Use only facts supported by the company snapshot and conversation context. Do not invent metrics, completed work, agents, or capabilities.",
                 "Never execute, dispatch, assign, or imply approval merely because you generated a recommendation. A recommendation is only a proposal.",
+                "Never claim an external email, call, meeting, or other communication happened unless the execution result is explicitly supplied.",
                 "Greetings and small talk should be brief and natural. Simple questions should be answered directly. Company updates should not automatically become action plans.",
                 "Only propose operational actions when the founder asks what we should do, asks for a recommendation/next steps, or explicitly asks you to take or assign an action.",
                 "If an action is proposed, make the approval boundary obvious. Founder approval is required before execution.",
@@ -223,7 +248,7 @@ export class FounderLexOperatingResponder {
                 "Actions may only be proposed in recommendation or decision responses.",
                 "When recommending an operational action, name the responsible registered agent and concrete operation when possible.",
                 "Never treat a sentence, recommendation, task description, or generic business phrase as a company or prospect name. Research only an explicitly named organization, person, or market.",
-                "CONTROLLED TEST EMAIL: If the founder asks for a controlled test email, use the exact configured test identity supplied below. Never substitute a real prospect. The action will be bound to the Sales Agent by the operating layer.",
+                "CONTROLLED TEST EMAIL: Explicit controlled test requests are handled by the operating layer and must target only the configured test contact.",
                 "Choose one response type: company_update, analysis, recommendation, decision, question, casual.",
                 "Presentation: title short and human; summary normally 1-3 concise sentences; use sections only when useful; actions ordered by priority; closing_question only when useful; do not put Markdown/emojis/numbering inside fields.",
                 `FOUNDER MESSAGE:\n${message.content}`,
