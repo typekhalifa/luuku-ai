@@ -80,7 +80,7 @@ const TYPE_ICON: Record<LexResponseType, string> = {
     recommendation: "🎯",
     decision: "⚡",
     question: "💬",
-    casual: "🤖",
+    casual: "👋",
 };
 
 function clean(value: string): string {
@@ -103,42 +103,108 @@ function renderSection(section: LexResponseSection): string[] {
     return lines;
 }
 
-export function renderLexDiscordResponse(
+function pushChunk(chunks: string[], value: string): void {
+    const cleaned = value.trim();
+    if (!cleaned) return;
+
+    const MAX_MESSAGE_LENGTH = 1600;
+
+    if (cleaned.length <= MAX_MESSAGE_LENGTH) {
+        chunks.push(cleaned);
+        return;
+    }
+
+    const lines = cleaned.split("\n");
+    let current = "";
+
+    for (const line of lines) {
+        const candidate = current ? `${current}\n${line}` : line;
+
+        if (candidate.length <= MAX_MESSAGE_LENGTH) {
+            current = candidate;
+            continue;
+        }
+
+        if (current) chunks.push(current.trim());
+
+        if (line.length <= MAX_MESSAGE_LENGTH) {
+            current = line;
+            continue;
+        }
+
+        for (let index = 0; index < line.length; index += MAX_MESSAGE_LENGTH) {
+            chunks.push(line.slice(index, index + MAX_MESSAGE_LENGTH).trim());
+        }
+        current = "";
+    }
+
+    if (current.trim()) chunks.push(current.trim());
+}
+
+export function renderLexDiscordMessages(
     response: LexStructuredResponse,
-): string {
+): string[] {
+    const chunks: string[] = [];
     const icon = TYPE_ICON[response.type];
-    const lines: string[] = [];
-    const title = clean(response.title) || "LEX";
+    const title = clean(response.title);
     const summary = clean(response.summary);
 
-    lines.push(`${icon} **${title}**`);
+    if (response.type === "casual") {
+        const opening = [
+            title ? `${icon} **${title}**` : "",
+            summary,
+        ]
+            .filter(Boolean)
+            .join("\n\n");
 
-    if (summary) {
-        lines.push("");
-        lines.push(summary);
+        pushChunk(chunks, opening);
+
+        if (response.closing_question.trim()) {
+            pushChunk(chunks, `💬 ${clean(response.closing_question)}`);
+        }
+
+        return chunks;
     }
+
+    pushChunk(
+        chunks,
+        [
+            `${icon} **${title || "LEX"}**`,
+            summary,
+        ]
+            .filter(Boolean)
+            .join("\n\n"),
+    );
 
     for (const section of response.sections) {
         const rendered = renderSection(section);
         if (rendered.length === 0) continue;
-        lines.push("");
-        lines.push(...rendered);
+        pushChunk(chunks, rendered.join("\n"));
     }
 
     if (response.actions.length > 0) {
-        lines.push("");
-        lines.push("**Next moves**");
-        response.actions.forEach((action, index) => {
-            const value = clean(action);
-            if (value) lines.push(`${index + 1}. ${value}`);
-        });
+        const actionLines = response.actions
+            .map((action, index) => {
+                const value = clean(action);
+                return value ? `${index + 1}. ${value}` : "";
+            })
+            .filter(Boolean);
+
+        if (actionLines.length > 0) {
+            pushChunk(chunks, ["**Next moves**", ...actionLines].join("\n"));
+        }
     }
 
     const closingQuestion = clean(response.closing_question);
     if (closingQuestion) {
-        lines.push("");
-        lines.push(`💬 ${closingQuestion}`);
+        pushChunk(chunks, `💬 ${closingQuestion}`);
     }
 
-    return lines.join("\n").trim();
+    return chunks.length > 0 ? chunks : ["LEX is here. What would you like to work on?"];
+}
+
+export function renderLexDiscordResponse(
+    response: LexStructuredResponse,
+): string {
+    return renderLexDiscordMessages(response).join("\n\n");
 }
