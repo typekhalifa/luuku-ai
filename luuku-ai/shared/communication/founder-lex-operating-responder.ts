@@ -87,9 +87,6 @@ function inferProposedAction(
     response: LexStructuredResponse,
     founderMessage: string,
 ): LexProposedAction | null {
-    // Controlled test email requests are handled deterministically before the
-    // response-type gate. The LLM must never be able to classify an explicit
-    // send request as a company_update and thereby claim it was sent.
     if (isControlledTestEmailRequest(founderMessage)) {
         return buildControlledTestProposal();
     }
@@ -127,7 +124,7 @@ function findLatestPendingAction(messages: CommunicationMessage[]): LexProposedA
         const candidate = message.metadata?.proposedAction;
         if (!candidate || typeof candidate !== "object") continue;
         const action = candidate as Partial<LexProposedAction>;
-        if (typeof action.id !== "string' || typeof action.title !== "string" || typeof action.description !== "string" || typeof action.agentId !== "string" || typeof action.proposedAt !== "string") continue;
+        if (typeof action.id !== "string" || typeof action.title !== "string" || typeof action.description !== "string" || typeof action.agentId !== "string" || typeof action.proposedAt !== "string") continue;
         if (action.priority !== "low" && action.priority !== "medium" && action.priority !== "high") continue;
         return {
             id: action.id,
@@ -214,9 +211,6 @@ export class FounderLexOperatingResponder {
             ? buildControlledTestProposal()
             : null;
 
-        // Explicit controlled-test email requests never go through the LLM for
-        // the decision itself. This prevents a model response from claiming an
-        // email was sent when no Sales Agent execution happened.
         if (controlledTestProposal) {
             const response = [
                 "🎯 **Controlled Test Email Ready**",
