@@ -85,6 +85,61 @@ export class ActivityRepository {
 
     }
 
+    async findOverdue(
+
+        limit?: number
+
+    ): Promise<Activity[]> {
+
+        const activities =
+            await prisma.activity.findMany({
+
+                where: {
+                    completed: false,
+                    dueAt: {
+                        lt: new Date()
+                    }
+                },
+
+                orderBy: {
+                    dueAt: "asc"
+                },
+
+                ...(limit ? { take: limit } : {})
+
+            });
+
+        return activities.map(
+            ActivityMapper.toDomain
+        );
+
+    }
+
+    async findByIds(
+
+        ids: string[]
+
+    ): Promise<Activity[]> {
+
+        if (ids.length === 0) return [];
+
+        const activities =
+            await prisma.activity.findMany({
+
+                where: {
+                    id: {
+                        in: ids
+                    }
+                }
+
+            });
+
+        return activities.map(
+            ActivityMapper.toDomain
+        );
+
+    }
+
     async updateOutcome(
 
         id: string,
