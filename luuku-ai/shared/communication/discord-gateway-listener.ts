@@ -120,7 +120,6 @@ export class DiscordGatewayListener {
                 });
 
                 socket.addEventListener("error", (event) => {
-                    this.clearConnectionTimeout();
                     console.error("========================================");
                     console.error("DISCORD GATEWAY SOCKET ERROR");
                     console.error("========================================");
@@ -128,6 +127,8 @@ export class DiscordGatewayListener {
                     console.error("Socket readyState:", socket.readyState);
                     console.error("Gateway URL:", DISCORD_GATEWAY_URL);
                     console.error("Reconnect attempt:", this.reconnectAttempt + 1);
+                    const errorEvent = event as ErrorEvent;
+                    if (errorEvent.message) console.error("Error message:", errorEvent.message);
                     console.error("Error object:", event);
                 });
 
