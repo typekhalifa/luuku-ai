@@ -8,11 +8,16 @@ export async function generateRecommendations(): Promise<string[]> {
     if (highest) {
         const dueDate = new Date(highest.dueDate);
         const overdue = !Number.isNaN(dueDate.getTime()) && dueDate < new Date();
-        const action = overdue ? "Follow up now" : "Handle next";
 
-        recommendations.push(
-            `${action} with ${highest.business}: ${highest.title}.`,
-        );
+        if (/follow[\s-]?up/i.test(`${highest.title} ${highest.description}`)) {
+            recommendations.push(
+                `${overdue ? "Primary action" : "Next action"}: have the Sales Agent follow up with ${highest.business} by email. If the CRM contact is missing or lacks a verified email, enrich the contact first; do not send until CRM validation passes.`,
+            );
+        } else {
+            recommendations.push(
+                `${overdue ? "Follow up now" : "Handle next"} with ${highest.business}: ${highest.title}.`,
+            );
+        }
     }
 
     const insights = await buildExecutiveInsights();
