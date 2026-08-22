@@ -220,6 +220,33 @@ export class PrismaCommunicationService implements CommunicationService {
         return this.toDomainConversation(conversation);
     }
 
+    async updateConversationMetadata(
+        conversationId: string,
+        patch: Record<string, unknown>,
+    ): Promise<void> {
+        const conversation = await prisma.communicationConversation.findUnique({
+            where: { id: conversationId },
+            select: { metadata: true },
+        });
+
+        if (!conversation) {
+            throw new Error(`Communication conversation ${conversationId} could not be loaded.`);
+        }
+
+        const existingMetadata = asMetadata(conversation.metadata) ?? {};
+
+        await prisma.communicationConversation.update({
+            where: { id: conversationId },
+            data: {
+                metadata: toInputJson({
+                    ...existingMetadata,
+                    ...patch,
+                }),
+                updatedAt: new Date(),
+            },
+        });
+    }
+
     private async getOrCreateInboundConversation(
         input: ReceiveMessageInput,
     ) {
