@@ -34,6 +34,11 @@ if (-not $env:LUUKU_TEST_CONTACT_COMPANY) {
     throw "LUUKU_TEST_CONTACT_COMPANY is not set."
 }
 
+# Keep the legacy variable aligned with the controlled recipient. The Resend
+# adapter supports both names, and an old EMAIL_TEST_RECIPIENT in .env must
+# never override the explicitly selected LUUKU test inbox.
+$env:EMAIL_TEST_RECIPIENT = $env:LUUKU_TEST_CONTACT_EMAIL
+
 # The operating demo reads LUUKU_EMAIL_DEMO_MODE and then derives EMAIL_MODE.
 # Set the source-of-truth demo mode here so the application cannot silently
 # overwrite this controlled live test back to TEST.
