@@ -13,18 +13,20 @@ export const LEX_RESPONSE_SCHEMA = {
                 "casual",
             ],
         },
-        title: { type: "string" },
-        summary: { type: "string" },
+        title: { type: "string", maxLength: 80 },
+        summary: { type: "string", maxLength: 700 },
         sections: {
             type: "array",
+            maxItems: 1,
             items: {
                 type: "object",
                 additionalProperties: false,
                 properties: {
-                    heading: { type: "string" },
+                    heading: { type: "string", maxLength: 60 },
                     bullets: {
                         type: "array",
-                        items: { type: "string" },
+                        maxItems: 4,
+                        items: { type: "string", maxLength: 240 },
                     },
                 },
                 required: ["heading", "bullets"],
@@ -32,9 +34,10 @@ export const LEX_RESPONSE_SCHEMA = {
         },
         actions: {
             type: "array",
-            items: { type: "string" },
+            maxItems: 3,
+            items: { type: "string", maxLength: 240 },
         },
-        closing_question: { type: "string" },
+        closing_question: { type: "string", maxLength: 180 },
     },
     required: [
         "type",
@@ -158,11 +161,11 @@ export function renderLexDiscordMessages(
         .filter(Boolean)
         .join("\n\n") || "Here’s what I found.");
 
-    // The model is instructed to keep sections short and non-repetitive. We still
-    // cap what reaches Discord so LEX never turns a simple recommendation into a report.
+    // Keep operational answers intentionally small. The schema already limits the
+    // model to one section; this second guard keeps rendering resilient to callers.
     const usefulSections = response.sections
         .filter(section => section.bullets.some(Boolean))
-        .slice(0, response.type === "company_update" ? 2 : 1);
+        .slice(0, 1);
 
     for (const section of usefulSections) {
         const rendered = renderSection(section);
