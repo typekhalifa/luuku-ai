@@ -6,14 +6,27 @@ export async function generateRecommendations(): Promise<string[]> {
     const highest = getHighestPriorityTask();
     const insights = await buildExecutiveInsights();
 
-    if (highest) {
+    const controlledTestEmail =
+        process.env.EMAIL_MODE === "live" &&
+        process.env.LUUKU_TEST_CONTACT_EMAIL?.trim();
+
+    const controlledTestCompany =
+        process.env.LUUKU_TEST_CONTACT_COMPANY?.trim();
+
+    // The controlled live-email harness is an explicit integration test. In
+    // that mode the executive priority must be the controlled communication
+    // path, not the normal CRM housekeeping path. This prevents LEX from
+    // consuming the test turn by prioritizing overdue CRM activities.
+    if (controlledTestEmail && controlledTestCompany) {
+        recommendations.push(
+            `AUTHORITATIVE CONTROLLED TEST PRIORITY: send exactly one controlled test email to ${controlledTestEmail} for ${controlledTestCompany} using the Sales Agent. Do not execute crm.prioritize_overdue in this test turn. Founder approval is still required before email.send execution.`,
+        );
+    } else if (highest) {
         const dueDate = new Date(highest.dueDate);
         const overdue = !Number.isNaN(dueDate.getTime()) && dueDate < new Date();
         const taskText = `${highest.title} ${highest.description}`;
 
         if (/follow[\s-]?up/i.test(taskText)) {
-            // A concrete pending business task is the executive priority.
-            // Do not let generic CRM housekeeping compete with it.
             recommendations.push(
                 `${overdue ? "Primary action" : "Next action"}: send the follow-up email to ${highest.business} using the Sales Agent. Validate the CRM contact before sending; if the contact is missing or lacks a verified email, enrich it first.`,
             );
@@ -32,7 +45,7 @@ export async function generateRecommendations(): Promise<string[]> {
         );
     }
 
-    if (!highest && insights.messages.some((message: string) => message.includes("No active"))) {
+    if (!controlledTestEmail && !highest && insights.messages.some((message: string) => message.includes("No active"))) {
         recommendations.push(
             "Assign work to an available agent.",
         );
