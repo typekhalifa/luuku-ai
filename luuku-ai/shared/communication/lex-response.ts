@@ -135,7 +135,6 @@ export function renderLexDiscordMessages(
     const title = clean(response.title);
     const summary = clean(response.summary);
 
-    // Casual conversation should feel like conversation, not a report card.
     if (response.type === "casual") {
         pushChunk(chunks, [summary, clean(response.closing_question)]
             .filter(Boolean)
@@ -145,7 +144,6 @@ export function renderLexDiscordMessages(
             : ["I’m here. What are we working on?"];
     }
 
-    // Questions should answer first and avoid unnecessary dashboard framing.
     if (response.type === "question") {
         pushChunk(chunks, [summary, clean(response.closing_question)]
             .filter(Boolean)
@@ -155,18 +153,18 @@ export function renderLexDiscordMessages(
             : ["What would you like me to look at?"];
     }
 
-    // For operational recommendations/decisions, lead with the human summary.
-    // This keeps LEX concise while still preserving the structured details below.
-    const opening = [
-        title ? `**${title}**` : "",
-        summary,
-    ]
+    // Keep the first message conversational: one clear thought, not a report header.
+    pushChunk(chunks, [title ? `**${title}**` : "", summary]
         .filter(Boolean)
-        .join("\n\n");
+        .join("\n\n") || "Here’s what I found.");
 
-    pushChunk(chunks, opening || "Here’s what I found.");
+    // The model is instructed to keep sections short and non-repetitive. We still
+    // cap what reaches Discord so LEX never turns a simple recommendation into a report.
+    const usefulSections = response.sections
+        .filter(section => section.bullets.some(Boolean))
+        .slice(0, response.type === "company_update" ? 2 : 1);
 
-    for (const section of response.sections) {
+    for (const section of usefulSections) {
         const rendered = renderSection(section);
         if (rendered.length === 0) continue;
         pushChunk(chunks, rendered.join("\n"));
@@ -174,6 +172,7 @@ export function renderLexDiscordMessages(
 
     if (response.actions.length > 0) {
         const actionLines = response.actions
+            .slice(0, 3)
             .map((action, index) => {
                 const value = clean(action);
                 return value ? `${index + 1}. ${value}` : "";
@@ -182,7 +181,7 @@ export function renderLexDiscordMessages(
 
         if (actionLines.length > 0) {
             const heading = response.type === "recommendation"
-                ? "**What I recommend**"
+                ? "**My recommendation**"
                 : response.type === "decision"
                     ? "**Decision**"
                     : "**Next moves**";
