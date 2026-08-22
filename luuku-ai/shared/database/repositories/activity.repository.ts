@@ -58,6 +58,59 @@ export class ActivityRepository {
 
     }
 
+    async findIncomplete(
+
+        limit?: number
+
+    ): Promise<Activity[]> {
+
+        const activities =
+            await prisma.activity.findMany({
+
+                where: {
+                    completed: false
+                },
+
+                orderBy: {
+                    createdAt: "asc"
+                },
+
+                ...(limit ? { take: limit } : {})
+
+            });
+
+        return activities.map(
+            ActivityMapper.toDomain
+        );
+
+    }
+
+    async updateOutcome(
+
+        id: string,
+        outcome: string,
+        description?: string
+
+    ): Promise<Activity> {
+
+        const updated =
+            await prisma.activity.update({
+
+                where: { id },
+
+                data: {
+                    outcome,
+                    ...(description !== undefined ? { description } : {})
+                }
+
+            });
+
+        return ActivityMapper.toDomain(
+            updated
+        );
+
+    }
+
     async create(
 
         activity: Activity
