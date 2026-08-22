@@ -34,6 +34,26 @@ export class ActivityService {
 
     }
 
+    async getOverdueActivities(
+
+        limit?: number
+
+    ): Promise<Activity[]> {
+
+        return activityRepository.findOverdue(limit);
+
+    }
+
+    async getActivitiesByIds(
+
+        ids: string[]
+
+    ): Promise<Activity[]> {
+
+        return activityRepository.findByIds(ids);
+
+    }
+
     async markPrioritized(
 
         activity: Activity,
