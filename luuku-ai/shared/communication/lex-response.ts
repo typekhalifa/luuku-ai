@@ -37,6 +37,29 @@ export const LEX_RESPONSE_SCHEMA = {
             maxItems: 3,
             items: { type: "string", maxLength: 220 },
         },
+        action_contract: {
+            type: "object",
+            additionalProperties: false,
+            properties: {
+                enabled: { type: "boolean" },
+                agent_id: { type: "string", maxLength: 60 },
+                operation: { type: "string", maxLength: 100 },
+                target: { type: "string", maxLength: 220 },
+                priority: {
+                    type: "string",
+                    enum: ["low", "medium", "high"],
+                },
+                approval_required: { type: "boolean" },
+            },
+            required: [
+                "enabled",
+                "agent_id",
+                "operation",
+                "target",
+                "priority",
+                "approval_required",
+            ],
+        },
         closing_question: { type: "string", maxLength: 160 },
     },
     required: [
@@ -45,6 +68,7 @@ export const LEX_RESPONSE_SCHEMA = {
         "summary",
         "sections",
         "actions",
+        "action_contract",
         "closing_question",
     ],
 } as const;
@@ -62,12 +86,22 @@ export interface LexResponseSection {
     bullets: string[];
 }
 
+export interface LexActionContract {
+    enabled: boolean;
+    agent_id: string;
+    operation: string;
+    target: string;
+    priority: "low" | "medium" | "high";
+    approval_required: boolean;
+}
+
 export interface LexStructuredResponse {
     type: LexResponseType;
     title: string;
     summary: string;
     sections: LexResponseSection[];
     actions: string[];
+    action_contract: LexActionContract;
     closing_question: string;
 }
 
@@ -156,9 +190,6 @@ export function renderLexDiscordMessages(
             : ["What would you like me to look at?"];
     }
 
-    // Recommendations should feel like a conversation, not a generated report.
-    // Actions remain machine-readable for approval/execution, but are intentionally
-    // not echoed as a numbered checklist to the founder.
     if (response.type === "recommendation") {
         pushChunk(chunks, summary || title || "Here’s my take.");
 
@@ -171,7 +202,7 @@ export function renderLexDiscordMessages(
             pushChunk(chunks, usefulBullets.map(value => `• ${value}`).join("\n"));
         }
 
-        if (response.actions.length > 0) {
+        if (response.action_contract.enabled && response.action_contract.approval_required) {
             pushChunk(chunks, "If you’re good with that, I’ll take it from here.");
         } else if (clean(response.closing_question)) {
             pushChunk(chunks, clean(response.closing_question));
@@ -182,7 +213,6 @@ export function renderLexDiscordMessages(
             : ["I’m here. What would you like me to work on?"];
     }
 
-    // Decisions can still be structured, but keep the founder-facing language tight.
     if (response.type === "decision") {
         pushChunk(chunks, [title ? `**${title}**` : "", summary]
             .filter(Boolean)
@@ -197,7 +227,7 @@ export function renderLexDiscordMessages(
             pushChunk(chunks, usefulBullets.map(value => `• ${value}`).join("\n"));
         }
 
-        if (response.actions.length > 0) {
+        if (response.action_contract.enabled && response.action_contract.approval_required) {
             pushChunk(chunks, "If you’re good with that, I’ll take it from here.");
         } else if (clean(response.closing_question)) {
             pushChunk(chunks, clean(response.closing_question));
@@ -208,7 +238,6 @@ export function renderLexDiscordMessages(
             : ["I’m here. What would you like me to work on?"];
     }
 
-    // Company updates and analysis benefit from a little more structure.
     pushChunk(chunks, [title ? `**${title}**` : "", summary]
         .filter(Boolean)
         .join("\n\n") || "Here’s what I found.");
