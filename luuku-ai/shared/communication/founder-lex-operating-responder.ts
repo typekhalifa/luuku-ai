@@ -214,11 +214,29 @@ function renderActionResult(action: LexProposedAction, result: Awaited<ReturnTyp
         ].join("\n");
     }
 
+    if (result.executed && result.verified) {
+        return [
+            "✅ **Done.**",
+            "",
+            result.summary,
+            ...(result.evidence ? ["", `Verified: ${result.evidence.reference}`] : []),
+        ].join("\n");
+    }
+
+    if (result.executed && !result.verified) {
+        return [
+            "⚠️ **Executed, but not verified.**",
+            "",
+            result.summary,
+            "",
+            "I won’t claim the action is complete until the result can be verified.",
+        ].join("\n");
+    }
+
     return [
-        "✅ **Done.**",
+        "⚠️ **No execution confirmed.**",
         "",
         result.summary,
-        ...(result.evidence ? ["", `Verified: ${result.evidence.reference}`] : []),
     ].join("\n");
 }
 
@@ -261,11 +279,18 @@ export class FounderLexOperatingResponder {
                 title: action.title,
                 description: action.description,
                 priority: action.priority,
+                metadata: {
+                    operation: action.contract.operation,
+                    target: action.contract.target,
+                    priority: action.contract.priority,
+                    approvalRequired: action.contract.approval_required,
+                    controlledTest: action.description.includes("CONTROLLED_TEST_EMAIL=true"),
+                },
             });
 
             return this.sendResponse(message, renderActionResult(action, result), "action_executed", {
                 actionId: action.id,
-                actionExecution: result.success ? "completed" : "failed",
+                actionExecution: result.success && result.executed && result.verified ? "completed" : "failed",
                 actionAgentId: action.agentId,
                 actionStatus: result.executionStatus ?? (result.success ? "completed" : "failed"),
                 actionVerified: result.verified ?? false,
@@ -321,7 +346,8 @@ export class FounderLexOperatingResponder {
                 "Actions may only be proposed in recommendation or decision responses.",
                 "Every executable recommendation MUST include action_contract.enabled=true, approval_required=true, the exact registered agent id, a concrete operation, a concrete target, and a priority.",
                 "If you cannot identify a safe concrete executable action, set action_contract.enabled=false and do not pretend an action is executable.",
-                "Use concise operation names such as crm.follow_up, crm.update, email.send, research.enrich, or agent.execute. Do not invent capabilities that are not present in the company snapshot.",
+                "Supported operations are: crm.prioritize_overdue, crm.follow_up, crm.update, email.send, research.enrich, and agent.execute. Never invent an operation.",
+                "For overdue CRM backlog prioritization, use operation crm.prioritize_overdue and target 'overdue CRM activities'. This operation prioritizes work but does NOT complete it or reduce the overdue count.",
                 "The action_contract is the machine execution contract. The actions array is human-readable context only.",
                 "For an action that would contact an external person, the target must be an explicitly identified CRM recipient and execution remains subject to the capability guard.",
                 "Never treat a sentence, recommendation, task description, or generic business phrase as a company or prospect name. Research only an explicitly named organization, person, or market.",
