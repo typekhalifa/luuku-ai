@@ -4,28 +4,25 @@ import { getHighestPriorityTask } from "./priorities";
 export async function generateRecommendations(): Promise<string[]> {
     const recommendations: string[] = [];
     const highest = getHighestPriorityTask();
+    const insights = await buildExecutiveInsights();
 
     if (highest) {
         const dueDate = new Date(highest.dueDate);
         const overdue = !Number.isNaN(dueDate.getTime()) && dueDate < new Date();
+        const taskText = `${highest.title} ${highest.description}`;
 
-        if (/follow[\s-]?up/i.test(`${highest.title} ${highest.description}`)) {
+        if (/follow[\s-]?up/i.test(taskText)) {
+            // A concrete pending business task is the executive priority.
+            // Do not let generic CRM housekeeping compete with it.
             recommendations.push(
-                `${overdue ? "Primary action" : "Next action"}: have the Sales Agent follow up with ${highest.business} by email. If the CRM contact is missing or lacks a verified email, enrich the contact first; do not send until CRM validation passes.`,
+                `${overdue ? "Primary action" : "Next action"}: send the follow-up email to ${highest.business} using the Sales Agent. Validate the CRM contact before sending; if the contact is missing or lacks a verified email, enrich it first.`,
             );
         } else {
             recommendations.push(
                 `${overdue ? "Follow up now" : "Handle next"} with ${highest.business}: ${highest.title}.`,
             );
         }
-    }
-
-    const insights = await buildExecutiveInsights();
-
-    // A concrete pending task takes precedence over generic CRM housekeeping.
-    // The executive should clear the business action first, then return to the
-    // broader activity queue.
-    if (insights.overdueActivities > 0 && !highest) {
+    } else if (insights.overdueActivities > 0) {
         recommendations.push(
             "Prioritize the overdue CRM activities before creating new CRM work.",
         );
@@ -35,7 +32,7 @@ export async function generateRecommendations(): Promise<string[]> {
         );
     }
 
-    if (insights.messages.some((message: string) => message.includes("No active"))) {
+    if (!highest && insights.messages.some((message: string) => message.includes("No active"))) {
         recommendations.push(
             "Assign work to an available agent.",
         );
