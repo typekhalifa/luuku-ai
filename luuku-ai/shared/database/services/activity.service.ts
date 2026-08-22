@@ -24,6 +24,36 @@ export class ActivityService {
 
     }
 
+    async getIncompleteActivities(
+
+        limit?: number
+
+    ): Promise<Activity[]> {
+
+        return activityRepository.findIncomplete(limit);
+
+    }
+
+    async markPrioritized(
+
+        activity: Activity,
+        actor = "Lex Executive AI"
+
+    ): Promise<Activity> {
+
+        const marker = `[LEX PRIORITY: HIGH] ${actor}`;
+        const description = activity.description.startsWith(marker)
+            ? activity.description
+            : `${marker}\n${activity.description}`;
+
+        return activityRepository.updateOutcome(
+            activity.id,
+            "Prioritized for follow-up by Lex Executive AI",
+            description
+        );
+
+    }
+
     async createActivity(
 
         activity: Activity
