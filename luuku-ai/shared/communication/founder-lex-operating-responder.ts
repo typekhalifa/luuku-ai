@@ -10,6 +10,7 @@ import { prismaCommunicationService } from "./prisma-communication-service";
 import { communicationRouter } from "./router";
 import {
     LEX_RESPONSE_SCHEMA,
+    LexActionContract,
     LexStructuredResponse,
     renderLexDiscordMessages,
 } from "./lex-response";
@@ -22,6 +23,7 @@ export interface LexProposedAction {
     priority: "low" | "medium" | "high";
     requiresFounderApproval: true;
     proposedAt: string;
+    contract: LexActionContract;
 }
 
 function normalizeMessage(message: string): string {
@@ -66,6 +68,15 @@ function buildControlledTestProposal(): LexProposedAction | null {
     const agentId = salesAgentId();
     if (!testEmail || !testCompany || !agentId) return null;
 
+    const contract: LexActionContract = {
+        enabled: true,
+        agent_id: agentId,
+        operation: "email.send",
+        target: testEmail,
+        priority: "medium",
+        approval_required: true,
+    };
+
     const title = `Send controlled test email to ${testEmail}`;
     return {
         id: `lex-action:${randomUUID()}`,
@@ -75,11 +86,15 @@ function buildControlledTestProposal(): LexProposedAction | null {
             `TEST_CONTACT_COMPANY: ${testCompany}`,
             `CONTACT_EMAIL: ${testEmail}`,
             "CONTROLLED_TEST_EMAIL=true",
+            `ACTION_OPERATION=${contract.operation}`,
+            `ACTION_TARGET=${contract.target}`,
+            "ACTION_APPROVAL_REQUIRED=true",
         ].join("\n"),
         agentId,
-        priority: "medium",
+        priority: contract.priority,
         requiresFounderApproval: true,
         proposedAt: new Date().toISOString(),
+        contract,
     };
 }
 
@@ -92,40 +107,75 @@ function inferProposedAction(
     }
 
     if (response.type !== "recommendation" && response.type !== "decision") return null;
-    if (response.actions.length === 0) return null;
+    if (!response.action_contract.enabled || !response.action_contract.approval_required) return null;
 
+    const contract = response.action_contract;
     const agents = getAgents();
-    for (const action of response.actions) {
-        const normalized = action.toLowerCase();
-        const target = agents.find(agent => normalized.includes(agent.id.toLowerCase()) || normalized.includes(agent.name.toLowerCase()));
-        if (!target) continue;
-        const priority: LexProposedAction["priority"] = /urgent|immediately|critical|highest priority|asap/i.test(action)
-            ? "high"
-            : /low priority|when convenient/i.test(action) ? "low" : "medium";
-        return {
-            id: `lex-action:${randomUUID()}`,
-            title: action,
-            description: action,
-            agentId: target.id,
-            priority,
-            requiresFounderApproval: true,
-            proposedAt: new Date().toISOString(),
-        };
-    }
-    return null;
+    const targetAgent = agents.find(agent => agent.id === contract.agent_id)
+        ?? agents.find(agent => agent.name.toLowerCase() === contract.agent_id.toLowerCase());
+
+    if (!targetAgent) return null;
+
+    const actionText = response.actions[0]?.trim() || response.summary.trim() || `Execute ${contract.operation} for ${contract.target}`;
+    const priority = contract.priority;
+    const normalizedContract: LexActionContract = {
+        ...contract,
+        agent_id: targetAgent.id,
+        approval_required: true,
+    };
+
+    return {
+        id: `lex-action:${randomUUID()}`,
+        title: actionText,
+        description: [
+            actionText,
+            `ACTION_AGENT=${targetAgent.id}`,
+            `ACTION_OPERATION=${normalizedContract.operation}`,
+            `ACTION_TARGET=${normalizedContract.target}`,
+            `ACTION_PRIORITY=${priority}`,
+            "ACTION_APPROVAL_REQUIRED=true",
+        ].join("\n"),
+        agentId: targetAgent.id,
+        priority,
+        requiresFounderApproval: true,
+        proposedAt: new Date().toISOString(),
+        contract: normalizedContract,
+    };
 }
 
 function findLatestPendingAction(messages: CommunicationMessage[]): LexProposedAction | null {
     const approvalIndex = messages.length - 1;
     if (messages[approvalIndex]?.direction !== "inbound") return null;
+
     for (let index = approvalIndex - 1; index >= 0; index -= 1) {
         const message = messages[index];
         if (message.direction === "inbound") return null;
         const candidate = message.metadata?.proposedAction;
         if (!candidate || typeof candidate !== "object") continue;
+
         const action = candidate as Partial<LexProposedAction>;
         if (typeof action.id !== "string" || typeof action.title !== "string" || typeof action.description !== "string" || typeof action.agentId !== "string" || typeof action.proposedAt !== "string") continue;
         if (action.priority !== "low" && action.priority !== "medium" && action.priority !== "high") continue;
+
+        const contractCandidate = action.contract;
+        const contract: LexActionContract = contractCandidate && typeof contractCandidate === "object"
+            ? {
+                enabled: contractCandidate.enabled === true,
+                agent_id: typeof contractCandidate.agent_id === "string" ? contractCandidate.agent_id : action.agentId,
+                operation: typeof contractCandidate.operation === "string" ? contractCandidate.operation : "agent.execute",
+                target: typeof contractCandidate.target === "string" ? contractCandidate.target : action.title,
+                priority: contractCandidate.priority === "low" || contractCandidate.priority === "high" ? contractCandidate.priority : action.priority,
+                approval_required: contractCandidate.approval_required !== false,
+            }
+            : {
+                enabled: true,
+                agent_id: action.agentId,
+                operation: "agent.execute",
+                target: action.title,
+                priority: action.priority,
+                approval_required: true,
+            };
+
         return {
             id: action.id,
             title: action.title,
@@ -134,6 +184,7 @@ function findLatestPendingAction(messages: CommunicationMessage[]): LexProposedA
             priority: action.priority,
             requiresFounderApproval: true,
             proposedAt: action.proposedAt,
+            contract,
         };
     }
     return null;
@@ -145,18 +196,29 @@ function hasCompletedAction(messages: CommunicationMessage[], actionId: string):
 
 function renderActionResult(action: LexProposedAction, result: Awaited<ReturnType<typeof runAgent>>, guardBlockers: string[] = []): string {
     if (guardBlockers.length > 0) {
-        return ["🛑 **Action Blocked**", "", `**${action.title}**`, "", ...guardBlockers.map(blocker => `• ${blocker}`), "", "No agent was dispatched."].join("\n");
+        return [
+            "🛑 **I couldn’t execute that.**",
+            "",
+            ...guardBlockers.map(blocker => `• ${blocker}`),
+            "",
+            "Nothing was dispatched.",
+        ].join("\n");
     }
+
+    if (!result.success) {
+        return [
+            "⚠️ **I hit a blocker.**",
+            "",
+            result.summary,
+            ...(result.blockers?.length ? ["", ...result.blockers.map(blocker => `• ${blocker}`)] : []),
+        ].join("\n");
+    }
+
     return [
-        `${result.success ? "✅" : "⚠️"} **Action ${result.success ? "Completed" : "Failed"}**`,
-        "",
-        `**${action.title}**`,
-        "",
-        `**Agent** • ${action.agentId}`,
-        `**Status** • ${result.executionStatus ?? (result.success ? "completed" : "failed")}`,
+        "✅ **Done.**",
         "",
         result.summary,
-        ...(result.evidence ? ["", `**Evidence** • ${result.evidence.reference}`] : []),
+        ...(result.evidence ? ["", `Verified: ${result.evidence.reference}`] : []),
     ].join("\n");
 }
 
@@ -173,20 +235,25 @@ export class FounderLexOperatingResponder {
 
         if (isFounderApproval(message.content)) {
             const action = findLatestPendingAction(conversation.messages);
-            if (!action) return this.sendResponse(message, "💬 **No Pending Action**\n\nI don’t have a current executable proposal in this conversation. Ask me what I recommend, then approve that specific proposal.", "action_request_missing");
-            if (hasCompletedAction(conversation.messages, action.id)) return this.sendResponse(message, "ℹ️ **Already Completed**\n\nThat approved action has already been executed. I won’t run it twice.", "action_already_completed");
+            if (!action) return this.sendResponse(message, "💬 **No pending action.**\n\nGive me a recommendation first, then approve that specific move.", "action_request_missing");
+            if (hasCompletedAction(conversation.messages, action.id)) return this.sendResponse(message, "ℹ️ **Already done.**\n\nThat action has already been executed, so I won’t run it twice.", "action_already_completed");
 
             const guard = guardExecutiveDecision(`${action.title}\n${action.description}`);
             if (!guard.allowed) {
                 return this.sendResponse(message, renderActionResult(action, {
                     success: false,
-                    summary: "Execution was blocked by the executive capability guard.",
+                    summary: "The executive capability guard stopped this action before dispatch.",
                     completedAt: new Date().toISOString(),
                     executionStatus: "blocked",
                     executed: false,
                     verified: false,
                     blockers: guard.blockers,
-                }, guard.blockers), "action_blocked", { actionId: action.id, actionExecution: "blocked", blockers: guard.blockers });
+                }, guard.blockers), "action_blocked", {
+                    actionId: action.id,
+                    actionExecution: "blocked",
+                    blockers: guard.blockers,
+                    actionContract: action.contract,
+                });
             }
 
             const result = await runAgent(action.agentId, {
@@ -195,12 +262,25 @@ export class FounderLexOperatingResponder {
                 description: action.description,
                 priority: action.priority,
             });
+
             return this.sendResponse(message, renderActionResult(action, result), "action_executed", {
                 actionId: action.id,
                 actionExecution: result.success ? "completed" : "failed",
                 actionAgentId: action.agentId,
                 actionStatus: result.executionStatus ?? (result.success ? "completed" : "failed"),
                 actionVerified: result.verified ?? false,
+                actionContract: action.contract,
+                actionReceipt: {
+                    success: result.success,
+                    summary: result.summary,
+                    executionStatus: result.executionStatus ?? (result.success ? "completed" : "failed"),
+                    executed: result.executed ?? false,
+                    verified: result.verified ?? false,
+                    evidence: result.evidence ?? null,
+                    verificationNotes: result.verificationNotes ?? [],
+                    blockers: result.blockers ?? [],
+                    completedAt: result.completedAt,
+                },
             });
         }
 
@@ -213,14 +293,13 @@ export class FounderLexOperatingResponder {
 
         if (controlledTestProposal) {
             const response = [
-                "🎯 **Controlled Test Email Ready**",
+                "🎯 **Controlled test ready.**",
                 "",
-                `I’ve prepared the controlled test email for **${process.env.LUUKU_TEST_CONTACT_EMAIL}** at **${process.env.LUUKU_TEST_CONTACT_COMPANY}**.`,
+                `I’ve prepared the test email for **${process.env.LUUKU_TEST_CONTACT_EMAIL}** at **${process.env.LUUKU_TEST_CONTACT_COMPANY}**.`,
                 "",
-                "Nothing has been sent yet. Explicit founder approval is required.",
+                "Nothing has been sent yet. I’ll only execute it after your approval.",
                 "",
-                "**Next move**",
-                "1. Approve with `Do it`",
+                "Say `Do it` when you’re ready.",
             ].join("\n");
             return this.sendResponse(message, response, "recommendation", { proposedAction: controlledTestProposal });
         }
@@ -240,9 +319,14 @@ export class FounderLexOperatingResponder {
                 "If an action is proposed, make the approval boundary obvious. Founder approval is required before execution.",
                 "Sound like a real executive teammate. Use structure only when it improves clarity.",
                 "Actions may only be proposed in recommendation or decision responses.",
-                "When recommending an operational action, name the responsible registered agent and concrete operation when possible.",
+                "Every executable recommendation MUST include action_contract.enabled=true, approval_required=true, the exact registered agent id, a concrete operation, a concrete target, and a priority.",
+                "If you cannot identify a safe concrete executable action, set action_contract.enabled=false and do not pretend an action is executable.",
+                "Use concise operation names such as crm.follow_up, crm.update, email.send, research.enrich, or agent.execute. Do not invent capabilities that are not present in the company snapshot.",
+                "The action_contract is the machine execution contract. The actions array is human-readable context only.",
+                "For an action that would contact an external person, the target must be an explicitly identified CRM recipient and execution remains subject to the capability guard.",
                 "Never treat a sentence, recommendation, task description, or generic business phrase as a company or prospect name. Research only an explicitly named organization, person, or market.",
                 "CONTROLLED TEST EMAIL: Explicit controlled test requests are handled by the operating layer and must target only the configured test contact.",
+                "For non-action responses, set action_contract.enabled=false, approval_required=false, agent_id='', operation='', target='', and use priority='low'.",
                 "Choose one response type: company_update, analysis, recommendation, decision, question, casual.",
                 "Presentation: title short and human; summary normally 1-3 concise sentences; use sections only when useful; actions ordered by priority; closing_question only when useful; do not put Markdown/emojis/numbering inside fields.",
                 `FOUNDER MESSAGE:\n${message.content}`,
@@ -262,9 +346,11 @@ export class FounderLexOperatingResponder {
     private async sendResponse(message: CommunicationMessage, response: string | string[], responseType: string, extraMetadata: Record<string, unknown> = {}) {
         const responseMessages = Array.isArray(response) ? response : [response];
         const idempotencyBase = `founder-lex-operating-response:${message.id}`;
+
         for (let index = 0; index < responseMessages.length; index += 1) {
             const content = responseMessages[index].trim();
             if (!content) continue;
+
             const partMetadata = {
                 audience: "internal",
                 executionMode: "live",
@@ -278,17 +364,40 @@ export class FounderLexOperatingResponder {
                 responseParts: responseMessages.length,
                 ...(index === 0 ? extraMetadata : {}),
             };
-            const execution = await communicationRouter.execute({ capability: "discord.send", channel: "discord", target: "founder", body: content, metadata: partMetadata });
-            if (!execution.executed || !execution.verified) throw new Error(`LEX Discord response part ${index + 1} was not verified: ${execution.summary}`);
+
+            const execution = await communicationRouter.execute({
+                capability: "discord.send",
+                channel: "discord",
+                target: "founder",
+                body: content,
+                metadata: partMetadata,
+            });
+
+            if (!execution.executed || !execution.verified) {
+                throw new Error(`LEX Discord response part ${index + 1} was not verified: ${execution.summary}`);
+            }
+
             await prismaCommunicationService.sendMessage({
                 conversationId: message.conversationId,
                 channel: "discord",
                 recipient: { channel: "discord", displayName: "Founder" },
                 content,
-                metadata: { ...partMetadata, executionStatus: execution.status, verified: execution.verified, responseId: randomUUID() },
+                metadata: {
+                    ...partMetadata,
+                    executionStatus: execution.status,
+                    verified: execution.verified,
+                    responseId: randomUUID(),
+                },
             });
         }
-        return { response: responseMessages.filter(Boolean).join("\n\n"), executionStatus: "verified", executed: true, verified: true, conversationId: message.conversationId };
+
+        return {
+            response: responseMessages.filter(Boolean).join("\n\n"),
+            executionStatus: "verified",
+            executed: true,
+            verified: true,
+            conversationId: message.conversationId,
+        };
     }
 }
 
