@@ -84,7 +84,7 @@ async function executeOverdueCrmPrioritization(
     console.log("========================================");
     console.log("");
 
-    const before = await activityService.getIncompleteActivities();
+    const before = await activityService.getOverdueActivities();
 
     if (before.length === 0) {
         return {
@@ -94,58 +94,78 @@ async function executeOverdueCrmPrioritization(
             executionStatus: "completed",
             executed: true,
             verified: true,
-            verificationNotes: ["PostgreSQL returned zero incomplete CRM activities."]
+            verificationNotes: [
+                "PostgreSQL returned zero incomplete activities with a dueAt timestamp in the past."
+            ]
         };
     }
 
     // Put the known Rwanda Revenue Authority follow-up first when it exists,
-    // then use oldest-first ordering so the operation is deterministic.
+    // then use oldest due date first so the operation is deterministic.
     const ranked = [...before].sort((a, b) => {
         const aRra = /rwanda revenue authority|rra/i.test(`${a.title} ${a.description}`) ? 0 : 1;
         const bRra = /rwanda revenue authority|rra/i.test(`${b.title} ${b.description}`) ? 0 : 1;
         if (aRra !== bRra) return aRra - bRra;
-        return a.createdAt.localeCompare(b.createdAt);
+
+        return (a.dueAt ?? a.createdAt).localeCompare(
+            b.dueAt ?? b.createdAt
+        );
     });
 
     const selected = ranked.slice(0, limit);
+
     const updated = [] as typeof selected;
 
     for (const activity of selected) {
-        updated.push(await activityService.markPrioritized(activity));
+        updated.push(
+            await activityService.markPrioritized(activity)
+        );
     }
 
-    const after = await activityService.getIncompleteActivities();
-    const selectedIds = new Set(selected.map(activity => activity.id));
-    const verifiedIds = new Set(after.map(activity => activity.id));
-    const allPersisted = updated.every(activity =>
-        activity.outcome === "Prioritized for follow-up by Lex Executive AI" &&
-        activity.description.includes("[LEX PRIORITY: HIGH]")
-    );
+    // Re-read the exact records that were mutated. Prioritization is NOT
+    // completion: the activities must remain open and therefore remain overdue.
+    const verifiedRecords =
+        await activityService.getActivitiesByIds(
+            selected.map(activity => activity.id)
+        );
 
     const verificationPassed =
-        allPersisted &&
-        updated.every(activity => !verifiedIds.has(activity.id)) === false;
+        verifiedRecords.length === selected.length &&
+        selected.every(selectedActivity => {
+            const persisted = verifiedRecords.find(
+                activity => activity.id === selectedActivity.id
+            );
 
-    console.log(`Activities before : ${before.length}`);
+            return Boolean(
+                persisted &&
+                !persisted.completed &&
+                persisted.outcome === "Prioritized for follow-up by Lex Executive AI" &&
+                persisted.description.includes("[LEX PRIORITY: HIGH]")
+            );
+        });
+
+    const after = await activityService.getOverdueActivities();
+
+    console.log(`Overdue before   : ${before.length}`);
     console.log(`Activities selected: ${selected.length}`);
-    console.log(`Activities after  : ${after.length}`);
-    console.log(`Database mutation : ${allPersisted ? "PASSED" : "FAILED"}`);
-    console.log(`Verification      : ${verificationPassed ? "PASSED" : "FAILED"}`);
+    console.log(`Overdue after    : ${after.length}`);
+    console.log(`Database mutation: ${verificationPassed ? "PASSED" : "FAILED"}`);
+    console.log(`Verification     : ${verificationPassed ? "PASSED" : "FAILED"}`);
 
-    if (!allPersisted || !verificationPassed) {
+    if (!verificationPassed) {
         return {
             success: false,
-            summary: "CRM prioritization did not pass database verification. No communication was sent.",
+            summary: "CRM prioritization did not pass exact database verification. No communication was sent.",
             completedAt: new Date().toISOString(),
             executionStatus: "failed",
             executed: updated.length > 0,
             verified: false,
             verificationNotes: [
                 `Selected ${selected.length} overdue activities.`,
-                `Verified ${updated.filter(activity => activity.outcome === "Prioritized for follow-up by Lex Executive AI").length} persisted outcomes.`,
-                `PostgreSQL currently reports ${after.length} incomplete activities.`,
+                `Re-read ${verifiedRecords.length} selected activity records from PostgreSQL.`,
+                "Every selected record must remain incomplete and contain the Lex priority outcome and marker."
             ],
-            blockers: ["CRM mutation verification failed."]
+            blockers: ["Exact CRM mutation verification failed."]
         };
     }
 
@@ -156,15 +176,15 @@ async function executeOverdueCrmPrioritization(
 
     return {
         success: true,
-        summary: `Prioritized ${selected.length} overdue CRM activities in PostgreSQL. ${before.length} overdue activities remain. ${names ? `Examples: ${names}.` : ""}`.trim(),
+        summary: `Prioritized ${selected.length} overdue CRM activities in PostgreSQL. ${after.length} overdue activities remain open for follow-up.${names ? ` Examples: ${names}.` : ""}`,
         completedAt: new Date().toISOString(),
         executionStatus: "completed",
         executed: true,
         verified: true,
         verificationNotes: [
             `PostgreSQL mutation verified for ${selected.length} selected activity records.`,
-            `Selected activity IDs remain incomplete, so no activity was falsely marked completed.`,
-            `${after.length} incomplete CRM activities remain after prioritization.`
+            "Selected activities remain incomplete; prioritization did not falsely mark work as completed.",
+            `${after.length} activities remain overdue after prioritization.`
         ],
         evidence: {
             reference: `crm-prioritize:${selected.map(activity => activity.id).join(",")}`
