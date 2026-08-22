@@ -78,7 +78,8 @@ model Activity {
   description String
   outcome     String?
   createdBy   String
-  completed Boolean @default(false)
+  completed   Boolean      @default(false)
+  dueAt       DateTime?
   createdAt   DateTime     @default(now())
   company     Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
   contact     Contact?     @relation(fields: [contactId], references: [id])
@@ -87,6 +88,7 @@ model Activity {
   @@index([companyId])
   @@index([contactId])
   @@index([dealId])
+  @@index([dueAt])
 }
 
 model CommunicationConversation {
