@@ -8,6 +8,11 @@ export interface AgentTask {
     title: string;
     description: string;
     priority: "low" | "medium" | "high";
+    /**
+     * Optional machine-readable execution context. Existing agents can
+     * ignore it; newer agents can use it instead of parsing prose.
+     */
+    metadata?: Record<string, unknown>;
 }
 
 export interface AgentResult {
