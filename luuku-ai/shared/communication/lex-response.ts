@@ -13,12 +13,8 @@ export const LEX_RESPONSE_SCHEMA = {
                 "casual",
             ],
         },
-        title: {
-            type: "string",
-        },
-        summary: {
-            type: "string",
-        },
+        title: { type: "string" },
+        summary: { type: "string" },
         sections: {
             type: "array",
             items: {
@@ -38,9 +34,7 @@ export const LEX_RESPONSE_SCHEMA = {
             type: "array",
             items: { type: "string" },
         },
-        closing_question: {
-            type: "string",
-        },
+        closing_question: { type: "string" },
     },
     required: [
         "type",
@@ -74,15 +68,6 @@ export interface LexStructuredResponse {
     closing_question: string;
 }
 
-const TYPE_ICON: Record<LexResponseType, string> = {
-    company_update: "📊",
-    analysis: "🧠",
-    recommendation: "🎯",
-    decision: "⚡",
-    question: "💬",
-    casual: "👋",
-};
-
 function clean(value: string): string {
     return value.trim();
 }
@@ -91,9 +76,7 @@ function renderSection(section: LexResponseSection): string[] {
     const lines: string[] = [];
     const heading = clean(section.heading);
 
-    if (heading) {
-        lines.push(`**${heading}**`);
-    }
+    if (heading) lines.push(`**${heading}**`);
 
     for (const bullet of section.bullets) {
         const value = clean(bullet);
@@ -141,40 +124,47 @@ function pushChunk(chunks: string[], value: string): void {
     if (current.trim()) chunks.push(current.trim());
 }
 
+/**
+ * Render LEX like an executive partner rather than a status dashboard.
+ * The structured response remains machine-friendly; presentation stays human.
+ */
 export function renderLexDiscordMessages(
     response: LexStructuredResponse,
 ): string[] {
     const chunks: string[] = [];
-    const icon = TYPE_ICON[response.type];
     const title = clean(response.title);
     const summary = clean(response.summary);
 
+    // Casual conversation should feel like conversation, not a report card.
     if (response.type === "casual") {
-        const opening = [
-            title ? `${icon} **${title}**` : "",
-            summary,
-        ]
+        pushChunk(chunks, [summary, clean(response.closing_question)]
             .filter(Boolean)
-            .join("\n\n");
-
-        pushChunk(chunks, opening);
-
-        if (response.closing_question.trim()) {
-            pushChunk(chunks, `💬 ${clean(response.closing_question)}`);
-        }
-
-        return chunks;
+            .join("\n\n"));
+        return chunks.length > 0
+            ? chunks
+            : ["I’m here. What are we working on?"];
     }
 
-    pushChunk(
-        chunks,
-        [
-            `${icon} **${title || "LEX"}**`,
-            summary,
-        ]
+    // Questions should answer first and avoid unnecessary dashboard framing.
+    if (response.type === "question") {
+        pushChunk(chunks, [summary, clean(response.closing_question)]
             .filter(Boolean)
-            .join("\n\n"),
-    );
+            .join("\n\n"));
+        return chunks.length > 0
+            ? chunks
+            : ["What would you like me to look at?"];
+    }
+
+    // For operational recommendations/decisions, lead with the human summary.
+    // This keeps LEX concise while still preserving the structured details below.
+    const opening = [
+        title ? `**${title}**` : "",
+        summary,
+    ]
+        .filter(Boolean)
+        .join("\n\n");
+
+    pushChunk(chunks, opening || "Here’s what I found.");
 
     for (const section of response.sections) {
         const rendered = renderSection(section);
@@ -191,16 +181,21 @@ export function renderLexDiscordMessages(
             .filter(Boolean);
 
         if (actionLines.length > 0) {
-            pushChunk(chunks, ["**Next moves**", ...actionLines].join("\n"));
+            const heading = response.type === "recommendation"
+                ? "**What I recommend**"
+                : response.type === "decision"
+                    ? "**Decision**"
+                    : "**Next moves**";
+            pushChunk(chunks, [heading, ...actionLines].join("\n"));
         }
     }
 
     const closingQuestion = clean(response.closing_question);
-    if (closingQuestion) {
-        pushChunk(chunks, `💬 ${closingQuestion}`);
-    }
+    if (closingQuestion) pushChunk(chunks, closingQuestion);
 
-    return chunks.length > 0 ? chunks : ["LEX is here. What would you like to work on?"];
+    return chunks.length > 0
+        ? chunks
+        : ["I’m here. What would you like me to work on?"];
 }
 
 export function renderLexDiscordResponse(
