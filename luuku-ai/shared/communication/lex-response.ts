@@ -13,8 +13,8 @@ export const LEX_RESPONSE_SCHEMA = {
                 "casual",
             ],
         },
-        title: { type: "string", maxLength: 80 },
-        summary: { type: "string", maxLength: 700 },
+        title: { type: "string", maxLength: 70 },
+        summary: { type: "string", maxLength: 600 },
         sections: {
             type: "array",
             maxItems: 1,
@@ -22,11 +22,11 @@ export const LEX_RESPONSE_SCHEMA = {
                 type: "object",
                 additionalProperties: false,
                 properties: {
-                    heading: { type: "string", maxLength: 60 },
+                    heading: { type: "string", maxLength: 50 },
                     bullets: {
                         type: "array",
                         maxItems: 4,
-                        items: { type: "string", maxLength: 240 },
+                        items: { type: "string", maxLength: 220 },
                     },
                 },
                 required: ["heading", "bullets"],
@@ -35,9 +35,9 @@ export const LEX_RESPONSE_SCHEMA = {
         actions: {
             type: "array",
             maxItems: 3,
-            items: { type: "string", maxLength: 240 },
+            items: { type: "string", maxLength: 220 },
         },
-        closing_question: { type: "string", maxLength: 180 },
+        closing_question: { type: "string", maxLength: 160 },
     },
     required: [
         "type",
@@ -75,11 +75,11 @@ function clean(value: string): string {
     return value.trim();
 }
 
-function renderSection(section: LexResponseSection): string[] {
+function renderSection(section: LexResponseSection, includeHeading = true): string[] {
     const lines: string[] = [];
     const heading = clean(section.heading);
 
-    if (heading) lines.push(`**${heading}**`);
+    if (includeHeading && heading) lines.push(`**${heading}**`);
 
     for (const bullet of section.bullets) {
         const value = clean(bullet);
@@ -156,19 +156,69 @@ export function renderLexDiscordMessages(
             : ["What would you like me to look at?"];
     }
 
-    // Keep the first message conversational: one clear thought, not a report header.
+    // Recommendations should feel like a conversation, not a generated report.
+    // Actions remain machine-readable for approval/execution, but are intentionally
+    // not echoed as a numbered checklist to the founder.
+    if (response.type === "recommendation") {
+        pushChunk(chunks, summary || title || "Here’s my take.");
+
+        const usefulBullets = response.sections
+            .flatMap(section => section.bullets.map(clean))
+            .filter(Boolean)
+            .slice(0, 2);
+
+        if (usefulBullets.length > 0) {
+            pushChunk(chunks, usefulBullets.map(value => `• ${value}`).join("\n"));
+        }
+
+        if (response.actions.length > 0) {
+            pushChunk(chunks, "If you’re good with that, I’ll take it from here.");
+        } else if (clean(response.closing_question)) {
+            pushChunk(chunks, clean(response.closing_question));
+        }
+
+        return chunks.length > 0
+            ? chunks
+            : ["I’m here. What would you like me to work on?"];
+    }
+
+    // Decisions can still be structured, but keep the founder-facing language tight.
+    if (response.type === "decision") {
+        pushChunk(chunks, [title ? `**${title}**` : "", summary]
+            .filter(Boolean)
+            .join("\n\n") || "Here’s the call I’d make.");
+
+        const usefulBullets = response.sections
+            .flatMap(section => section.bullets.map(clean))
+            .filter(Boolean)
+            .slice(0, 2);
+
+        if (usefulBullets.length > 0) {
+            pushChunk(chunks, usefulBullets.map(value => `• ${value}`).join("\n"));
+        }
+
+        if (response.actions.length > 0) {
+            pushChunk(chunks, "If you’re good with that, I’ll take it from here.");
+        } else if (clean(response.closing_question)) {
+            pushChunk(chunks, clean(response.closing_question));
+        }
+
+        return chunks.length > 0
+            ? chunks
+            : ["I’m here. What would you like me to work on?"];
+    }
+
+    // Company updates and analysis benefit from a little more structure.
     pushChunk(chunks, [title ? `**${title}**` : "", summary]
         .filter(Boolean)
         .join("\n\n") || "Here’s what I found.");
 
-    // Keep operational answers intentionally small. The schema already limits the
-    // model to one section; this second guard keeps rendering resilient to callers.
     const usefulSections = response.sections
         .filter(section => section.bullets.some(Boolean))
         .slice(0, 1);
 
     for (const section of usefulSections) {
-        const rendered = renderSection(section);
+        const rendered = renderSection(section, true);
         if (rendered.length === 0) continue;
         pushChunk(chunks, rendered.join("\n"));
     }
@@ -183,12 +233,7 @@ export function renderLexDiscordMessages(
             .filter(Boolean);
 
         if (actionLines.length > 0) {
-            const heading = response.type === "recommendation"
-                ? "**My recommendation**"
-                : response.type === "decision"
-                    ? "**Decision**"
-                    : "**Next moves**";
-            pushChunk(chunks, [heading, ...actionLines].join("\n"));
+            pushChunk(chunks, ["**Next moves**", ...actionLines].join("\n"));
         }
     }
 
