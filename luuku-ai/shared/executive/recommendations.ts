@@ -13,9 +13,13 @@ export async function generateRecommendations(): Promise<string[]> {
 
     const insights = await buildExecutiveInsights();
 
-    if (insights.messages.some((message: string) => message.includes("overdue"))) {
+    if (insights.overdueActivities > 0) {
         recommendations.push(
-            "Resolve overdue tasks before creating new work.",
+            "Prioritize the overdue CRM activities before creating new CRM work.",
+        );
+    } else if (insights.openActivities > 0) {
+        recommendations.push(
+            "Work through the open CRM follow-up queue; no CRM activity is currently overdue.",
         );
     }
 
