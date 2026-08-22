@@ -6,14 +6,21 @@ export async function generateRecommendations(): Promise<string[]> {
     const highest = getHighestPriorityTask();
 
     if (highest) {
+        const dueDate = new Date(highest.dueDate);
+        const overdue = !Number.isNaN(dueDate.getTime()) && dueDate < new Date();
+        const action = overdue ? "Follow up now" : "Handle next";
+
         recommendations.push(
-            `Prioritize "${highest.title}" for ${highest.business}.`,
+            `${action} with ${highest.business}: ${highest.title}.`,
         );
     }
 
     const insights = await buildExecutiveInsights();
 
-    if (insights.overdueActivities > 0) {
+    // A concrete pending task takes precedence over generic CRM housekeeping.
+    // The executive should clear the business action first, then return to the
+    // broader activity queue.
+    if (insights.overdueActivities > 0 && !highest) {
         recommendations.push(
             "Prioritize the overdue CRM activities before creating new CRM work.",
         );
