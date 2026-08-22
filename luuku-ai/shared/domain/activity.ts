@@ -27,6 +27,8 @@ export interface Activity {
 
     completed: boolean;
 
+    dueAt?: string;
+
     createdAt: string;
 
 }
