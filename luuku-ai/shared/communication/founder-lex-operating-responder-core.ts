@@ -57,6 +57,9 @@ function recentConversation(messages: CommunicationMessage[]): string {
 }
 
 function isControlledTestEmailRequest(message: string): boolean {
+    if (process.env.LUUKU_FORCE_CONTROLLED_EMAIL_TEST === "true") {
+        return true;
+    }
     return /\b(?:send|email|test)\b[^\n]{0,120}\b(?:test email|email system|communication system|controlled test)\b|\bcontrolled test email\b|\btest follow-up email\b|\bautonomous (?:email|communication) system\b/i.test(message);
 }
 
