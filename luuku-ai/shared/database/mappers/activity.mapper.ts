@@ -32,6 +32,9 @@ export class ActivityMapper {
 
             completed: activity.completed,
 
+            dueAt:
+                activity.dueAt?.toISOString(),
+
             createdAt:
                 activity.createdAt.toISOString()
 
@@ -68,7 +71,10 @@ export class ActivityMapper {
                 activity.createdBy,
 
             completed:
-                activity.completed
+                activity.completed,
+
+            dueAt:
+                activity.dueAt ? new Date(activity.dueAt) : null
 
         };
 
