@@ -62,6 +62,12 @@ function isControlledTestTask(
 function isOverdueCrmPrioritization(
     task: AgentTask
 ): boolean {
+    // An explicit capability contract always wins over prose-based intent
+    // detection. A task approved as email.send must never be swallowed by
+    // the generic overdue-CRM prioritization branch just because its
+    // description mentions an overdue follow-up.
+    if (task.metadata?.operation === "email.send") return false;
+
     const operation = task.metadata?.operation;
     if (operation === "crm.prioritize_overdue") return true;
 
