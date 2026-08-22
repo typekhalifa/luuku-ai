@@ -1,1 +1,1 @@
-// RESTORE REQUEST: fetch c30eaa0 version before final repair.
+// RESTORE BASELINE FROM c30eaa0 IS REQUIRED BEFORE FURTHER CHANGES.
