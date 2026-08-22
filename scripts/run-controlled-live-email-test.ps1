@@ -34,8 +34,10 @@ if (-not $env:LUUKU_TEST_CONTACT_COMPANY) {
     throw "LUUKU_TEST_CONTACT_COMPANY is not set."
 }
 
-# Defense-in-depth: this helper enables live mode only for the controlled test.
-# The Resend adapter independently restricts live delivery to LUUKU_TEST_CONTACT_EMAIL.
+# The operating demo reads LUUKU_EMAIL_DEMO_MODE and then derives EMAIL_MODE.
+# Set the source-of-truth demo mode here so the application cannot silently
+# overwrite this controlled live test back to TEST.
+$env:LUUKU_EMAIL_DEMO_MODE = "live"
 $env:EMAIL_MODE = "live"
 $env:LUUKU_LIVE_EMAIL_CONFIRMATION = "SEND_TO_CONTROLLED_TEST_CONTACT"
 
