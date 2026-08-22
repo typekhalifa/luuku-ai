@@ -81,14 +81,10 @@ function resolveAgentId(contract: LexActionContract): string | undefined {
     });
     if (loose) return loose.id;
 
-    if (/^crm\./i.test(contract.operation) || contract.operation === "email.send") {
-        return salesAgentId();
-    }
-
+    if (/^crm\./i.test(contract.operation) || contract.operation === "email.send") return salesAgentId();
     if (contract.operation === "research.enrich") {
         return agents.find(agent => /research/i.test(`${agent.id} ${agent.name}`))?.id;
     }
-
     return undefined;
 }
 
@@ -219,6 +215,10 @@ function findLatestPendingAction(messages: CommunicationMessage[]): LexProposedA
     return null;
 }
 
+function readPendingAction(conversation: Awaited<ReturnType<typeof prismaCommunicationService.getConversation>>): LexProposedAction | null {
+    return readProposedAction(conversation?.metadata?.pendingLexAction) ?? null;
+}
+
 function hasCompletedAction(messages: CommunicationMessage[], actionId: string): boolean {
     return messages.some(message => message.direction === "outbound"
         && message.metadata?.actionExecution === "completed"
@@ -253,13 +253,23 @@ export class FounderLexOperatingResponder {
         if (!conversation) throw new Error(`Founder conversation ${message.conversationId} could not be loaded.`);
 
         if (isFounderApproval(message.content)) {
-            const action = findLatestPendingAction(conversation.messages);
-            if (!action) return this.sendResponse(message, "💬 **No pending action.**\n\nGive me a recommendation first, then approve that specific move.", "action_request_missing");
-            if (hasCompletedAction(conversation.messages, action.id)) return this.sendResponse(message, "ℹ️ **Already done.**\n\nThat action has already been executed, so I won’t run it twice.", "action_already_completed");
+            const action = readPendingAction(conversation)
+                ?? findLatestPendingAction(conversation.messages);
+
+            if (!action) {
+                return this.sendResponse(message, "💬 **No pending action.**\n\nGive me a recommendation first, then approve that specific move.", "action_request_missing");
+            }
+
+            if (hasCompletedAction(conversation.messages, action.id)) {
+                await prismaCommunicationService.updateConversationMetadata(message.conversationId, {
+                    pendingLexAction: null,
+                });
+                return this.sendResponse(message, "ℹ️ **Already done.**\n\nThat action has already been executed, so I won’t run it twice.", "action_already_completed");
+            }
 
             const guard = guardExecutiveDecision(`${action.title}\n${action.description}`);
             if (!guard.allowed) {
-                return this.sendResponse(message, renderActionResult({
+                const response = await this.sendResponse(message, renderActionResult({
                     success: false,
                     summary: "The executive capability guard stopped this action before dispatch.",
                     completedAt: new Date().toISOString(),
@@ -273,6 +283,8 @@ export class FounderLexOperatingResponder {
                     blockers: guard.blockers,
                     actionContract: action.contract,
                 });
+                await prismaCommunicationService.updateConversationMetadata(message.conversationId, { pendingLexAction: null });
+                return response;
             }
 
             const result = await runAgent(action.agentId, {
@@ -289,7 +301,7 @@ export class FounderLexOperatingResponder {
                 },
             });
 
-            return this.sendResponse(message, renderActionResult(result), "action_executed", {
+            const response = await this.sendResponse(message, renderActionResult(result), "action_executed", {
                 actionId: action.id,
                 actionExecution: result.success && result.executed && result.verified ? "completed" : "failed",
                 actionAgentId: action.agentId,
@@ -308,6 +320,19 @@ export class FounderLexOperatingResponder {
                     completedAt: result.completedAt,
                 },
             });
+
+            await prismaCommunicationService.updateConversationMetadata(message.conversationId, {
+                pendingLexAction: null,
+                lastLexActionReceipt: {
+                    actionId: action.id,
+                    success: result.success,
+                    executed: result.executed ?? false,
+                    verified: result.verified ?? false,
+                    executionStatus: result.executionStatus ?? (result.success ? "completed" : "failed"),
+                },
+            });
+
+            return response;
         }
 
         const casualReply = simpleCasualReply(message.content);
@@ -326,7 +351,11 @@ export class FounderLexOperatingResponder {
                 "",
                 "Say `Do it` when you’re ready.",
             ].join("\n");
-            return this.sendResponse(message, response, "recommendation", { proposedAction: controlledTestProposal });
+            const sent = await this.sendResponse(message, response, "recommendation", { proposedAction: controlledTestProposal });
+            await prismaCommunicationService.updateConversationMetadata(message.conversationId, {
+                pendingLexAction: controlledTestProposal,
+            });
+            return sent;
         }
 
         const context = await buildExecutiveContext();
@@ -372,10 +401,24 @@ export class FounderLexOperatingResponder {
             return this.sendResponse(message, renderLexDiscordMessages(safeResponse), structured.type);
         }
 
-        return this.sendResponse(message, renderLexDiscordMessages(structured), structured.type, proposedAction ? { proposedAction } : undefined);
+        const rendered = renderLexDiscordMessages(structured);
+        const sent = await this.sendResponse(message, rendered, structured.type, proposedAction ? { proposedAction } : undefined);
+
+        if (proposedAction) {
+            await prismaCommunicationService.updateConversationMetadata(message.conversationId, {
+                pendingLexAction: proposedAction,
+            });
+        }
+
+        return sent;
     }
 
-    private async sendResponse(message: CommunicationMessage, response: string | string[], responseType: string, extraMetadata: Record<string, unknown> = {}) {
+    private async sendResponse(
+        message: CommunicationMessage,
+        response: string | string[],
+        responseType: string,
+        extraMetadata: Record<string, unknown> = {},
+    ) {
         const responseMessages = Array.isArray(response) ? response : [response];
         const idempotencyBase = `founder-lex-operating-response:${message.id}`;
 
