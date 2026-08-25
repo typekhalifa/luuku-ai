@@ -198,12 +198,21 @@ export async function executeEmailTask(
     const idempotencyKey =
         `sales-email/${task.id}`;
 
+    const isControlledTest =
+        task.description.includes("CONTROLLED_TEST_EMAIL=true");
+
+    const controlledTestConfirmed =
+        process.env.LUUKU_LIVE_EMAIL_CONFIRMATION ===
+        "SEND_TO_CONTROLLED_TEST_CONTACT";
+
     const executionMode =
-        process.env.EMAIL_MODE === "live"
+        isControlledTest && controlledTestConfirmed
             ? "live"
-            : process.env.EMAIL_MODE === "sandbox"
-                ? "sandbox"
-                : "test";
+            : process.env.EMAIL_MODE === "live"
+                ? "live"
+                : process.env.EMAIL_MODE === "sandbox"
+                    ? "sandbox"
+                    : "test";
 
     console.log("");
     console.log("========================================");
@@ -232,8 +241,9 @@ export async function executeEmailTask(
                     ? "sales-agent-inbound-reply"
                     : "sales-agent",
                 audience: "external",
-                // Only live or sandbox can execute. Normal demo/test mode is
-                // still blocked before any external provider call.
+                // A controlled test may use the real provider only when the
+                // task explicitly marks itself as a controlled test and the
+                // operator has supplied the exact opt-in confirmation phrase.
                 executionMode,
                 crmContactId: contact.id,
                 taskId: task.id,
