@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+﻿import { randomUUID } from "node:crypto";
 
 import { requestAIStructured } from "../ai/client";
 import { buildExecutiveContext } from "../../agents/executive-ai/brain";
@@ -57,10 +57,11 @@ function recentConversation(messages: CommunicationMessage[]): string {
 }
 
 function isControlledTestEmailRequest(message: string): boolean {
-    if (process.env.LUUKU_FORCE_CONTROLLED_EMAIL_TEST === "true") {
-        return true;
-    }
-    return /\b(?:send|email|test)\b[^\n]{0,120}\b(?:test email|email system|communication system|controlled test)\b|\bcontrolled test email\b|\btest follow-up email\b|\bautonomous (?:email|communication) system\b/i.test(message);
+    const normalized = normalizeMessage(message);
+
+    return /^(?:run|start|perform|execute) (?:the )?controlled (?:email )?test(?: now)?$/.test(normalized)
+        || /^(?:send|prepare) (?:a )?controlled test email(?: now)?$/.test(normalized)
+        || /^(?:run|start) (?:the )?email communication test(?: now)?$/.test(normalized);
 }
 
 function salesAgentId(): string | undefined {
@@ -127,6 +128,47 @@ function buildControlledTestProposal(): LexProposedAction | null {
     };
 }
 
+function canonicalActionText(contract: LexActionContract): string {
+    switch (contract.operation) {
+        case "email.send":
+            return `Send an email to ${contract.target}`;
+        case "crm.follow_up":
+            return `Follow up with ${contract.target}`;
+        case "crm.update":
+            return `Update the CRM record for ${contract.target}`;
+        case "crm.prioritize_overdue":
+            return "Prioritize the existing overdue CRM activities";
+        case "research.enrich":
+            return `Enrich the research data for ${contract.target}`;
+        case "agent.execute":
+            return `Execute the assigned agent task for ${contract.target}`;
+        default:
+            return `Execute ${contract.operation} for ${contract.target}`;
+    }
+}
+
+function alignStructuredResponseWithContract(
+    response: LexStructuredResponse,
+): LexStructuredResponse {
+    if (!response.action_contract.enabled || !response.action_contract.approval_required) {
+        return response;
+    }
+
+    const actionText = canonicalActionText(response.action_contract);
+
+    return {
+        ...response,
+        title: actionText.slice(0, 70),
+        summary: actionText,
+        sections: response.sections,
+        actions: [
+            actionText,
+            ...response.actions.filter(action => action.trim() !== actionText),
+        ].slice(0, 3),
+        closing_question: "If you're good with that, I'll take it from here.",
+    };
+}
+
 function inferProposedAction(response: LexStructuredResponse, founderMessage: string): LexProposedAction | null {
     if (isControlledTestEmailRequest(founderMessage)) return buildControlledTestProposal();
     if (response.type !== "recommendation" && response.type !== "decision") return null;
@@ -141,9 +183,7 @@ function inferProposedAction(response: LexStructuredResponse, founderMessage: st
         agent_id: resolvedAgentId,
         approval_required: true,
     };
-    const actionText = response.actions[0]?.trim()
-        || response.summary.trim()
-        || `Execute ${normalizedContract.operation} for ${normalizedContract.target}`;
+    const actionText = canonicalActionText(normalizedContract);
 
     return {
         id: `lex-action:${randomUUID()}`,
@@ -286,7 +326,17 @@ export class FounderLexOperatingResponder {
                     blockers: guard.blockers,
                     actionContract: action.contract,
                 });
-                await prismaCommunicationService.updateConversationMetadata(message.conversationId, { pendingLexAction: null });
+                await prismaCommunicationService.updateConversationMetadata(message.conversationId, {
+                    pendingLexAction: action,
+                    lastLexActionReceipt: {
+                        actionId: action.id,
+                        success: false,
+                        executed: false,
+                        verified: false,
+                        executionStatus: "blocked",
+                        blockers: guard.blockers,
+                    },
+                });
                 return response;
             }
 
@@ -304,9 +354,11 @@ export class FounderLexOperatingResponder {
                 },
             });
 
+            const actionCompleted = result.success && result.executed && result.verified;
+
             const response = await this.sendResponse(message, renderActionResult(result), "action_executed", {
                 actionId: action.id,
-                actionExecution: result.success && result.executed && result.verified ? "completed" : "failed",
+                actionExecution: actionCompleted ? "completed" : "failed",
                 actionAgentId: action.agentId,
                 actionStatus: result.executionStatus ?? (result.success ? "completed" : "failed"),
                 actionVerified: result.verified ?? false,
@@ -325,13 +377,14 @@ export class FounderLexOperatingResponder {
             });
 
             await prismaCommunicationService.updateConversationMetadata(message.conversationId, {
-                pendingLexAction: null,
+                pendingLexAction: actionCompleted ? null : action,
                 lastLexActionReceipt: {
                     actionId: action.id,
                     success: result.success,
                     executed: result.executed ?? false,
                     verified: result.verified ?? false,
                     executionStatus: result.executionStatus ?? (result.success ? "completed" : "failed"),
+                    blockers: result.blockers ?? [],
                 },
             });
 
@@ -388,23 +441,24 @@ export class FounderLexOperatingResponder {
             schema: LEX_RESPONSE_SCHEMA,
         });
 
-        const proposedAction = inferProposedAction(structured, message.content);
-        if ((structured.type === "recommendation" || structured.type === "decision")
-            && structured.action_contract.enabled
-            && structured.action_contract.approval_required
+        const alignedStructured = alignStructuredResponseWithContract(structured);
+        const proposedAction = inferProposedAction(alignedStructured, message.content);
+        if ((alignedStructured.type === "recommendation" || alignedStructured.type === "decision")
+            && alignedStructured.action_contract.enabled
+            && alignedStructured.action_contract.approval_required
             && !proposedAction) {
             const safeResponse: LexStructuredResponse = {
-                ...structured,
+                ...alignedStructured,
                 action_contract: {
-                    ...structured.action_contract,
+                    ...alignedStructured.action_contract,
                     enabled: false,
                     approval_required: false,
                 },
             };
-            return this.sendResponse(message, renderLexDiscordMessages(safeResponse), structured.type);
+            return this.sendResponse(message, renderLexDiscordMessages(safeResponse), alignedStructured.type);
         }
 
-        const rendered = renderLexDiscordMessages(structured);
+        const rendered = renderLexDiscordMessages(alignedStructured);
         const sent = await this.sendResponse(message, rendered, structured.type, proposedAction ? { proposedAction } : undefined);
 
         if (proposedAction) {
