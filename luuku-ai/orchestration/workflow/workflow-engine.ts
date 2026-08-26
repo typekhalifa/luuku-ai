@@ -34,6 +34,11 @@ export class WorkflowEngine {
                 continue;
             }
 
+            if (step.status === "FAILED") {
+                blockedStepIds.push(step.id);
+                continue;
+            }
+
             const dependenciesSatisfied = step.dependsOn.every((id) => completed.has(id));
 
             if (!dependenciesSatisfied) {
@@ -41,12 +46,16 @@ export class WorkflowEngine {
                 continue;
             }
 
-            if (step.requiresApproval && workflow.status !== WorkflowStatus.READY && workflow.status !== WorkflowStatus.RUNNING) {
+            const workflowCanRun =
+                workflow.status === WorkflowStatus.READY ||
+                workflow.status === WorkflowStatus.RUNNING;
+
+            if (!workflowCanRun) {
                 blockedStepIds.push(step.id);
                 continue;
             }
 
-            if (step.status === "FAILED") {
+            if (step.requiresApproval && workflow.status !== WorkflowStatus.READY && workflow.status !== WorkflowStatus.RUNNING) {
                 blockedStepIds.push(step.id);
                 continue;
             }
