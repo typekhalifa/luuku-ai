@@ -28,6 +28,9 @@ export class WorkflowEngine {
         const runnableStepIds: string[] = [];
         const waitingStepIds: string[] = [];
         const blockedStepIds: string[] = [];
+        const workflowCanRun =
+            workflow.status === WorkflowStatus.READY ||
+            workflow.status === WorkflowStatus.RUNNING;
 
         for (const step of workflow.steps) {
             if (step.status === "COMPLETED" || step.status === "CANCELLED") {
@@ -46,16 +49,7 @@ export class WorkflowEngine {
                 continue;
             }
 
-            const workflowCanRun =
-                workflow.status === WorkflowStatus.READY ||
-                workflow.status === WorkflowStatus.RUNNING;
-
             if (!workflowCanRun) {
-                blockedStepIds.push(step.id);
-                continue;
-            }
-
-            if (step.requiresApproval && workflow.status !== WorkflowStatus.READY && workflow.status !== WorkflowStatus.RUNNING) {
                 blockedStepIds.push(step.id);
                 continue;
             }
