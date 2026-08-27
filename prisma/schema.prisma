@@ -177,6 +177,43 @@ model CommunicationExecution {
   @@unique([idempotencyKey])
 }
 
+model Workflow {
+  id                    String         @id
+  goal                  String
+  status                String
+  requiresFounderApproval Boolean      @default(false)
+  approvedAt            DateTime?
+  metadata              Json
+  createdAt             DateTime       @default(now())
+  updatedAt             DateTime       @updatedAt
+  steps                 WorkflowStep[]
+
+  @@index([status])
+}
+
+model WorkflowStep {
+  id                String   @id
+  workflowId        String
+  title             String
+  description       String
+  agentId           String
+  capability        String?
+  dependsOn         Json
+  priority          String
+  requiresApproval  Boolean  @default(false)
+  status            String
+  input             Json?
+  output            Json?
+  error             String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  workflow          Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+
+  @@index([workflowId])
+  @@index([status])
+  @@index([agentId])
+}
+
 enum CompanyStatus {
   prospect
   qualified
