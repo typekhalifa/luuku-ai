@@ -1,5 +1,6 @@
-import { AgentTask, AgentResult } from "../../shared/agents/interface";
-import { Workflow, WorkflowStep } from "./workflow";
+import { AgentResult } from "../../shared/agents/interface";
+import { Workflow } from "./workflow";
+import { WorkflowStep } from "./workflow-step";
 import { WorkflowEngine } from "./workflow-engine";
 
 export interface WorkflowStepExecutor {
@@ -47,25 +48,6 @@ export class WorkflowOrchestrator {
         for (const stepId of decision.runnableStepIds) {
             const step = workflow.steps.find((candidate) => candidate.id === stepId);
             if (!step) continue;
-
-            const task: AgentTask = {
-                id: step.id,
-                title: step.title,
-                description: step.description,
-                priority: step.priority,
-                metadata: {
-                    workflowId: workflow.id,
-                    stepId: step.id,
-                    agentId: step.agentId,
-                    capability: step.capability,
-                    ...(step.input ? { input: step.input } : {}),
-                },
-            };
-
-            // The executor receives the workflow step as the source of truth.
-            // The task shape above is intentionally prepared here for the next
-            // integration with the existing agent/runtime boundary.
-            void task;
 
             step.status = "RUNNING";
             const result = await this.executor.execute(step);
