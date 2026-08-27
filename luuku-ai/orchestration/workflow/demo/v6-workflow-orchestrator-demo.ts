@@ -39,6 +39,9 @@ const workflow: Workflow = {
         },
     ],
     requiresFounderApproval: false,
+    metadata: {
+        source: "v6-workflow-orchestrator-demo",
+    },
     createdAt: now,
     updatedAt: now,
 };
