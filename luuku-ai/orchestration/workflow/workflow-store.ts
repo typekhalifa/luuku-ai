@@ -1,12 +1,6 @@
 import { Workflow } from "./workflow";
 
-/**
- * Durable persistence boundary for workflow state.
- *
- * The runtime depends on this contract rather than a specific database.
- * The first implementation may remain in-memory while the persistent
- * adapter is introduced without changing orchestration semantics.
- */
+/** Durable persistence boundary for workflow state. */
 export interface WorkflowStore {
     create(workflow: Workflow): Promise<Workflow>;
     get(id: string): Promise<Workflow | null>;
@@ -20,7 +14,6 @@ export class InMemoryWorkflowStore implements WorkflowStore {
         if (this.workflows.has(workflow.id)) {
             throw new Error(`Workflow ${workflow.id} already exists.`);
         }
-
         const stored = cloneWorkflow(workflow);
         this.workflows.set(workflow.id, stored);
         return cloneWorkflow(stored);
@@ -35,7 +28,6 @@ export class InMemoryWorkflowStore implements WorkflowStore {
         if (!this.workflows.has(workflow.id)) {
             throw new Error(`Workflow ${workflow.id} was not found.`);
         }
-
         const stored = cloneWorkflow(workflow);
         this.workflows.set(workflow.id, stored);
         return cloneWorkflow(stored);
@@ -51,8 +43,6 @@ function cloneWorkflow(workflow: Workflow): Workflow {
         steps: workflow.steps.map((step) => ({
             ...step,
             dependsOn: [...step.dependsOn],
-            input: { ...step.input },
-            metadata: { ...step.metadata },
         })),
         metadata: { ...workflow.metadata },
     };
