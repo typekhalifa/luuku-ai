@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 
 import { Priority } from "../../task/priority";
+import { TaskStatus } from "../../task/task-status";
 import { TaskType } from "../../task/task-type";
 import { Plan } from "../../planner/plan";
 import { WorkflowCompiler } from "../workflow-compiler";
@@ -19,7 +20,7 @@ const plan: Plan = {
             description: "Research the prospect and produce an actionable company brief.",
             type: TaskType.RESEARCH,
             priority: Priority.HIGH,
-            status: "PENDING",
+            status: TaskStatus.PENDING,
             input: { company: "Company X" },
             metadata: {
                 agentId: "research",
@@ -34,7 +35,7 @@ const plan: Plan = {
             description: "Create a proposal using the completed research brief.",
             type: TaskType.PROPOSAL,
             priority: Priority.HIGH,
-            status: "PENDING",
+            status: TaskStatus.PENDING,
             input: { company: "Company X" },
             metadata: {
                 agentId: "sales",
@@ -50,7 +51,7 @@ const plan: Plan = {
             description: "Send the approved proposal to Company X.",
             type: TaskType.OUTREACH,
             priority: Priority.HIGH,
-            status: "PENDING",
+            status: TaskStatus.PENDING,
             input: { company: "Company X" },
             metadata: {
                 agentId: "sales",
