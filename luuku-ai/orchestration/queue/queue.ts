@@ -44,7 +44,12 @@ export class InMemoryQueueStore implements QueueStore {
         const candidates = [...this.items.values()]
             .filter((item) => item.status === QueueItemStatus.QUEUED && item.availableAt <= now)
             .sort((a, b) => {
-                const priorityRank = { [Priority.HIGH]: 0, [Priority.MEDIUM]: 1, [Priority.LOW]: 2 };
+                const priorityRank: Record<Priority, number> = {
+                    [Priority.CRITICAL]: 0,
+                    [Priority.HIGH]: 1,
+                    [Priority.MEDIUM]: 2,
+                    [Priority.LOW]: 3,
+                };
                 return priorityRank[a.priority] - priorityRank[b.priority]
                     || a.availableAt.getTime() - b.availableAt.getTime()
                     || a.createdAt.getTime() - b.createdAt.getTime();
