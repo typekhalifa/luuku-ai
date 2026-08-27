@@ -8,7 +8,7 @@ import { Workflow } from "../workflow";
 const workflow: Workflow = {
     id: "v6-demo-onboard-company-x",
     goal: "Prepare Company X for founder-approved onboarding.",
-    status: WorkflowStatus.AWAITING_APPROVAL,
+    status: WorkflowStatus.READY,
     requiresFounderApproval: true,
     createdAt: new Date(),
     updatedAt: new Date(),
@@ -74,7 +74,7 @@ console.log(`  Approval : ${decision.requiresApproval}`);
 assert.deepEqual(decision.runnableStepIds, ["research-company"]);
 assert.deepEqual(decision.waitingStepIds, ["prepare-proposal", "send-proposal"]);
 assert.deepEqual(decision.blockedStepIds, []);
-assert.equal(decision.requiresApproval, true);
+assert.equal(decision.requiresApproval, false);
 
 workflow.steps[0].status = "COMPLETED";
 workflow.steps[0].output = {
@@ -92,11 +92,29 @@ console.log(`  Blocked  : ${decision.blockedStepIds.join(", ") || "none"}`);
 
 assert.deepEqual(decision.runnableStepIds, ["prepare-proposal"]);
 assert.deepEqual(decision.waitingStepIds, ["send-proposal"]);
+assert.deepEqual(decision.blockedStepIds, []);
 
 workflow.steps[1].status = "COMPLETED";
 workflow.steps[1].output = {
     proposalReady: true,
 };
+
+workflow.status = WorkflowStatus.AWAITING_APPROVAL;
+workflow.updatedAt = new Date();
+
+decision = engine.evaluate(workflow);
+
+console.log("");
+console.log("After proposal preparation:");
+console.log(`  Runnable : ${decision.runnableStepIds.join(", ") || "none"}`);
+console.log(`  Waiting  : ${decision.waitingStepIds.join(", ") || "none"}`);
+console.log(`  Blocked  : ${decision.blockedStepIds.join(", ") || "none"}`);
+console.log(`  Approval : ${decision.requiresApproval}`);
+
+assert.deepEqual(decision.runnableStepIds, []);
+assert.deepEqual(decision.waitingStepIds, []);
+assert.deepEqual(decision.blockedStepIds, ["send-proposal"]);
+assert.equal(decision.requiresApproval, true);
 
 workflow.status = WorkflowStatus.READY;
 workflow.approvedAt = new Date();
@@ -117,6 +135,6 @@ assert.deepEqual(decision.blockedStepIds, []);
 assert.equal(decision.requiresApproval, false);
 
 console.log("");
-console.log("✓ V6 workflow dependency and approval rules verified.");
+console.log("✓ V6 workflow dependency and approval lifecycle verified.");
 console.log("✓ No agent or external provider was executed.");
 console.log("");
