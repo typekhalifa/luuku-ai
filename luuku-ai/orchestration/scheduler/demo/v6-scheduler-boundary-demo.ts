@@ -39,7 +39,7 @@ async function main() {
     console.log(`Scheduled : ${item.id}`);
     console.log(`Status    : ${item.status}`);
     console.log(`Available : ${item.availableAt.toISOString()}`);
-    console.log(`Before due: ${beforeDue ? beforeDue.id : "not claimable"}`);
+    console.log(`Before due: ${beforeDue === null ? "not claimable" : beforeDue.id}`);
     console.log(`At due    : ${due?.id ?? "none"}`);
     console.log("");
     console.log("✓ Scheduler creates queue work without executing it.");
