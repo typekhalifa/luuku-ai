@@ -17,7 +17,7 @@ export class PrismaWorkflowStore implements WorkflowStore {
                 createdAt: workflow.createdAt,
                 updatedAt: workflow.updatedAt,
                 steps: {
-                    create: workflow.steps.map((step) => toStepCreateData(step, workflow.id)),
+                    create: workflow.steps.map((step) => toNestedStepCreateData(step)),
                 },
             },
         });
@@ -87,6 +87,23 @@ export class PrismaWorkflowStore implements WorkflowStore {
     }
 }
 
+function toNestedStepCreateData(step: WorkflowStep) {
+    return {
+        id: step.id,
+        title: step.title,
+        description: step.description,
+        agentId: step.agentId,
+        capability: step.capability,
+        dependsOn: toJson(step.dependsOn),
+        priority: step.priority,
+        requiresApproval: step.requiresApproval,
+        status: step.status,
+        input: step.input === undefined ? undefined : toJson(step.input),
+        output: step.output === undefined ? undefined : toJson(step.output),
+        error: step.error,
+    };
+}
+
 function toStepCreateData(step: WorkflowStep, workflowId: string) {
     return {
         id: step.id,
@@ -102,8 +119,6 @@ function toStepCreateData(step: WorkflowStep, workflowId: string) {
         input: step.input === undefined ? undefined : toJson(step.input),
         output: step.output === undefined ? undefined : toJson(step.output),
         error: step.error,
-        createdAt: new Date(),
-        updatedAt: new Date(),
     };
 }
 
