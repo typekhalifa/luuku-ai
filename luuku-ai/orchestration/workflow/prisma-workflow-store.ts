@@ -2,6 +2,7 @@ import { prisma } from "../../shared/database/client";
 import { Workflow } from "./workflow";
 import { WorkflowStore } from "./workflow-store";
 import { WorkflowStep } from "./workflow-step";
+import { Prisma } from "@prisma/client";
 
 export class PrismaWorkflowStore implements WorkflowStore {
     async create(workflow: Workflow): Promise<Workflow> {
@@ -12,11 +13,11 @@ export class PrismaWorkflowStore implements WorkflowStore {
                 status: workflow.status,
                 requiresFounderApproval: workflow.requiresFounderApproval,
                 approvedAt: workflow.approvedAt,
-                metadata: workflow.metadata,
+                metadata: toJson(workflow.metadata),
                 createdAt: workflow.createdAt,
                 updatedAt: workflow.updatedAt,
                 steps: {
-                    create: workflow.steps.map(toStepCreateData),
+                    create: workflow.steps.map((step) => toStepCreateData(step, workflow.id)),
                 },
             },
         });
@@ -42,37 +43,38 @@ export class PrismaWorkflowStore implements WorkflowStore {
                     status: workflow.status,
                     requiresFounderApproval: workflow.requiresFounderApproval,
                     approvedAt: workflow.approvedAt,
-                    metadata: workflow.metadata,
+                    metadata: toJson(workflow.metadata),
                     updatedAt: workflow.updatedAt,
                 },
             });
 
-            const existing = await tx.workflowStep.findMany({
-                where: { workflowId: workflow.id },
-                select: { id: true },
-            });
-            const incomingIds = new Set(workflow.steps.map((step) => step.id));
+            const incomingIds = workflow.steps.map((step) => step.id);
 
             await tx.workflowStep.deleteMany({
                 where: {
                     workflowId: workflow.id,
-                    id: { notIn: workflow.steps.map((step) => step.id) },
+                    id: { notIn: incomingIds },
                 },
             });
 
             for (const step of workflow.steps) {
+                const existing = await tx.workflowStep.findUnique({
+                    where: { id: step.id },
+                    select: { workflowId: true },
+                });
+
+                if (existing && existing.workflowId !== workflow.id) {
+                    throw new Error(
+                        `Workflow step ${step.id} belongs to workflow ${existing.workflowId}.`,
+                    );
+                }
+
                 await tx.workflowStep.upsert({
                     where: { id: step.id },
                     create: toStepCreateData(step, workflow.id),
                     update: toStepUpdateData(step),
                 });
             }
-
-            // Keep the read above intentionally explicit: workflow step IDs are scoped
-            // to their parent workflow, and an incoming ID must never silently move
-            // between workflows.
-            const stale = existing.filter(({ id }) => !incomingIds.has(id));
-            void stale;
         });
 
         return this.getOrThrow(workflow.id);
@@ -85,20 +87,20 @@ export class PrismaWorkflowStore implements WorkflowStore {
     }
 }
 
-function toStepCreateData(step: WorkflowStep, workflowId?: string) {
+function toStepCreateData(step: WorkflowStep, workflowId: string) {
     return {
         id: step.id,
-        ...(workflowId ? { workflowId } : {}),
+        workflowId,
         title: step.title,
         description: step.description,
         agentId: step.agentId,
         capability: step.capability,
-        dependsOn: step.dependsOn,
+        dependsOn: toJson(step.dependsOn),
         priority: step.priority,
         requiresApproval: step.requiresApproval,
         status: step.status,
-        input: step.input === undefined ? undefined : step.input,
-        output: step.output === undefined ? undefined : step.output,
+        input: step.input === undefined ? undefined : toJson(step.input),
+        output: step.output === undefined ? undefined : toJson(step.output),
         error: step.error,
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -111,15 +113,19 @@ function toStepUpdateData(step: WorkflowStep) {
         description: step.description,
         agentId: step.agentId,
         capability: step.capability,
-        dependsOn: step.dependsOn,
+        dependsOn: toJson(step.dependsOn),
         priority: step.priority,
         requiresApproval: step.requiresApproval,
         status: step.status,
-        input: step.input === undefined ? undefined : step.input,
-        output: step.output === undefined ? undefined : step.output,
+        input: step.input === undefined ? undefined : toJson(step.input),
+        output: step.output === undefined ? undefined : toJson(step.output),
         error: step.error,
         updatedAt: new Date(),
     };
+}
+
+function toJson(value: unknown): Prisma.InputJsonValue {
+    return value as Prisma.InputJsonValue;
 }
 
 function fromRecord(record: any): Workflow {
