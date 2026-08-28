@@ -69,11 +69,16 @@ export class PrismaWorkflowStore implements WorkflowStore {
                     );
                 }
 
-                await tx.workflowStep.upsert({
-                    where: { id: step.id },
-                    create: toStepCreateData(step, workflow.id),
-                    update: toStepUpdateData(step),
-                });
+                if (existing) {
+                    await tx.workflowStep.update({
+                        where: { id: step.id },
+                        data: toStepUpdateData(step),
+                    });
+                } else {
+                    await tx.workflowStep.create({
+                        data: toStepCreateData(step, workflow.id),
+                    });
+                }
             }
         });
 
