@@ -56,8 +56,12 @@ async function main() {
 
     assert.equal(created.id, workflowId);
     assert.equal(loaded?.steps.length, 2);
-    assert.deepEqual(loaded?.steps[1].dependsOn, ["research-company"]);
-    assert.equal(loaded?.steps[0].status, "READY");
+
+    const loadedResearch = loaded?.steps.find((step) => step.id === "research-company");
+    const loadedProposal = loaded?.steps.find((step) => step.id === "prepare-proposal");
+
+    assert.equal(loadedResearch?.status, "READY");
+    assert.deepEqual(loadedProposal?.dependsOn, ["research-company"]);
 
     const updated: Workflow = {
         ...loaded!,
@@ -76,12 +80,14 @@ async function main() {
     await store.save(updated);
 
     const reloaded = await new PrismaWorkflowStore().get(workflowId);
+    const reloadedResearch = reloaded?.steps.find((step) => step.id === "research-company");
+    const reloadedProposal = reloaded?.steps.find((step) => step.id === "prepare-proposal");
 
     assert.equal(reloaded?.status, WorkflowStatus.AWAITING_APPROVAL);
     assert.equal(reloaded?.requiresFounderApproval, true);
-    assert.equal(reloaded?.steps[0].status, "COMPLETED");
-    assert.deepEqual(reloaded?.steps[0].output, { finding: "qualified" });
-    assert.deepEqual(reloaded?.steps[1].dependsOn, ["research-company"]);
+    assert.equal(reloadedResearch?.status, "COMPLETED");
+    assert.deepEqual(reloadedResearch?.output, { finding: "qualified" });
+    assert.deepEqual(reloadedProposal?.dependsOn, ["research-company"]);
     assert.equal(reloaded?.metadata.checkpoint, "research-complete");
 
     console.log("");
@@ -92,7 +98,7 @@ async function main() {
     console.log(`Workflow  : ${reloaded?.id}`);
     console.log(`Status    : ${reloaded?.status}`);
     console.log(`Steps     : ${reloaded?.steps.length}`);
-    console.log(`Research  : ${reloaded?.steps[0].status}`);
+    console.log(`Research  : ${reloadedResearch?.status}`);
     console.log(`Approval  : ${reloaded?.requiresFounderApproval}`);
     console.log(`Checkpoint: ${String(reloaded?.metadata.checkpoint)}`);
     console.log("");
