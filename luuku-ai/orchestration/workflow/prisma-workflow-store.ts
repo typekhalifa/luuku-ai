@@ -101,6 +101,8 @@ function toNestedStepCreateData(step: WorkflowStep) {
         input: step.input === undefined ? undefined : toJson(step.input),
         output: step.output === undefined ? undefined : toJson(step.output),
         error: step.error,
+        createdAt: new Date(),
+        updatedAt: new Date(),
     };
 }
 
@@ -119,6 +121,8 @@ function toStepCreateData(step: WorkflowStep, workflowId: string) {
         input: step.input === undefined ? undefined : toJson(step.input),
         output: step.output === undefined ? undefined : toJson(step.output),
         error: step.error,
+        createdAt: new Date(),
+        updatedAt: new Date(),
     };
 }
 
@@ -158,7 +162,7 @@ function fromRecord(record: any): Workflow {
             title: step.title,
             description: step.description,
             agentId: step.agentId,
-            capability: step.capability ?? undefined,
+            capability: step.capability,
             dependsOn: Array.isArray(step.dependsOn) ? step.dependsOn : [],
             priority: step.priority,
             requiresApproval: step.requiresApproval,
