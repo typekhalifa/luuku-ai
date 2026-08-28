@@ -35,7 +35,7 @@ const workflow: Workflow = {
             dependsOn: ["research-company"],
             priority: Priority.MEDIUM,
             requiresApproval: true,
-            status: "WAITING",
+            status: "BLOCKED",
             input: { company: "Company X" },
         },
     ],
@@ -75,7 +75,6 @@ async function main() {
 
     await store.save(updated);
 
-    // Simulate a fresh runtime instance reading only from PostgreSQL.
     const reloaded = await new PrismaWorkflowStore().get(workflowId);
 
     assert.equal(reloaded?.status, WorkflowStatus.AWAITING_APPROVAL);
@@ -90,11 +89,11 @@ async function main() {
     console.log("   V6 PRISMA WORKFLOW PERSISTENCE DEMO");
     console.log("========================================");
     console.log("");
-    console.log(`Workflow : ${reloaded?.id}`);
-    console.log(`Status   : ${reloaded?.status}`);
-    console.log(`Steps    : ${reloaded?.steps.length}`);
-    console.log(`Research : ${reloaded?.steps[0].status}`);
-    console.log(`Approval : ${reloaded?.requiresFounderApproval}`);
+    console.log(`Workflow  : ${reloaded?.id}`);
+    console.log(`Status    : ${reloaded?.status}`);
+    console.log(`Steps     : ${reloaded?.steps.length}`);
+    console.log(`Research  : ${reloaded?.steps[0].status}`);
+    console.log(`Approval  : ${reloaded?.requiresFounderApproval}`);
     console.log(`Checkpoint: ${String(reloaded?.metadata.checkpoint)}`);
     console.log("");
     console.log("✓ Workflow was written to PostgreSQL.");
