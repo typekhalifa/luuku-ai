@@ -27,7 +27,10 @@ export class WorkflowOrchestrator {
         private readonly executor?: WorkflowStepExecutor,
     ) {}
 
-    async runReadySteps(workflow: Workflow): Promise<WorkflowOrchestrationResult> {
+    async runReadySteps(
+        workflow: Workflow,
+        onlyStepId?: string,
+    ): Promise<WorkflowOrchestrationResult> {
         const executedStepIds: string[] = [];
         const results: Record<string, AgentResult> = {};
 
@@ -44,8 +47,11 @@ export class WorkflowOrchestrator {
         }
 
         let decision = this.engine.evaluate(workflow);
+        const runnableStepIds = onlyStepId
+            ? decision.runnableStepIds.filter((stepId) => stepId === onlyStepId)
+            : decision.runnableStepIds;
 
-        for (const stepId of decision.runnableStepIds) {
+        for (const stepId of runnableStepIds) {
             const step = workflow.steps.find((candidate) => candidate.id === stepId);
             if (!step) continue;
 
