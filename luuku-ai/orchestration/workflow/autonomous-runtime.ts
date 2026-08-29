@@ -1,4 +1,4 @@
-import { QueueItem, QueueStore } from "../queue/queue";
+import { QueueItem, QueueItemStatus, QueueStore } from "../queue/queue";
 import { Scheduler, ScheduleItemInput } from "../scheduler/scheduler";
 import { Workflow } from "./workflow";
 import { WorkflowEngine } from "./workflow-engine";
@@ -45,8 +45,21 @@ export class AutonomousRuntime {
         for (const step of workflow.steps) {
             if (!runnableIds.has(step.id)) continue;
 
+            const id = `${workflow.id}:${step.id}`;
+            const existing = await this.queue.get(id);
+
+            // Scheduling is idempotent across runtime restarts. A recovered or
+            // already-active queue item must not be inserted a second time.
+            if (existing && [
+                QueueItemStatus.QUEUED,
+                QueueItemStatus.CLAIMED,
+                QueueItemStatus.COMPLETED,
+            ].includes(existing.status)) {
+                continue;
+            }
+
             const input: ScheduleItemInput = {
-                id: `${workflow.id}:${step.id}`,
+                id,
                 workflowId: workflow.id,
                 stepId: step.id,
                 agentId: step.agentId,
