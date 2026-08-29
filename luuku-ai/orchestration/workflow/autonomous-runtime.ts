@@ -2,6 +2,7 @@ import { QueueItem, QueueStore } from "../queue/queue";
 import { Scheduler, ScheduleItemInput } from "../scheduler/scheduler";
 import { Workflow } from "./workflow";
 import { WorkflowOrchestrator } from "./workflow-orchestrator";
+import { WorkflowStore } from "./workflow-store";
 
 export interface AutonomousRuntimeCycleResult {
     scheduled: string[];
@@ -15,6 +16,7 @@ export class AutonomousRuntime {
         private readonly scheduler: Scheduler,
         private readonly queue: QueueStore,
         private readonly orchestrator: WorkflowOrchestrator,
+        private readonly workflowStore?: WorkflowStore,
     ) {}
 
     async scheduleRunnableSteps(
@@ -61,6 +63,7 @@ export class AutonomousRuntime {
 
         const next = await this.queue.claimNext(now);
         if (!next) {
+            if (this.workflowStore) await this.workflowStore.save(workflow);
             return {
                 scheduled: scheduled.map((item) => item.id),
                 claimed,
@@ -71,10 +74,11 @@ export class AutonomousRuntime {
 
         claimed.push(next.id);
 
-        const orchestration = await this.orchestrator.runReadySteps(workflow);
+        const orchestration = await this.orchestrator.runReadySteps(workflow, next.stepId);
         const executed = orchestration.executedStepIds;
 
         if (executed.includes(next.stepId)) {
+            if (this.workflowStore) await this.workflowStore.save(workflow);
             await this.queue.complete(next.id, now);
             completed.push(next.id);
         }
@@ -85,5 +89,19 @@ export class AutonomousRuntime {
             executed,
             completed,
         };
+    }
+
+    async runPersistedCycle(
+        workflowId: string,
+        now = new Date(),
+    ): Promise<AutonomousRuntimeCycleResult> {
+        if (!this.workflowStore) {
+            throw new Error("AutonomousRuntime requires a WorkflowStore for persisted cycles.");
+        }
+
+        const workflow = await this.workflowStore.get(workflowId);
+        if (!workflow) throw new Error(`Workflow ${workflowId} was not found.`);
+
+        return this.runCycle(workflow, now);
     }
 }
