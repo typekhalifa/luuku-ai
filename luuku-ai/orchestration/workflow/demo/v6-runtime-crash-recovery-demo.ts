@@ -78,7 +78,7 @@ function buildRuntime() {
 }
 
 async function main() {
-    const { prisma } = await import("../../../shared/database/client");
+    const { prisma } = await import("../../../shared/database/client.js");
 
     await prisma.queueItem.deleteMany({ where: { workflowId } });
     await prisma.workflow.deleteMany({ where: { id: workflowId } });
@@ -141,7 +141,7 @@ async function main() {
 
 main().catch(async (error) => {
     console.error(error);
-    const { prisma } = await import("../../../shared/database/client");
+    const { prisma } = await import("../../../shared/database/client.js");
     await prisma.queueItem.deleteMany({ where: { workflowId } }).catch(() => undefined);
     await prisma.workflow.deleteMany({ where: { id: workflowId } }).catch(() => undefined);
     process.exitCode = 1;
