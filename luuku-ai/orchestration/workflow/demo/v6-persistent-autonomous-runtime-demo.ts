@@ -78,6 +78,7 @@ const workflow: Workflow = {
 async function main() {
     const workflowStore = new PrismaWorkflowStore();
     const queueStore = new PrismaQueueStore();
+    const { prisma } = await import("../../../shared/database/client.js");
 
     await queueStore.get(`${workflowId}:prepare-proposal`).then(async (item) => {
         if (item) await queueStore.fail(item.id, now);
@@ -85,14 +86,6 @@ async function main() {
     await queueStore.get(`${workflowId}:research-company`).then(async (item) => {
         if (item) await queueStore.fail(item.id, now);
     }).catch(() => undefined);
-    await workflowStore.get(workflowId).then(async (existing) => {
-        if (existing) {
-            // The persistence demo owns this deterministic workflow ID.
-            // Cleanup is performed below by direct Prisma calls through the stores' backing DB.
-        }
-    });
-
-    const { prisma } = await import("../../../shared/database/client.js");
     await prisma.queueItem.deleteMany({ where: { workflowId } });
     await prisma.workflow.deleteMany({ where: { id: workflowId } });
 
@@ -116,7 +109,6 @@ async function main() {
     assert.equal(firstQueue?.status, "COMPLETED");
     assert.equal(firstQueue?.attempts, 1);
 
-    // Simulate a runtime restart: construct a completely new runtime and load only by workflow ID.
     const second = await buildRuntime().runPersistedCycle(
         workflowId,
         new Date("2026-08-29T09:01:00.000Z"),
