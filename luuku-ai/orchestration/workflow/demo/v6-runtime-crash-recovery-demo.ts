@@ -13,7 +13,7 @@ import { WorkflowOrchestrator } from "../workflow-orchestrator";
 import { SharedAgentWorkflowExecutor } from "../shared-agent-workflow-executor";
 import { AutonomousRuntime } from "../autonomous-runtime";
 
-const workflowId = "v6-runtime-crash-recovery-demo";
+const workflowId = `v6-runtime-crash-recovery-demo-${Date.now()}`;
 const stepId = "research-company";
 const queueId = `${workflowId}:${stepId}`;
 const executed: string[] = [];
@@ -77,11 +77,14 @@ function buildRuntime() {
     );
 }
 
-async function main() {
-    const { prisma } = await import("../../../shared/database/client.js");
-
+async function cleanup(prisma: { queueItem: any; workflow: any }) {
     await prisma.queueItem.deleteMany({ where: { workflowId } });
     await prisma.workflow.deleteMany({ where: { id: workflowId } });
+}
+
+async function main() {
+    const { prisma } = await import("../../../shared/database/client.js");
+    await cleanup(prisma);
 
     const workflowStore = new PrismaWorkflowStore();
     await workflowStore.create(workflow);
@@ -122,8 +125,8 @@ async function main() {
     console.log("========================================");
     console.log("");
     console.log(`Workflow       : ${workflowId}`);
-    console.log(`Before crash   : CLAIMED (attempt 1)`);
-    console.log(`Fresh runtime  : recovered stale claim`);
+    console.log("Before crash   : CLAIMED (attempt 1)");
+    console.log("Fresh runtime  : recovered stale claim");
     console.log(`After recovery : ${recoveredQueue?.status} (attempt ${recoveredQueue?.attempts})`);
     console.log(`Workflow step  : ${recoveredWorkflow?.steps.find((step) => step.id === stepId)?.status}`);
     console.log("");
@@ -135,14 +138,12 @@ async function main() {
     console.log("✓ No external provider or network request was used.");
     console.log("");
 
-    await prisma.queueItem.deleteMany({ where: { workflowId } });
-    await prisma.workflow.delete({ where: { id: workflowId } });
+    await cleanup(prisma);
 }
 
 main().catch(async (error) => {
     console.error(error);
     const { prisma } = await import("../../../shared/database/client.js");
-    await prisma.queueItem.deleteMany({ where: { workflowId } }).catch(() => undefined);
-    await prisma.workflow.deleteMany({ where: { id: workflowId } }).catch(() => undefined);
+    await cleanup(prisma).catch(() => undefined);
     process.exitCode = 1;
 });
