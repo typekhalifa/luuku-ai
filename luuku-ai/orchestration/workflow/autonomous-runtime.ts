@@ -1,6 +1,7 @@
 import { QueueItem, QueueStore } from "../queue/queue";
 import { Scheduler, ScheduleItemInput } from "../scheduler/scheduler";
 import { Workflow } from "./workflow";
+import { WorkflowEngine } from "./workflow-engine";
 import { WorkflowOrchestrator } from "./workflow-orchestrator";
 import { WorkflowStore } from "./workflow-store";
 
@@ -36,14 +37,14 @@ export class AutonomousRuntime {
         }
     }
 
-    async scheduleRunnableSteps(
-        workflow: Workflow,
-        availableAt = new Date(),
-    ): Promise<QueueItem[]> {
-        const runnable = workflow.steps.filter((step) => step.status === "READY");
+    async scheduleRunnableSteps(workflow: Workflow, availableAt = new Date()): Promise<QueueItem[]> {
+        const decision = new WorkflowEngine().evaluate(workflow);
+        const runnableIds = new Set(decision.runnableStepIds);
         const scheduled: QueueItem[] = [];
 
-        for (const step of runnable) {
+        for (const step of workflow.steps) {
+            if (!runnableIds.has(step.id)) continue;
+
             const input: ScheduleItemInput = {
                 id: `${workflow.id}:${step.id}`,
                 workflowId: workflow.id,
@@ -51,29 +52,20 @@ export class AutonomousRuntime {
                 agentId: step.agentId,
                 availableAt,
                 priority: step.priority,
-                metadata: {
-                    workflowId: workflow.id,
-                    stepId: step.id,
-                    source: "v6-autonomous-runtime",
-                },
+                metadata: { workflowId: workflow.id, stepId: step.id, source: "v6-autonomous-runtime" },
             };
 
             try {
                 scheduled.push(await this.scheduler.schedule(input));
             } catch (error) {
-                if (!(error instanceof Error) || !error.message.includes("already exists")) {
-                    throw error;
-                }
+                if (!(error instanceof Error) || !error.message.includes("already exists")) throw error;
             }
         }
 
         return scheduled;
     }
 
-    async runCycle(
-        workflow: Workflow,
-        now = new Date(),
-    ): Promise<AutonomousRuntimeCycleResult> {
+    async runCycle(workflow: Workflow, now = new Date()): Promise<AutonomousRuntimeCycleResult> {
         const recovered = await this.queue.recoverStaleClaims(now, this.queueClaimStaleAfterMs);
         const scheduled = await this.scheduleRunnableSteps(workflow, now);
         const claimed: string[] = [];
@@ -82,17 +74,10 @@ export class AutonomousRuntime {
         const next = await this.queue.claimNext(now);
         if (!next) {
             if (this.workflowStore) await this.workflowStore.save(workflow);
-            return {
-                scheduled: scheduled.map((item) => item.id),
-                recovered,
-                claimed,
-                executed: [],
-                completed,
-            };
+            return { scheduled: scheduled.map((item) => item.id), recovered, claimed, executed: [], completed };
         }
 
         claimed.push(next.id);
-
         const orchestration = await this.orchestrator.runReadySteps(workflow, next.stepId);
         const executed = orchestration.executedStepIds;
 
@@ -102,26 +87,13 @@ export class AutonomousRuntime {
             completed.push(next.id);
         }
 
-        return {
-            scheduled: scheduled.map((item) => item.id),
-            recovered,
-            claimed,
-            executed,
-            completed,
-        };
+        return { scheduled: scheduled.map((item) => item.id), recovered, claimed, executed, completed };
     }
 
-    async runPersistedCycle(
-        workflowId: string,
-        now = new Date(),
-    ): Promise<AutonomousRuntimeCycleResult> {
-        if (!this.workflowStore) {
-            throw new Error("AutonomousRuntime requires a WorkflowStore for persisted cycles.");
-        }
-
+    async runPersistedCycle(workflowId: string, now = new Date()): Promise<AutonomousRuntimeCycleResult> {
+        if (!this.workflowStore) throw new Error("AutonomousRuntime requires a WorkflowStore for persisted cycles.");
         const workflow = await this.workflowStore.get(workflowId);
         if (!workflow) throw new Error(`Workflow ${workflowId} was not found.`);
-
         return this.runCycle(workflow, now);
     }
 }
