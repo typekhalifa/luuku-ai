@@ -6,18 +6,35 @@ import { WorkflowStore } from "./workflow-store";
 
 export interface AutonomousRuntimeCycleResult {
     scheduled: string[];
+    recovered: string[];
     claimed: string[];
     executed: string[];
     completed: string[];
 }
 
+export interface AutonomousRuntimeOptions {
+    queueClaimStaleAfterMs?: number;
+}
+
+const DEFAULT_QUEUE_CLAIM_STALE_AFTER_MS = 5 * 60 * 1000;
+
 export class AutonomousRuntime {
+    private readonly queueClaimStaleAfterMs: number;
+
     constructor(
         private readonly scheduler: Scheduler,
         private readonly queue: QueueStore,
         private readonly orchestrator: WorkflowOrchestrator,
         private readonly workflowStore?: WorkflowStore,
-    ) {}
+        options: AutonomousRuntimeOptions = {},
+    ) {
+        this.queueClaimStaleAfterMs = options.queueClaimStaleAfterMs
+            ?? DEFAULT_QUEUE_CLAIM_STALE_AFTER_MS;
+
+        if (this.queueClaimStaleAfterMs < 0) {
+            throw new Error("queueClaimStaleAfterMs must be non-negative.");
+        }
+    }
 
     async scheduleRunnableSteps(
         workflow: Workflow,
@@ -57,6 +74,7 @@ export class AutonomousRuntime {
         workflow: Workflow,
         now = new Date(),
     ): Promise<AutonomousRuntimeCycleResult> {
+        const recovered = await this.queue.recoverStaleClaims(now, this.queueClaimStaleAfterMs);
         const scheduled = await this.scheduleRunnableSteps(workflow, now);
         const claimed: string[] = [];
         const completed: string[] = [];
@@ -66,6 +84,7 @@ export class AutonomousRuntime {
             if (this.workflowStore) await this.workflowStore.save(workflow);
             return {
                 scheduled: scheduled.map((item) => item.id),
+                recovered,
                 claimed,
                 executed: [],
                 completed,
@@ -85,6 +104,7 @@ export class AutonomousRuntime {
 
         return {
             scheduled: scheduled.map((item) => item.id),
+            recovered,
             claimed,
             executed,
             completed,

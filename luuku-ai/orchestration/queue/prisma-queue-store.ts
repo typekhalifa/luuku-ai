@@ -77,6 +77,40 @@ export class PrismaQueueStore implements QueueStore {
         const item = await prisma.queueItem.findUnique({ where: { id } });
         return item ? fromRecord(item) : null;
     }
+
+    async recoverStaleClaims(now: Date, staleAfterMs: number): Promise<string[]> {
+        if (staleAfterMs < 0) throw new Error("staleAfterMs must be non-negative.");
+
+        const cutoff = new Date(now.getTime() - staleAfterMs);
+        const stale = await prisma.queueItem.findMany({
+            where: {
+                status: QueueItemStatus.CLAIMED,
+                updatedAt: { lte: cutoff },
+            },
+            select: { id: true },
+        });
+
+        if (stale.length === 0) return [];
+
+        const recovered: string[] = [];
+        for (const item of stale) {
+            const result = await prisma.queueItem.updateMany({
+                where: {
+                    id: item.id,
+                    status: QueueItemStatus.CLAIMED,
+                    updatedAt: { lte: cutoff },
+                },
+                data: {
+                    status: QueueItemStatus.QUEUED,
+                    availableAt: now,
+                    updatedAt: now,
+                },
+            });
+            if (result.count === 1) recovered.push(item.id);
+        }
+
+        return recovered;
+    }
 }
 
 function toCreateData(item: QueueItem) {

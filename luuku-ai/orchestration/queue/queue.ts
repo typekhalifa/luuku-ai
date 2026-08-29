@@ -28,6 +28,7 @@ export interface QueueStore {
     complete(id: string, updatedAt?: Date): Promise<void>;
     fail(id: string, updatedAt?: Date): Promise<void>;
     get(id: string): Promise<QueueItem | null>;
+    recoverStaleClaims(now: Date, staleAfterMs: number): Promise<string[]>;
 }
 
 export class InMemoryQueueStore implements QueueStore {
@@ -81,5 +82,20 @@ export class InMemoryQueueStore implements QueueStore {
     async get(id: string): Promise<QueueItem | null> {
         const item = this.items.get(id);
         return item ? { ...item } : null;
+    }
+
+    async recoverStaleClaims(now: Date, staleAfterMs: number): Promise<string[]> {
+        const cutoff = now.getTime() - staleAfterMs;
+        const recovered: string[] = [];
+
+        for (const item of this.items.values()) {
+            if (item.status !== QueueItemStatus.CLAIMED || item.updatedAt.getTime() > cutoff) continue;
+            item.status = QueueItemStatus.QUEUED;
+            item.availableAt = now;
+            item.updatedAt = now;
+            recovered.push(item.id);
+        }
+
+        return recovered;
     }
 }
