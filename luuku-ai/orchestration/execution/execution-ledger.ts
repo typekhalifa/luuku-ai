@@ -53,7 +53,7 @@ export class ExecutionLedger {
                 verified: result.verified ?? false,
                 provider: result.evidence?.provider,
                 externalId: result.evidence?.externalId,
-                evidence: result.evidence,
+                evidence: result.evidence ? JSON.parse(JSON.stringify(result.evidence)) : null,
                 error: result.success ? null : result.summary,
             },
         });
