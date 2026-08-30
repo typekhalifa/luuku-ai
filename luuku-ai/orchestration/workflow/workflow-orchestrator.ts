@@ -16,29 +16,21 @@ export interface WorkflowOrchestrationResult {
     requiresApproval: boolean;
 }
 
-/**
- * V6 boundary between workflow coordination and real agent execution.
- * The orchestrator decides what is runnable; an injected executor decides how
- * that step is actually executed. No provider-specific logic belongs here.
- */
+/** V6 boundary between workflow coordination and real agent execution. */
 export class WorkflowOrchestrator {
     constructor(
         private readonly engine = new WorkflowEngine(),
         private readonly executor?: WorkflowStepExecutor,
     ) {}
 
-    async runReadySteps(
-        workflow: Workflow,
-        onlyStepId?: string,
-    ): Promise<WorkflowOrchestrationResult> {
+    async runReadySteps(workflow: Workflow, onlyStepId?: string): Promise<WorkflowOrchestrationResult> {
         const executedStepIds: string[] = [];
         const results: Record<string, AgentResult> = {};
 
         if (!this.executor) {
             const decision = this.engine.evaluate(workflow);
             return {
-                executedStepIds,
-                results,
+                executedStepIds, results,
                 runnableStepIds: decision.runnableStepIds,
                 waitingStepIds: decision.waitingStepIds,
                 blockedStepIds: decision.blockedStepIds,
@@ -55,14 +47,18 @@ export class WorkflowOrchestrator {
             const step = workflow.steps.find((candidate) => candidate.id === stepId);
             if (!step) continue;
 
+            step.workflowId = workflow.id;
             step.status = "RUNNING";
             const result = await this.executor.execute(step);
             results[step.id] = result;
-            executedStepIds.push(step.id);
+            if (result.executed) executedStepIds.push(step.id);
 
             if (result.success && result.executed && result.verified) {
                 step.status = "COMPLETED";
                 step.output = result.evidence ?? result.summary;
+            } else if (result.executionStatus === "blocked") {
+                step.status = "RUNNING";
+                step.error = result.summary;
             } else {
                 step.status = "FAILED";
                 step.error = result.summary;
@@ -73,8 +69,7 @@ export class WorkflowOrchestrator {
         }
 
         return {
-            executedStepIds,
-            results,
+            executedStepIds, results,
             runnableStepIds: decision.runnableStepIds,
             waitingStepIds: decision.waitingStepIds,
             blockedStepIds: decision.blockedStepIds,
