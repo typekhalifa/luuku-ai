@@ -1,11 +1,10 @@
 import { prisma } from "../../shared/database/client.js";
-import { AgentResult } from "../../shared/agents/interface";
+import { AgentResult } from "../../shared/agents/interface.js";
 
 export interface ExecutionClaim {
     id: string;
     idempotencyKey: string;
-    status: "executing" | "completed";
-    isNew: boolean;
+    status: "new" | "executing" | "completed";
     result?: AgentResult;
 }
 
@@ -18,7 +17,6 @@ export class ExecutionLedger {
                 id: existing.id,
                 idempotencyKey,
                 status: existing.executed ? "completed" : "executing",
-                isNew: false,
                 result: existing.executed ? {
                     success: existing.verified,
                     summary: "Recovered durable execution result.",
@@ -43,7 +41,7 @@ export class ExecutionLedger {
                 recipient: { workflowId, stepId },
             },
         });
-        return { id: record.id, idempotencyKey, status: "executing", isNew: true };
+        return { id: record.id, idempotencyKey, status: "new" };
     }
 
     async complete(idempotencyKey: string, result: AgentResult): Promise<void> {
