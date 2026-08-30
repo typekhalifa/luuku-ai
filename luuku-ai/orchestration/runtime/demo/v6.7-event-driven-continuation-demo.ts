@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { InMemoryQueueStore, QueueItemStatus } from "../../queue/queue.js";
-import { Scheduler } from "../../scheduler/scheduler.js";
+import { QueueScheduler } from "../../scheduler/scheduler.js";
 import { WorkflowOrchestrator } from "../../workflow/workflow-orchestrator.js";
 import { AutonomousRuntime } from "../../workflow/autonomous-runtime.js";
 import { RuntimeEventBus } from "../runtime-events.js";
@@ -25,11 +25,11 @@ const executor = { async execute(step: typeof workflow.steps[number]) {
 
 async function main() {
     const queue = new InMemoryQueueStore();
-    const scheduler = new Scheduler(queue);
+    const scheduler = new QueueScheduler(queue);
     const events = new RuntimeEventBus();
     const runtime = new AutonomousRuntime(scheduler, queue, new WorkflowOrchestrator(undefined, executor), undefined, { events });
     const eventsSeen: string[] = [];
-    events.on("workflow.step.completed", event => eventsSeen.push(`${event.stepId}:completed`));
+    events.on("workflow.step.completed", async event => { eventsSeen.push(`${event.stepId}:completed`); });
 
     const first = await runtime.runCycle(workflow);
     assert.deepEqual(first.completed, [`${workflowId}:research-company`]);
