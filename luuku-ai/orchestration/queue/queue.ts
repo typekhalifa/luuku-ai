@@ -27,6 +27,7 @@ export interface QueueStore {
     claimNext(now?: Date): Promise<QueueItem | null>;
     complete(id: string, updatedAt?: Date): Promise<void>;
     fail(id: string, updatedAt?: Date): Promise<void>;
+    retry(id: string, availableAt: Date): Promise<void>;
     get(id: string): Promise<QueueItem | null>;
     recoverStaleClaims(now: Date, staleAfterMs: number): Promise<string[]>;
 }
@@ -35,9 +36,7 @@ export class InMemoryQueueStore implements QueueStore {
     private readonly items = new Map<string, QueueItem>();
 
     async enqueue(item: QueueItem): Promise<void> {
-        if (this.items.has(item.id)) {
-            throw new Error(`Queue item ${item.id} already exists.`);
-        }
+        if (this.items.has(item.id)) throw new Error(`Queue item ${item.id} already exists.`);
         this.items.set(item.id, { ...item });
     }
 
@@ -46,10 +45,8 @@ export class InMemoryQueueStore implements QueueStore {
             .filter((item) => item.status === QueueItemStatus.QUEUED && item.availableAt <= now)
             .sort((a, b) => {
                 const priorityRank: Record<Priority, number> = {
-                    [Priority.CRITICAL]: 0,
-                    [Priority.HIGH]: 1,
-                    [Priority.MEDIUM]: 2,
-                    [Priority.LOW]: 3,
+                    [Priority.CRITICAL]: 0, [Priority.HIGH]: 1,
+                    [Priority.MEDIUM]: 2, [Priority.LOW]: 3,
                 };
                 return priorityRank[a.priority] - priorityRank[b.priority]
                     || a.availableAt.getTime() - b.availableAt.getTime()
@@ -58,10 +55,9 @@ export class InMemoryQueueStore implements QueueStore {
 
         const item = candidates[0];
         if (!item) return null;
-
         item.status = QueueItemStatus.CLAIMED;
         item.attempts += 1;
-        item.updatedAt = new Date();
+        item.updatedAt = now;
         return { ...item };
     }
 
@@ -79,6 +75,17 @@ export class InMemoryQueueStore implements QueueStore {
         item.updatedAt = updatedAt;
     }
 
+    async retry(id: string, availableAt: Date): Promise<void> {
+        const item = this.items.get(id);
+        if (!item) throw new Error(`Queue item ${id} was not found.`);
+        if (item.status !== QueueItemStatus.CLAIMED && item.status !== QueueItemStatus.FAILED) {
+            throw new Error(`Queue item ${id} is not retryable from ${item.status}.`);
+        }
+        item.status = QueueItemStatus.QUEUED;
+        item.availableAt = availableAt;
+        item.updatedAt = availableAt;
+    }
+
     async get(id: string): Promise<QueueItem | null> {
         const item = this.items.get(id);
         return item ? { ...item } : null;
@@ -87,7 +94,6 @@ export class InMemoryQueueStore implements QueueStore {
     async recoverStaleClaims(now: Date, staleAfterMs: number): Promise<string[]> {
         const cutoff = now.getTime() - staleAfterMs;
         const recovered: string[] = [];
-
         for (const item of this.items.values()) {
             if (item.status !== QueueItemStatus.CLAIMED || item.updatedAt.getTime() > cutoff) continue;
             item.status = QueueItemStatus.QUEUED;
@@ -95,7 +101,6 @@ export class InMemoryQueueStore implements QueueStore {
             item.updatedAt = now;
             recovered.push(item.id);
         }
-
         return recovered;
     }
 }
