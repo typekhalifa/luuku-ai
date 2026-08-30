@@ -5,6 +5,7 @@ export interface ExecutionClaim {
     id: string;
     idempotencyKey: string;
     status: "executing" | "completed";
+    isNew: boolean;
     result?: AgentResult;
 }
 
@@ -17,6 +18,7 @@ export class ExecutionLedger {
                 id: existing.id,
                 idempotencyKey,
                 status: existing.executed ? "completed" : "executing",
+                isNew: false,
                 result: existing.executed ? {
                     success: existing.verified,
                     summary: "Recovered durable execution result.",
@@ -41,7 +43,7 @@ export class ExecutionLedger {
                 recipient: { workflowId, stepId },
             },
         });
-        return { id: record.id, idempotencyKey, status: "executing" };
+        return { id: record.id, idempotencyKey, status: "executing", isNew: true };
     }
 
     async complete(idempotencyKey: string, result: AgentResult): Promise<void> {
