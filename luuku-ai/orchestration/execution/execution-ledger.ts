@@ -8,25 +8,40 @@ export interface ExecutionClaim {
     result?: AgentResult;
 }
 
-/** Durable V6.4 execution ledger. */
+/** Durable V6 execution ledger. */
 export class ExecutionLedger {
     async begin(idempotencyKey: string, workflowId: string, stepId: string): Promise<ExecutionClaim> {
         const existing = await prisma.communicationExecution.findUnique({ where: { idempotencyKey } });
         if (existing) {
-            return {
-                id: existing.id,
-                idempotencyKey,
-                status: existing.executed ? "completed" : "executing",
-                result: existing.executed ? {
-                    success: existing.verified,
-                    summary: "Recovered durable execution result.",
-                    completedAt: existing.updatedAt.toISOString(),
-                    executionStatus: existing.status as AgentResult["executionStatus"],
-                    executed: existing.executed,
-                    verified: existing.verified,
-                    evidence: existing.evidence as AgentResult["evidence"],
-                } : undefined,
-            };
+            if (existing.executed) {
+                return {
+                    id: existing.id,
+                    idempotencyKey,
+                    status: "completed",
+                    result: {
+                        success: existing.verified,
+                        summary: "Recovered durable execution result.",
+                        completedAt: existing.updatedAt.toISOString(),
+                        executionStatus: existing.status as AgentResult["executionStatus"],
+                        executed: existing.executed,
+                        verified: existing.verified,
+                        evidence: existing.evidence as AgentResult["evidence"],
+                    },
+                };
+            }
+
+            // A previously failed execution with no recorded side effect is safe
+            // to retry. Reuse the durable idempotency identity rather than creating
+            // a second execution record for the same logical workflow step.
+            if (existing.status === "failed") {
+                await prisma.communicationExecution.update({
+                    where: { id: existing.id },
+                    data: { status: "executing", error: null },
+                });
+                return { id: existing.id, idempotencyKey, status: "new" };
+            }
+
+            return { id: existing.id, idempotencyKey, status: "executing" };
         }
 
         const record = await prisma.communicationExecution.create({
@@ -36,7 +51,7 @@ export class ExecutionLedger {
                 capability: "workflow.step",
                 channel: "internal",
                 policyDecision: "allowed",
-                policyReason: "V6.4 durable execution ledger",
+                policyReason: "V6 durable execution ledger",
                 status: "executing",
                 recipient: { workflowId, stepId },
             },
