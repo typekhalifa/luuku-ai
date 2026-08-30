@@ -7,28 +7,39 @@ import { ExecutionLedger, workflowStepIdempotencyKey } from "../execution/execut
 
 function toAgentPriority(priority: Priority): "low" | "medium" | "high" {
     switch (priority) {
-        case Priority.LOW:
-            return "low";
-        case Priority.MEDIUM:
-            return "medium";
+        case Priority.LOW: return "low";
+        case Priority.MEDIUM: return "medium";
         case Priority.HIGH:
-        case Priority.CRITICAL:
-            return "high";
+        case Priority.CRITICAL: return "high";
     }
 }
 
-/**
- * V6 execution boundary with durable idempotency.
- * The ledger survives process restarts; the in-memory runner guard still
- * protects concurrent duplicate dispatches inside one process.
- */
 export class SharedAgentWorkflowExecutor implements WorkflowStepExecutor {
     constructor(private readonly ledger = new ExecutionLedger()) {}
 
     async execute(step: WorkflowStep): Promise<AgentResult> {
-        const workflowId = typeof step.input?.workflowId === "string" ? step.input.workflowId : "unknown";
+        const workflowId = step.workflowId;
+        if (!workflowId) {
+            throw new Error(`Workflow identity is required for step ${step.id}.`);
+        }
+
         const idempotencyKey = workflowStepIdempotencyKey(workflowId, step.id);
         const claim = await this.ledger.begin(idempotencyKey, workflowId, step.id);
+
+        // An existing executing record is an uncertain outcome after a crash.
+        // Never blindly dispatch the side effect a second time; reconciliation
+        // must happen at the provider boundary before execution resumes.
+        if (claim.status === "executing" && claim.result === undefined) {
+            return {
+                success: false,
+                summary: "Execution is already recorded as executing. Reconciliation is required before retrying.",
+                completedAt: new Date().toISOString(),
+                executionStatus: "blocked",
+                executed: false,
+                verified: false,
+                blockers: ["Durable idempotency ledger contains an unresolved execution."]
+            };
+        }
 
         if (claim.status === "completed" && claim.result) return claim.result;
 
