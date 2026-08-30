@@ -11,6 +11,7 @@ export type WorkflowStepStatus =
 
 export interface WorkflowStep {
     id: string;
+    workflowId?: string;
     title: string;
     description: string;
     agentId: string;
