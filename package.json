@@ -29,6 +29,8 @@
     "dev:discord:lex:operate": "tsx luuku-ai/shared/communication/demo/real-founder-lex-operating-demo.ts",
     "dev:queue": "tsx luuku-ai/shared/organization/demo/queue-demo.ts",
     "dev:email:sales-test": "tsx luuku-ai/agents/email-sales-test/agent.ts",
+    "dev:v6:persistent-runtime": "tsx luuku-ai/orchestration/workflow/demo/v6-persistent-autonomous-runtime-demo.ts",
+    "dev:v6:crash-recovery": "tsx luuku-ai/orchestration/workflow/demo/v6-runtime-crash-recovery-demo.ts",
     "dev:web": "npm run dev --workspace=apps/web",
     "build:web": "npm run build --workspace=apps/web",
     "typecheck": "tsc --noEmit",
@@ -43,7 +45,6 @@
   ],
   "author": "Jean D'Amour Hagabimana",
   "license": "ISC",
-  "type": "commonjs",
   "devDependencies": {
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",

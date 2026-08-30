@@ -132,7 +132,7 @@ The repository already contains substantial foundations for planner, router, reg
 
 ---
 
-# v5.0 — COMMUNICATION LAYER 🚀 NEXT
+# v5.0 — COMMUNICATION LAYER 🚀
 
 ## Objective
 
@@ -159,6 +159,13 @@ The communication layer is a reusable communication core connecting humans and e
 - Telegram
 - Voice
 
+### Current state
+
+- Discord founder → LEX loop: **proven**
+- Real email execution through Sales Agent: **proven and verified**
+- Voice provider architecture: **implemented; live provider activation pending credentials/accounts**
+- WhatsApp / Slack / Telegram: **adapter targets, not yet activated**
+
 ### Core flow
 
 ```text
@@ -179,51 +186,56 @@ Founder / External Channel
         Founder
 ```
 
-### First working milestone
-
-```text
-Founder
-  ↓
-Communication API
-  ↓
-"What's happening today?"
-  ↓
-Executive AI
-  ↓
-Orchestrator
-  ↓
-Agents / Events / State
-  ↓
-Executive Summary
-  ↓
-Communication API
-  ↓
-Founder
-```
-
-Once this core loop works reliably, WhatsApp/Discord/Slack/Telegram become channel adapters rather than separate brains.
+V5 should be considered complete only after the live voice path is independently tested and verified. Other channels can be added incrementally through the same communication core.
 
 ---
 
-# v6.0 — AUTONOMOUS BUSINESS ⏳
+# v6.0 — AUTONOMOUS BUSINESS 🚧
 
-Move from assisted execution toward autonomous business workflows.
+Move from founder-directed actions toward coordinated, multi-step business workflows.
+
+The first V6 foundation is now in the repository: workflow lifecycle contracts, dependent workflow steps, agent/capability ownership, and pure workflow readiness evaluation.
 
 ```text
-Research Agent finds opportunity
-          ↓
-Planner creates strategy
-          ↓
-Sales Agent prepares proposal
-          ↓
-Legal / Finance prepare documents
-          ↓
-Developer / Operations execute delivery
-          ↓
-Support handles onboarding
+Business Event / Executive Goal
+            ↓
+      Executive AI
+            ↓
+          Planner
+            ↓
+       Workflow Plan
+            ↓
+       Orchestrator
+            ↓
+    Agent / Capability Registry
+            ↓
+       Queue / Runtime
+            ↓
+        Execution
+            ↓
+      Events / State / Logs
+            ↓
+      Executive AI
+            ↓
+ Founder decision only when required
 ```
 
-The Executive AI coordinates the workflow while the founder remains responsible for strategic decisions and consequential approvals.
+### V6 implementation sequence
+
+1. Workflow contracts and dependency model **🚧 foundation started**
+2. Workflow persistence and state transitions
+3. Planner that produces real multi-step plans
+4. Orchestrator that routes plan steps to capabilities
+5. Queue-backed execution and retry policy
+6. Result/event propagation back to Executive AI
+7. Approval checkpoints for consequential steps
+8. First end-to-end autonomous business workflow
+9. Add specialized departments as real workflows demand them
+10. Harden observability, failure recovery, idempotency, and auditability
+
+The target is not a large agent count. The target is a company that can receive an objective and coordinate the required capabilities without the founder manually assigning every task.
+
+See `docs/v6-autonomous-business.md` for the detailed V6 contract and finish line.
 
 ---
 
@@ -267,14 +279,16 @@ v1.0  Mission Control               ✅
 v2.0  AI Core / Knowledge           🚧
 v3.0  Multi-Agent Collaboration     🚧
 v4.0  Company Operating System      🚧
-v5.0  Communication Layer           🚀 NEXT
-v6.0  Autonomous Business           ⏳
+v5.0  Communication Layer           🚀 ACTIVE
+v6.0  Autonomous Business           🚧 FOUNDATION STARTED
 v7.0  Luuku OS                      ⏳
 ```
 
 **Canonical engineering version:** `v0.10.0`
 
-**Next strategic milestone:** `v5.0 — Communication Layer`
+**Current strategic milestone:** `v5.0 — Communication Layer`
+
+**Next major build:** `v6.0 — Autonomous Business`
 
 ---
 

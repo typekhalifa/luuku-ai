@@ -43,7 +43,7 @@ model Contact {
   updatedAt         DateTime   @updatedAt
   activities        Activity[]
   company           Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
-
+  
   @@index([companyId])
 }
 
@@ -64,7 +64,7 @@ model Deal {
   lastActivityAt    DateTime?
   activities        Activity[]
   company           Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
-
+  
   @@index([companyId])
 }
 
@@ -84,7 +84,7 @@ model Activity {
   company     Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
   contact     Contact?     @relation(fields: [contactId], references: [id])
   deal        Deal?        @relation(fields: [dealId], references: [id])
-
+  
   @@index([companyId])
   @@index([contactId])
   @@index([dealId])
@@ -175,6 +175,62 @@ model CommunicationExecution {
   @@index([createdAt])
   @@index([provider])
   @@unique([idempotencyKey])
+}
+
+model Workflow {
+  id                    String         @id
+  goal                  String
+  status                String
+  requiresFounderApproval Boolean      @default(false)
+  approvedAt            DateTime?
+  metadata              Json
+  createdAt             DateTime       @default(now())
+  updatedAt             DateTime       @updatedAt
+  steps                 WorkflowStep[]
+
+  @@index([status])
+}
+
+model WorkflowStep {
+  id                String   @id
+  workflowId        String
+  title             String
+  description       String
+  agentId           String
+  capability        String?
+  dependsOn         Json
+  priority          String
+  requiresApproval  Boolean  @default(false)
+  status            String
+  input             Json?
+  output            Json?
+  error             String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  workflow          Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+
+  @@index([workflowId])
+  @@index([status])
+  @@index([agentId])
+}
+
+model QueueItem {
+  id         String   @id
+  workflowId String
+  stepId     String
+  agentId    String
+  priority   String
+  availableAt DateTime
+  status     String
+  attempts   Int      @default(0)
+  metadata   Json
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([status, availableAt])
+  @@index([priority, availableAt])
+  @@index([workflowId])
+  @@index([stepId])
 }
 
 enum CompanyStatus {

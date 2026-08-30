@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import https from "node:https";
 
 import {
     CommunicationAdapter,
@@ -275,36 +276,79 @@ export const resendEmailAdapter: CommunicationAdapter = {
                 }
             ];
 
-            const response = await fetch(
-                RESEND_ENDPOINT,
-                {
+            const payloadBody = JSON.stringify({
+                from,
+                to: [recipient],
+                subject: request.subject,
+                html,
+                text: request.body,
+                tags,
+                ...(replyTo
+                    ? { reply_to: replyTo }
+                    : {}),
+                ...(Object.keys(emailHeaders).length
+                    ? { headers: emailHeaders }
+                    : {})
+            });
+
+            const response = await new Promise<{
+                statusCode: number;
+                body: string;
+            }>((resolve, reject) => {
+                const endpoint = new URL(RESEND_ENDPOINT);
+
+                const req = https.request({
+                    protocol: endpoint.protocol,
+                    hostname: endpoint.hostname,
+                    port: endpoint.port || 443,
+                    path: `${endpoint.pathname}${endpoint.search}`,
                     method: "POST",
-                    headers,
-                    body: JSON.stringify({
-                        from,
-                        to: [recipient],
-                        subject: request.subject,
-                        html,
-                        text: request.body,
-                        tags,
-                        ...(replyTo
-                            ? { reply_to: replyTo }
-                            : {}),
-                        ...(Object.keys(emailHeaders).length
-                            ? { headers: emailHeaders }
-                            : {})
-                    })
-                }
-            );
+                    headers: {
+                        ...headers,
+                        "Content-Length": Buffer.byteLength(payloadBody)
+                    },
+                    timeout: 15000
+                }, res => {
+                    const chunks: Buffer[] = [];
 
-            const payload =
-                await response.json() as {
-                    id?: string;
-                    message?: string;
-                    name?: string;
-                };
+                    res.on("data", chunk => {
+                        chunks.push(Buffer.isBuffer(chunk)
+                            ? chunk
+                            : Buffer.from(chunk));
+                    });
 
-            if (!response.ok || !payload.id) {
+                    res.on("end", () => {
+                        resolve({
+                            statusCode: res.statusCode || 0,
+                            body: Buffer.concat(chunks).toString("utf8")
+                        });
+                    });
+                });
+
+                req.on("timeout", () => {
+                    req.destroy(new Error("Resend request timed out."));
+                });
+
+                req.on("error", reject);
+                req.write(payloadBody);
+                req.end();
+            });
+
+            let payload: {
+                id?: string;
+                message?: string;
+                name?: string;
+            } = {};
+
+            try {
+                payload = response.body
+                    ? JSON.parse(response.body) as typeof payload
+                    : {};
+            } catch {
+                payload = {};
+            }
+
+            if (response.statusCode < 200 || response.statusCode >= 300 || !payload.id) {
                 return {
                     capability: request.capability,
                     channel: request.channel,
@@ -316,7 +360,7 @@ export const resendEmailAdapter: CommunicationAdapter = {
                     error:
                         payload.message ||
                         payload.name ||
-                        `RESEND_HTTP_${response.status}`
+                        `RESEND_HTTP_${response.statusCode}`
                 };
             }
 
