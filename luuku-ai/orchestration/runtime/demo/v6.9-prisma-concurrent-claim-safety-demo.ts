@@ -14,23 +14,13 @@ async function main() {
     await prisma.queueItem.deleteMany({ where: { workflowId } });
     await prisma.queueItem.create({
         data: {
-            id: queueId,
-            workflowId,
-            stepId: "marketing",
-            agentId: "marketing",
-            priority: Priority.HIGH,
-            availableAt: now,
-            status: QueueItemStatus.QUEUED,
-            attempts: 0,
-            metadata: {},
-            createdAt: now,
-            updatedAt: now,
+            id: queueId, workflowId, stepId: "marketing", agentId: "marketing", priority: Priority.HIGH,
+            availableAt: now, status: QueueItemStatus.QUEUED, attempts: 0, metadata: {}, createdAt: now, updatedAt: now,
         },
     });
 
     const [workerA, workerB] = await Promise.all([queue.claimNext(now), queue.claimNext(now)]);
     const winners = [workerA, workerB].filter((item): item is NonNullable<typeof item> => item !== null);
-
     assert.equal(winners.length, 1);
     assert.equal(winners[0].id, queueId);
     assert.equal(winners[0].attempts, 1);
@@ -41,8 +31,7 @@ async function main() {
 
     await queue.complete(queueId, now);
     const [workerC, workerD] = await Promise.all([
-        queue.claimNext(new Date(now.getTime() + 1_000)),
-        queue.claimNext(new Date(now.getTime() + 1_000)),
+        queue.claimNext(new Date(now.getTime() + 1_000)), queue.claimNext(new Date(now.getTime() + 1_000)),
     ]);
     assert.equal(workerC, null);
     assert.equal(workerD, null);
@@ -69,6 +58,5 @@ async function main() {
 
 main().catch(async (error) => {
     console.error(error);
-    await prisma.queueItem.deleteMany({ where: { workflowId } }).catch(() => undefined);
     process.exitCode = 1;
 });
