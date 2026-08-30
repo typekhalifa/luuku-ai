@@ -1,6 +1,6 @@
 import { QueueItem, QueueItemStatus, QueueStore } from "../queue/queue";
 import { Scheduler, ScheduleItemInput } from "../scheduler/scheduler";
-import { FailurePolicy, defaultFailurePolicy, decideFailure } from "../runtime/failure-policy";
+import { FailurePolicy, defaultFailurePolicy, decideFailure } from "../runtime/failure-policy.js";
 import { Workflow } from "./workflow";
 import { WorkflowEngine } from "./workflow-engine";
 import { WorkflowOrchestrator } from "./workflow-orchestrator";
@@ -82,14 +82,14 @@ export class AutonomousRuntime {
             await this.queue.complete(next.id, now);
             completed.push(next.id);
         } else if (result && step) {
-            const disposition = decideFailure(this.failurePolicy, result, next.attempts);
-            if (disposition === "retry") {
+            const disposition = decideFailure(result, next.attempts, this.failurePolicy);
+            if (disposition.action === "retry") {
                 step.status = "READY";
-                const retryAt = new Date(now.getTime() + this.failurePolicy.backoffMs(next.attempts));
+                const retryAt = new Date(now.getTime() + disposition.delayMs);
                 await this.queue.retry(next.id, retryAt);
                 if (this.workflowStore) await this.workflowStore.save(workflow);
                 retried.push(next.id);
-            } else if (disposition === "blocked") {
+            } else if (disposition.action === "block") {
                 await this.queue.fail(next.id, now);
                 if (this.workflowStore) await this.workflowStore.save(workflow);
                 blocked.push(next.id);
