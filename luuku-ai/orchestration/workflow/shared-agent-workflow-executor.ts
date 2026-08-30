@@ -3,6 +3,7 @@ import { runAgent } from "../../shared/agents/runner";
 import { Priority } from "../task/priority";
 import { WorkflowStep } from "./workflow-step";
 import { WorkflowStepExecutor } from "./workflow-orchestrator";
+import { ExecutionLedger, workflowStepIdempotencyKey } from "../execution/execution-ledger";
 
 function toAgentPriority(priority: Priority): "low" | "medium" | "high" {
     switch (priority) {
@@ -17,22 +18,35 @@ function toAgentPriority(priority: Priority): "low" | "medium" | "high" {
 }
 
 /**
- * Production boundary from a V6 workflow step into the existing shared
- * agent runner. The runner remains responsible for registry lookup and
- * duplicate-execution protection.
+ * V6 execution boundary with durable idempotency.
+ * The ledger survives process restarts; the in-memory runner guard still
+ * protects concurrent duplicate dispatches inside one process.
  */
 export class SharedAgentWorkflowExecutor implements WorkflowStepExecutor {
+    constructor(private readonly ledger = new ExecutionLedger()) {}
+
     async execute(step: WorkflowStep): Promise<AgentResult> {
-        return runAgent(step.agentId, {
+        const workflowId = typeof step.input?.workflowId === "string" ? step.input.workflowId : "unknown";
+        const idempotencyKey = workflowStepIdempotencyKey(workflowId, step.id);
+        const claim = await this.ledger.begin(idempotencyKey, workflowId, step.id);
+
+        if (claim.status === "completed" && claim.result) return claim.result;
+
+        const result = await runAgent(step.agentId, {
             id: step.id,
             title: step.title,
             description: step.description,
             priority: toAgentPriority(step.priority),
             metadata: {
                 workflowStepId: step.id,
+                workflowId,
                 capability: step.capability,
                 input: step.input,
+                idempotencyKey,
             },
         });
+
+        await this.ledger.complete(idempotencyKey, result);
+        return result;
     }
 }
