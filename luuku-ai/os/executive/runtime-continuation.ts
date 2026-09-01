@@ -1,12 +1,10 @@
-import type { ExecutionPlan } from "../planning/execution-plan.js";
-import type { Workflow } from "../../orchestration/workflow/workflow.js";
 import type { WorkflowStore } from "../../orchestration/workflow/workflow-store.js";
 import type { QueueItem, QueueStore } from "../../orchestration/queue/queue.js";
 import { QueueScheduler } from "../../orchestration/scheduler/scheduler.js";
 import { WorkflowOrchestrator } from "../../orchestration/workflow/workflow-orchestrator.js";
 
 export interface RuntimeContinuationResult {
-    readonly status: "SCHEDULED" | "ALREADY_SCHEDULED" | "WAITING" | "NOT_FOUND";
+    readonly status: "SCHEDULED" | "ALREADY_SCHEDULED" | "WAITING" | "BLOCKED" | "NOT_FOUND";
     readonly workflowId: string;
     readonly scheduledItems: readonly QueueItem[];
     readonly waitingStepIds: readonly string[];
@@ -39,6 +37,16 @@ export class ExecutiveRuntimeContinuation {
         }
 
         const evaluation = await this.evaluator.runReadySteps(workflow);
+        if (evaluation.requiresApproval) {
+            return {
+                status: "BLOCKED",
+                workflowId,
+                scheduledItems: [],
+                waitingStepIds: [],
+                reason: "Workflow is awaiting founder approval and cannot enter the runtime queue.",
+            };
+        }
+
         if (evaluation.runnableStepIds.length === 0) {
             return {
                 status: "WAITING",
@@ -56,9 +64,7 @@ export class ExecutiveRuntimeContinuation {
 
             const queueId = `executive:${workflow.id}:${step.id}`;
             const existing = await this.queueStore.get(queueId);
-            if (existing) {
-                continue;
-            }
+            if (existing) continue;
 
             const item = await this.scheduler.schedule({
                 id: queueId,
@@ -77,8 +83,7 @@ export class ExecutiveRuntimeContinuation {
             scheduledItems.push(item);
         }
 
-        const totalScheduled = scheduledItems.length;
-        const alreadyScheduled = evaluation.runnableStepIds.length > 0 && totalScheduled === 0;
+        const alreadyScheduled = scheduledItems.length === 0;
         return {
             status: alreadyScheduled ? "ALREADY_SCHEDULED" : "SCHEDULED",
             workflowId: workflow.id,
@@ -90,6 +95,3 @@ export class ExecutiveRuntimeContinuation {
         };
     }
 }
-
-export type { ExecutionPlan };
-export type { Workflow };
