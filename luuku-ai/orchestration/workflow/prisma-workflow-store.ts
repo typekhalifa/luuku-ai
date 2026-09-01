@@ -34,6 +34,11 @@ export class PrismaWorkflowStore implements WorkflowStore {
         return record ? fromRecord(record) : null;
     }
 
+    async list(): Promise<Workflow[]> {
+        const records = await prisma.workflow.findMany({ include: { steps: true }, orderBy: { createdAt: "asc" } });
+        return records.map(fromRecord);
+    }
+
     async save(workflow: Workflow): Promise<Workflow> {
         await prisma.$transaction(async (tx) => {
             await tx.workflow.update({
