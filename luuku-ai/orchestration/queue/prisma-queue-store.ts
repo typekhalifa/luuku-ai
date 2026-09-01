@@ -24,6 +24,7 @@ export class PrismaQueueStore implements QueueStore {
         if (!result.count) throw new Error(`Queue item ${id} is not retryable or was not found.`);
     }
     async get(id: string): Promise<QueueItem | null> { const item = await prisma.queueItem.findUnique({ where: { id } }); return item ? fromRecord(item) : null; }
+    async list(): Promise<QueueItem[]> { const items = await prisma.queueItem.findMany({ orderBy: { createdAt: "asc" } }); return items.map(fromRecord); }
     async recoverStaleClaims(now: Date, staleAfterMs: number): Promise<string[]> {
         if (staleAfterMs < 0) throw new Error("staleAfterMs must be non-negative.");
         const cutoff = new Date(now.getTime() - staleAfterMs);
