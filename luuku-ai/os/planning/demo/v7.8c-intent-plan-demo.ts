@@ -1,16 +1,24 @@
-import { ExecutiveObservationLoop } from "../executive/executive-observation.js";
-import { ExecutiveIntentProjector } from "../executive/executive-intent.js";
-import { ExecutiveIntentPlanBuilder } from "./intent-plan-builder.js";
-import { CapabilityResolver } from "./capability-resolver.js";
-import { InMemoryAgentRegistry } from "../agents/in-memory-agent-registry.js";
+import { ExecutiveObservationLoop } from "../../executive/executive-observation.js";
+import { ExecutiveIntentProjector } from "../../executive/executive-intent.js";
+import { ExecutiveIntentPlanBuilder } from "../intent-plan-builder.js";
+import { CapabilityResolver } from "../capability-resolver.js";
+import { InMemoryAgentRegistry } from "../../../orchestration/agent/in-memory-agent-registry.js";
+import type { Agent } from "../../../orchestration/agent/agent.js";
+import type { Task } from "../../../orchestration/task/task.js";
+import type { TaskResult } from "../../../orchestration/task/task-result.js";
 
-const registry = new InMemoryAgentRegistry();
-registry.register({
+const recoveryAgent: Agent = {
     id: "recovery-agent",
     name: "Recovery Agent",
     description: "Handles recovery investigation.",
     capabilities: ["work.recover"],
-});
+    async execute(_task: Task): Promise<TaskResult> {
+        throw new Error("Demo agent must never execute.");
+    },
+};
+
+const registry = new InMemoryAgentRegistry();
+registry.register(recoveryAgent);
 
 const resolver = new CapabilityResolver(registry);
 const builder = new ExecutiveIntentPlanBuilder(resolver);
@@ -52,8 +60,8 @@ if (executionPlan.steps[0]?.agentId !== "recovery-agent") {
 if (executionPlan.steps[0]?.capability !== "work.recover") {
     throw new Error("Execution plan capability is incorrect.");
 }
-if (executionPlan.steps[0]?.metadata) {
-    throw new Error("ExecutionPlanStep must remain the existing execution-plan contract.");
+if (executionPlan.steps[0]?.input === undefined) {
+    throw new Error("Execution plan input was not created from intent evidence.");
 }
 
 console.log("✓ Executive intent is converted into the existing execution-plan contract.");
