@@ -2,24 +2,23 @@ import type { ExecutionDecision } from "./execution-decision.js";
 import type { ExecutionPlan } from "../planning/execution-plan.js";
 import type { Workflow } from "../../orchestration/workflow/workflow.js";
 import type { WorkflowStep } from "../../orchestration/workflow/workflow-step.js";
+import type { ExecutionBridgeResult } from "./runtime-bridge-result.js";
 import { Priority } from "../../orchestration/task/priority.js";
 import { WorkflowStatus } from "../../orchestration/workflow/workflow-status.js";
 
-export interface ExecutionSubmission {
-    readonly status: "SUBMITTED" | "BLOCKED" | "NOT_EXECUTABLE";
-    readonly workflow?: Workflow;
-    readonly reason: string;
-}
-
 /** Converts an execution decision into a V6 workflow without invoking the runtime. */
 export class ExecutiveExecutionBridge {
-    submit(decision: ExecutionDecision, plan: ExecutionPlan): ExecutionSubmission {
+    submit(decision: ExecutionDecision, plan: ExecutionPlan): ExecutionBridgeResult {
+        if (decision.planId !== plan.id) {
+            throw new Error(`Execution bridge identity mismatch: decision ${decision.planId} does not match plan ${plan.id}.`);
+        }
+
         if (decision.status === "NOT_EXECUTABLE") {
-            return { status: "NOT_EXECUTABLE", reason: "Execution decision is not executable." };
+            return { status: "NOT_EXECUTABLE", planId: plan.id, reason: "Execution decision is not executable." };
         }
 
         if (decision.status === "BLOCKED") {
-            return { status: "BLOCKED", reason: "Execution decision is blocked pending founder approval." };
+            return { status: "BLOCKED", planId: plan.id, reason: "Execution decision is blocked pending founder approval." };
         }
 
         const now = new Date();
@@ -56,6 +55,7 @@ export class ExecutiveExecutionBridge {
         return {
             status: "SUBMITTED",
             workflow,
+            planId: plan.id,
             reason: "Execution-eligible work was converted into a V6 workflow for orchestration.",
         };
     }
