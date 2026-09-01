@@ -4,6 +4,7 @@ import { Workflow } from "./workflow";
 export interface WorkflowStore {
     create(workflow: Workflow): Promise<Workflow>;
     get(id: string): Promise<Workflow | null>;
+    list(): Promise<Workflow[]>;
     save(workflow: Workflow): Promise<Workflow>;
 }
 
@@ -22,6 +23,10 @@ export class InMemoryWorkflowStore implements WorkflowStore {
     async get(id: string): Promise<Workflow | null> {
         const workflow = this.workflows.get(id);
         return workflow ? cloneWorkflow(workflow) : null;
+    }
+
+    async list(): Promise<Workflow[]> {
+        return [...this.workflows.values()].map(cloneWorkflow);
     }
 
     async save(workflow: Workflow): Promise<Workflow> {
