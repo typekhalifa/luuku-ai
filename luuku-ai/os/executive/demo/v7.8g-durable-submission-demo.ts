@@ -17,29 +17,31 @@ const eligible: ExecutionDecision = {
     id: "execution-decision-recovery", status: "ELIGIBLE", intentId: "recover-failed-work", planId: plan.id,
     reason: "Recovery is permitted autonomously.", requiresFounderApproval: false, evidence: {}, createdAt: new Date("2026-09-01T00:00:00.000Z"),
 };
-const blocked: ExecutionDecision = { ...eligible, id: "execution-decision-customer", status: "BLOCKED", requiresFounderApproval: true };
-const noAction: ExecutionDecision = { ...eligible, id: "execution-decision-none", status: "NOT_EXECUTABLE" };
+const blockedPlan = { ...plan, id: "execution-customer-plan" };
+const noActionPlan = { ...plan, id: "execution-none-plan" };
+const blocked: ExecutionDecision = { ...eligible, id: "execution-decision-customer", status: "BLOCKED", planId: blockedPlan.id, requiresFounderApproval: true };
+const noAction: ExecutionDecision = { ...eligible, id: "execution-decision-none", status: "NOT_EXECUTABLE", planId: noActionPlan.id };
 
 const store = new InMemoryWorkflowStore();
 const submission = new DurableExecutiveSubmission(store);
 const first = await submission.submit(eligible, plan);
 const replay = await submission.submit(eligible, plan);
-const blockedResult = await submission.submit(blocked, { ...plan, id: "execution-customer-plan" });
-const noActionResult = await submission.submit(noAction, { ...plan, id: "execution-none-plan" });
+const blockedResult = await submission.submit(blocked, blockedPlan);
+const noActionResult = await submission.submit(noAction, noActionPlan);
 
 console.log("V7.8-G DURABLE EXECUTIVE SUBMISSION DEMO");
-console.log(`First status    : ${first.status}`);
-console.log(`Replay status   : ${replay.status}`);
-console.log(`Blocked status  : ${blockedResult.status}`);
-console.log(`No-action status: ${noActionResult.status}`);
+console.log(`First status     : ${first.status}`);
+console.log(`Replay status    : ${replay.status}`);
+console.log(`Blocked status   : ${blockedResult.status}`);
+console.log(`No-action status : ${noActionResult.status}`);
 console.log(`Durable workflows: ${(await store.list()).length}`);
 
 if (first.status !== "SUBMITTED" || !first.workflow) throw new Error("Eligible work was not persisted.");
 if (first.workflow.status !== "READY") throw new Error("Persisted workflow is not READY.");
 if (replay.status !== "ALREADY_SUBMITTED") throw new Error("Replay was not treated idempotently.");
 if (replay.workflow?.id !== first.workflow.id) throw new Error("Replay returned a different workflow.");
-if (blockedResult.status !== "BLOCKED") throw new Error("Blocked work was persisted.");
-if (noActionResult.status !== "NOT_EXECUTABLE") throw new Error("NO_ACTION became executable.");
+if (blockedResult.status !== "BLOCKED" || blockedResult.workflow !== undefined) throw new Error("Blocked work was persisted.");
+if (noActionResult.status !== "NOT_EXECUTABLE" || noActionResult.workflow !== undefined) throw new Error("NO_ACTION became executable.");
 if ((await store.list()).length !== 1) throw new Error("Unexpected workflow count after submission paths.");
 
 console.log("✓ ELIGIBLE work is durably persisted as a READY V6 workflow.");
