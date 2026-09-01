@@ -29,6 +29,7 @@ export interface QueueStore {
     fail(id: string, updatedAt?: Date): Promise<void>;
     retry(id: string, availableAt: Date): Promise<void>;
     get(id: string): Promise<QueueItem | null>;
+    list(): Promise<QueueItem[]>;
     recoverStaleClaims(now: Date, staleAfterMs: number): Promise<string[]>;
 }
 
@@ -89,6 +90,10 @@ export class InMemoryQueueStore implements QueueStore {
     async get(id: string): Promise<QueueItem | null> {
         const item = this.items.get(id);
         return item ? { ...item } : null;
+    }
+
+    async list(): Promise<QueueItem[]> {
+        return [...this.items.values()].map((item) => ({ ...item, metadata: { ...item.metadata } }));
     }
 
     async recoverStaleClaims(now: Date, staleAfterMs: number): Promise<string[]> {
