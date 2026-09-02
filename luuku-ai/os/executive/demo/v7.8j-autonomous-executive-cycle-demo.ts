@@ -7,6 +7,7 @@ import { WorkflowStatus } from "../../../orchestration/workflow/workflow-status.
 import { InMemoryWorkflowStore } from "../../../orchestration/workflow/workflow-store.js";
 import { InMemoryQueueStore } from "../../../orchestration/queue/queue.js";
 import type { Workflow } from "../../../orchestration/workflow/workflow.js";
+import type { WorkflowStepExecutor } from "../../../orchestration/workflow/workflow-orchestrator.js";
 import { AgentRegistry } from "../../agents/registry.js";
 import { AgentDiscovery } from "../../agents/discovery.js";
 import { CapabilityResolver } from "../../planning/capability-resolver.js";
@@ -47,6 +48,12 @@ agentRegistry.register({
 const workflowStore = new InMemoryWorkflowStore();
 const queueStore = new InMemoryQueueStore();
 
+const controlledExecutor: WorkflowStepExecutor = {
+    async execute(): Promise<AgentResult> {
+        return recoveryAgent.execute();
+    },
+};
+
 const failedWorkflow: Workflow = {
     id: workflowId,
     goal: "Recover a failed customer workflow.",
@@ -84,6 +91,7 @@ async function main() {
                 reason: "Recovery is explicitly safe to execute autonomously.",
             }],
             executeRuntime: true,
+            workflowExecutor: controlledExecutor,
         },
     );
 
@@ -135,7 +143,7 @@ async function main() {
     console.log("✓ Intent became an execution plan through capability resolution.");
     console.log("✓ Explicit autonomy policy made safe recovery executable without founder approval.");
     console.log("✓ Eligible work was durably submitted and continued into the canonical V6 queue.");
-    console.log("✓ V6 runtime executed the recovery agent exactly once and completed the workflow.");
+    console.log("✓ V6 runtime executed the controlled recovery executor exactly once and completed the workflow.");
     console.log("✓ Execution feedback returned durable runtime outcome to the executive layer.");
     console.log("✓ The final observation sees the recovered work as completed while preserving the original failure history.");
     console.log("✓ The full cycle creates no external provider or network request.");
