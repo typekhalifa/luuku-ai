@@ -101,7 +101,7 @@ export class AutonomousExecutiveCycle {
             const decision = this.decisionProjector.decide(intent, plan, policy);
             const submission = await this.submission.submit(decision, plan);
             const continuation = submission.status === "SUBMITTED" || submission.status === "ALREADY_SUBMITTED"
-                ? await this.continuation.continue(plan.id)
+                ? await this.continuation.continue(plan.id, now)
                 : undefined;
 
             intentResults.push({
