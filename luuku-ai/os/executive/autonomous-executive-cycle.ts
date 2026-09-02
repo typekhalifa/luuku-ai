@@ -2,7 +2,7 @@ import type { QueueStore } from "../../orchestration/queue/queue.js";
 import { AutonomousRuntime, type AutonomousRuntimeCycleResult } from "../../orchestration/workflow/autonomous-runtime.js";
 import type { WorkflowStore } from "../../orchestration/workflow/workflow-store.js";
 import { SharedAgentWorkflowExecutor } from "../../orchestration/workflow/shared-agent-workflow-executor.js";
-import { WorkflowOrchestrator } from "../../orchestration/workflow/workflow-orchestrator.js";
+import { WorkflowOrchestrator, type WorkflowStepExecutor } from "../../orchestration/workflow/workflow-orchestrator.js";
 import { QueueScheduler } from "../../orchestration/scheduler/scheduler.js";
 import type { CapabilityResolver } from "../planning/capability-resolver.js";
 import { ExecutiveIntentPlanBuilder, type IntentPlanCapabilityMap } from "../planning/intent-plan-builder.js";
@@ -20,6 +20,7 @@ export interface AutonomousExecutiveCycleOptions {
     readonly capabilities: IntentPlanCapabilityMap;
     readonly policyRules: readonly AutonomyPolicyRule[];
     readonly executeRuntime?: boolean;
+    readonly workflowExecutor?: WorkflowStepExecutor;
 }
 
 export interface AutonomousExecutiveIntentResult {
@@ -74,7 +75,7 @@ export class AutonomousExecutiveCycle {
         this.runtime = new AutonomousRuntime(
             new QueueScheduler(queueStore),
             queueStore,
-            new WorkflowOrchestrator(undefined, new SharedAgentWorkflowExecutor()),
+            new WorkflowOrchestrator(undefined, options.workflowExecutor ?? new SharedAgentWorkflowExecutor()),
             workflowStore,
         );
     }
