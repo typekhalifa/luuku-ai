@@ -103,7 +103,7 @@ async function main() {
     assert.equal(recovery.decision?.status, "ELIGIBLE");
     assert.equal(recovery.submission?.status, "SUBMITTED");
     assert.equal(recovery.continuation?.status, "SCHEDULED");
-    assert.deepEqual(result.runtime?.completed, [recovery.submission?.workflow?.steps[0]?.id ? `executive:${recovery.submission.workflow.id}:${recovery.submission.workflow.steps[0].id}` : ""]);
+    assert.deepEqual(result.runtime?.completed, [recovery.submission?.workflow?.steps[0]?.id ? `${recovery.submission.workflow.id}:${recovery.submission.workflow.steps[0].id}` : ""]);
     assert.equal(executions, 1);
 
     const workflows = await workflowStore.list();
@@ -114,6 +114,7 @@ async function main() {
     assert.equal(recoveryWorkflow?.steps[0]?.status, "COMPLETED");
     assert.equal(recoveryWorkflow?.status, WorkflowStatus.COMPLETED);
     assert.equal(recoveryQueue?.status, "COMPLETED");
+    assert.equal(queues.length, 1);
     assert.ok(result.feedback.feedback.some((item) => item.workflowId === recoveryWorkflow?.id && item.status === "COMPLETED"));
     assert.ok(result.finalObservation.observations.some((item) => item.type === "FAILED_WORK"));
 
@@ -133,7 +134,7 @@ async function main() {
     console.log("✓ Executive observation generated recovery intent from durable V6 truth.");
     console.log("✓ Intent became an execution plan through capability resolution.");
     console.log("✓ Explicit autonomy policy made safe recovery executable without founder approval.");
-    console.log("✓ Eligible work was durably submitted and continued into the V6 queue.");
+    console.log("✓ Eligible work was durably submitted and continued into the canonical V6 queue.");
     console.log("✓ V6 runtime executed the recovery agent exactly once and completed the workflow.");
     console.log("✓ Execution feedback returned durable runtime outcome to the executive layer.");
     console.log("✓ The final observation sees the recovered work as completed while preserving the original failure history.");
