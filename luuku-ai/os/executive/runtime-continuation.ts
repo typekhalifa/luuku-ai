@@ -1,7 +1,8 @@
-import type { WorkflowStore } from "../../orchestration/workflow/workflow-store.js";
-import type { QueueItem, QueueStore } from "../../orchestration/queue/queue.js";
+import type { QueueStore } from "../../orchestration/queue/queue.js";
+import type { QueueItem } from "../../orchestration/queue/queue.js";
 import { QueueScheduler } from "../../orchestration/scheduler/scheduler.js";
 import { WorkflowOrchestrator } from "../../orchestration/workflow/workflow-orchestrator.js";
+import type { WorkflowStore } from "../../orchestration/workflow/workflow-store.js";
 
 export interface RuntimeContinuationResult {
     readonly status: "SCHEDULED" | "ALREADY_SCHEDULED" | "WAITING" | "BLOCKED" | "NOT_FOUND";
@@ -11,7 +12,7 @@ export interface RuntimeContinuationResult {
     readonly reason: string;
 }
 
-/** Continues an eligible durable workflow into V6 scheduling without executing agents. */
+/** Continues an eligible durable workflow into the canonical V6 queue without executing agents. */
 export class ExecutiveRuntimeContinuation {
     private readonly scheduler: QueueScheduler;
     private readonly evaluator: WorkflowOrchestrator;
@@ -62,7 +63,10 @@ export class ExecutiveRuntimeContinuation {
             const step = workflow.steps.find((candidate) => candidate.id === stepId);
             if (!step) continue;
 
-            const queueId = `executive:${workflow.id}:${step.id}`;
+            // V6 AutonomousRuntime uses this exact canonical identity. Reuse it here so
+            // executive continuation and V6 runtime share one durable queue item rather
+            // than creating an executive shadow item that the runtime would duplicate.
+            const queueId = `${workflow.id}:${step.id}`;
             const existing = await this.queueStore.get(queueId);
             if (existing) continue;
 
@@ -90,8 +94,8 @@ export class ExecutiveRuntimeContinuation {
             scheduledItems,
             waitingStepIds: evaluation.waitingStepIds,
             reason: alreadyScheduled
-                ? "Runnable workflow steps were already present in the durable queue."
-                : "Runnable workflow steps were submitted to the V6 scheduler queue.",
+                ? "Runnable workflow steps were already present in the canonical V6 queue."
+                : "Runnable workflow steps were submitted to the canonical V6 scheduler queue.",
         };
     }
 }
