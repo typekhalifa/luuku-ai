@@ -25,7 +25,7 @@ export class ExecutiveRuntimeContinuation {
         this.evaluator = new WorkflowOrchestrator();
     }
 
-    async continue(workflowId: string): Promise<RuntimeContinuationResult> {
+    async continue(workflowId: string, availableAt = new Date()): Promise<RuntimeContinuationResult> {
         const workflow = await this.workflowStore.get(workflowId);
         if (!workflow) {
             return {
@@ -75,7 +75,7 @@ export class ExecutiveRuntimeContinuation {
                 workflowId: workflow.id,
                 stepId: step.id,
                 agentId: step.agentId,
-                availableAt: new Date(),
+                availableAt,
                 priority: step.priority,
                 metadata: {
                     source: "executive-runtime-continuation",
