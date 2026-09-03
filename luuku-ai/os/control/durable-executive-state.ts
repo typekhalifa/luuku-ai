@@ -27,6 +27,9 @@ export class DurableExecutiveStateSource {
 
 function project(workflows: readonly Workflow[], queue: readonly QueueItem[]): ExecutiveState {
     const attention: string[] = [];
+    const failedWorkIds = workflows
+        .filter((workflow) => workflow.status === WorkflowStatus.FAILED)
+        .map((workflow) => workflow.id);
 
     for (const workflow of workflows) {
         if (workflow.status === WorkflowStatus.AWAITING_APPROVAL) {
@@ -45,8 +48,9 @@ function project(workflows: readonly Workflow[], queue: readonly QueueItem[]): E
             workflow.status === WorkflowStatus.READY || workflow.status === WorkflowStatus.RUNNING,
         ).length,
         waitingApproval: workflows.filter((workflow) => workflow.status === WorkflowStatus.AWAITING_APPROVAL).length,
-        failed: workflows.filter((workflow) => workflow.status === WorkflowStatus.FAILED).length,
+        failed: failedWorkIds.length,
         completed: workflows.filter((workflow) => workflow.status === WorkflowStatus.COMPLETED).length,
         attention,
+        failedWorkIds,
     };
 }
