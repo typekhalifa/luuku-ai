@@ -41,7 +41,10 @@ async function main() {
     const service = new PersistentExecutiveService({
         loop,
         loopOptions: {
-            cycle: {} as PersistentExecutiveLoopOptions["cycle"],
+            cycle: {
+                capabilities: {},
+                policyRules: [],
+            },
             maxCycles: 1,
         },
         intervalMs: 10,
