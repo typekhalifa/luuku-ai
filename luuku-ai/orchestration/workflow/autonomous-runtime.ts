@@ -6,6 +6,7 @@ import { RuntimeEventBus } from "../runtime/runtime-events.js";
 import { Workflow } from "./workflow";
 import { WorkflowEngine } from "./workflow-engine";
 import { WorkflowOrchestrator } from "./workflow-orchestrator";
+import { WorkflowStatus } from "./workflow-status";
 import { WorkflowStore } from "./workflow-store";
 
 export interface AutonomousRuntimeCycleResult { scheduled: string[]; recovered: string[]; claimed: string[]; executed: string[]; completed: string[]; retried: string[]; failed: string[]; blocked: string[]; reconciled: string[]; escalated: string[]; }
@@ -32,6 +33,9 @@ export class AutonomousRuntime {
         const next = await this.queue.claimNext(now); if (!next) { if (this.workflowStore) await this.workflowStore.save(workflow); return { scheduled: scheduled.map(x => x.id), recovered, claimed, executed: [], completed, retried, failed, blocked, reconciled, escalated }; }
         claimed.push(next.id); const orchestration = await this.orchestrator.runReadySteps(workflow, next.stepId); const executed = orchestration.executedStepIds; const result = orchestration.results[next.stepId]; const step = workflow.steps.find(x => x.id === next.stepId);
         if (executed.includes(next.stepId)) {
+            if (this.workflowStore && WorkflowEngine.allStepsCompleted(workflow.steps)) {
+                workflow.status = WorkflowStatus.COMPLETED;
+            }
             if (this.workflowStore) await this.workflowStore.save(workflow); await this.queue.complete(next.id, now); completed.push(next.id);
             await this.events.publish({ type: "workflow.step.completed", workflowId: workflow.id, stepId: next.stepId, occurredAt: now });
             const continuation = await this.scheduleRunnableSteps(workflow, now); scheduled = [...scheduled, ...continuation];
