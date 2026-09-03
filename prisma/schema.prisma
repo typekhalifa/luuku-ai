@@ -12,7 +12,7 @@ model Company {
   name       String        @unique
   industry   String
   website    String?
-  country    String
+  country   String
   city       String?
   size       CompanySize?
   status     CompanyStatus
@@ -37,12 +37,12 @@ model Contact {
   position          String?
   verified          Boolean
   confidence        Int
-  source             String
+  source            String
   lastVerifiedAt    DateTime?
-  createdAt         DateTime     @default(now())
-  updatedAt         DateTime     @updatedAt
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
   activities        Activity[]
-  company           Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  company           Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
   @@index([companyId])
 }
 
@@ -245,6 +245,18 @@ model ExecutiveEventInbox {
   updatedAt           DateTime @updatedAt
   @@index([status, occurredAt])
   @@index([processingStartedAt])
+}
+
+model ExecutiveObjective {
+  id          String   @id
+  title       String
+  description String
+  priority    String
+  status      String   @default("ACTIVE")
+  progress    Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  @@index([status, priority])
 }
 
 enum CompanyStatus {
