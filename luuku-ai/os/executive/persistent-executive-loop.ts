@@ -46,6 +46,10 @@ export class PersistentExecutiveLoop {
             const result = await this.cycle.run({
                 ...options.cycle,
                 shouldProcessIntent: async (intent) => {
+                    // A persistent loop only processes actionable intents.
+                    // NO_ACTION is a terminal observation, not a new work item.
+                    if (intent.type === "NO_ACTION") return false;
+
                     return !checkpoint.handledIntentKeys.includes(intentCheckpointKey(intent));
                 },
             }, new Date(now.getTime() + cycleIndex));
