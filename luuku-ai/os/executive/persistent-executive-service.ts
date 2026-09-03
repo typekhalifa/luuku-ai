@@ -98,9 +98,8 @@ export class PersistentExecutiveService {
     }
 
     async stop(): Promise<void> {
-        if (!this.running && !this.timer) return;
-
         this.running = false;
+
         if (this.timer) {
             clearInterval(this.timer);
             this.timer = undefined;
