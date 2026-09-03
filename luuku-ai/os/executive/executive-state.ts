@@ -14,6 +14,8 @@ export interface ExecutiveState {
     failed: number;
     completed: number;
     attention: readonly string[];
+    /** Stable durable identities for currently failed work. */
+    readonly failedWorkIds?: readonly string[];
 }
 
 export interface ExecutiveStateSource {
@@ -36,6 +38,7 @@ export class ExecutiveStateProjector {
             failed: work.filter((item) => item.status === "FAILED").length,
             completed: work.filter((item) => item.status === "COMPLETED").length,
             attention,
+            failedWorkIds: work.filter((item) => item.status === "FAILED").map((item) => item.id),
         };
     }
 }
