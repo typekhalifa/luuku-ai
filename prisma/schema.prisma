@@ -109,7 +109,7 @@ model CommunicationConversation {
 }
 
 model CommunicationMessage {
-  id                String                    @id
+  id                String                    @id @default(uuid())
   conversationId    String
   direction         String
   role              String
@@ -126,7 +126,7 @@ model CommunicationMessage {
 }
 
 model CommunicationEvent {
-  id              String                     @id
+  id              String                     @id @default(uuid())
   provider        String
   providerEventId String                     @unique
   type            String
@@ -147,7 +147,7 @@ model CommunicationEvent {
 }
 
 model CommunicationExecution {
-  id                String                     @id
+  id                String                     @id @default(uuid())
   conversationId    String?
   taskId            String?
   idempotencyKey    String?
