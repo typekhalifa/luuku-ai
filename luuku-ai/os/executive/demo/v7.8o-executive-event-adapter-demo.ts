@@ -34,7 +34,7 @@ async function main() {
     const trigger = new ExecutiveWakeTrigger({
         runner,
         loopOptions: {
-            cycle: { capabilities: {}, policyRules: {} },
+            cycle: { capabilities: {}, policyRules: [] },
             maxCycles: 1,
         },
         heartbeatMs: 80,
