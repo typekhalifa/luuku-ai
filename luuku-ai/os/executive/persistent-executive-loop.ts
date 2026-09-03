@@ -52,42 +52,34 @@ export class PersistentExecutiveLoop {
 
             results.push(result);
 
-            const completedRecovery = result.intentResults.some((item) =>
-                item.intent.type === "RECOVER_FAILED_WORK" &&
-                item.decision?.status === "ELIGIBLE" &&
-                (item.submission?.status === "SUBMITTED" || item.submission?.status === "ALREADY_SUBMITTED") &&
-                result.runtime?.completed.length === 1,
-            );
+            const completedRecoveryKeys = result.intentResults
+                .filter((item) =>
+                    item.intent.type === "RECOVER_FAILED_WORK" &&
+                    item.decision?.status === "ELIGIBLE" &&
+                    (item.submission?.status === "SUBMITTED" || item.submission?.status === "ALREADY_SUBMITTED") &&
+                    result.runtime?.completed.length === 1,
+                )
+                .map((item) => intentCheckpointKey(item.intent));
 
-            if (completedRecovery) {
-                const recoveryIntent = result.intentResults.find(
-                    (item) => item.intent.type === "RECOVER_FAILED_WORK",
-                )?.intent;
-                if (recoveryIntent) {
-                    const key = intentCheckpointKey(recoveryIntent);
-                    checkpoint = {
-                        version: checkpoint.version,
-                        handledIntentKeys: [...new Set([...checkpoint.handledIntentKeys, key])],
-                        cycleCount: checkpoint.cycleCount + 1,
-                        updatedAt: new Date(),
-                    };
-                    await this.checkpointStore.save(checkpoint);
-                }
-            } else {
-                checkpoint = {
-                    ...checkpoint,
-                    cycleCount: checkpoint.cycleCount + 1,
-                    updatedAt: new Date(),
-                };
-                await this.checkpointStore.save(checkpoint);
-            }
+            const handledIntentKeys = [...new Set([
+                ...checkpoint.handledIntentKeys,
+                ...completedRecoveryKeys,
+            ])];
+
+            checkpoint = {
+                version: checkpoint.version,
+                handledIntentKeys,
+                cycleCount: checkpoint.cycleCount + 1,
+                updatedAt: new Date(),
+            };
+            await this.checkpointStore.save(checkpoint);
 
             const createdNewAction = result.intentResults.some((item) =>
                 item.decision?.status === "ELIGIBLE" &&
                 (item.submission?.status === "SUBMITTED" || item.submission?.status === "ALREADY_SUBMITTED"),
             );
 
-            if (!createdNewAction || completedRecovery) {
+            if (!createdNewAction || completedRecoveryKeys.length > 0) {
                 return {
                     cycles: results,
                     cycleCount: results.length,
