@@ -233,6 +233,14 @@ model QueueItem {
   @@index([stepId])
 }
 
+model ExecutiveLoopCheckpoint {
+  id                String   @id
+  version           Int      @default(1)
+  handledIntentKeys Json
+  cycleCount        Int      @default(0)
+  updatedAt         DateTime
+}
+
 enum CompanyStatus {
   prospect
   qualified
