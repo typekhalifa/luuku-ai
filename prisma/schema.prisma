@@ -109,7 +109,7 @@ model CommunicationConversation {
 }
 
 model CommunicationMessage {
-  id                String                    @id @default(uuid())
+  id                String                    @id
   conversationId    String
   direction         String
   role              String
@@ -126,7 +126,7 @@ model CommunicationMessage {
 }
 
 model CommunicationEvent {
-  id              String                     @id @default(uuid())
+  id              String                     @id
   provider        String
   providerEventId String                     @unique
   type            String
@@ -147,7 +147,7 @@ model CommunicationEvent {
 }
 
 model CommunicationExecution {
-  id                String                     @id @default(uuid())
+  id                String                     @id
   conversationId    String?
   taskId            String?
   idempotencyKey    String?
@@ -231,6 +231,14 @@ model QueueItem {
   @@index([priority, availableAt])
   @@index([workflowId])
   @@index([stepId])
+}
+
+model ExecutiveLoopCheckpoint {
+  id                String   @id
+  version           Int      @default(1)
+  handledIntentKeys Json
+  cycleCount        Int      @default(0)
+  updatedAt         DateTime
 }
 
 enum CompanyStatus {
