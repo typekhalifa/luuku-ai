@@ -47,7 +47,10 @@ export class ExecutiveObservationLoop {
                 type: "FAILED_WORK",
                 severity: "CRITICAL",
                 message: `${state.failed} work item${state.failed === 1 ? " has" : "s have"} failed.`,
-                evidence: { failed: state.failed },
+                evidence: {
+                    failed: state.failed,
+                    failedWorkIds: [...(state.failedWorkIds ?? [])],
+                },
             });
         }
 
