@@ -2,10 +2,16 @@ import type {
     PersistentExecutiveLoopOptions,
     PersistentExecutiveLoopResult,
 } from "./persistent-executive-loop.js";
-import { PersistentExecutiveLoop } from "./persistent-executive-loop.js";
+import type { PersistentExecutiveLoop } from "./persistent-executive-loop.js";
+
+export interface ExecutiveLoopRunner {
+    run(
+        options: PersistentExecutiveLoopOptions,
+    ): Promise<PersistentExecutiveLoopResult>;
+}
 
 export interface PersistentExecutiveServiceOptions {
-    readonly loop: PersistentExecutiveLoop;
+    readonly loop: ExecutiveLoopRunner | PersistentExecutiveLoop;
     readonly loopOptions: PersistentExecutiveLoopOptions;
     /** Interval between autonomous executive cycles in milliseconds. */
     readonly intervalMs: number;
