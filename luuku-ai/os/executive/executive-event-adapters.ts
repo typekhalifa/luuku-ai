@@ -10,6 +10,7 @@ export type ExecutiveEventName =
     | "STATE_CHANGED";
 
 export interface ExecutiveSystemEvent {
+    readonly id: string;
     readonly type: ExecutiveEventName;
     readonly occurredAt?: Date;
     readonly metadata?: Readonly<Record<string, unknown>>;
@@ -25,7 +26,7 @@ const wakeReasonFor = (event: ExecutiveSystemEvent): ExecutiveWakeEvent => ({
 });
 
 /**
- * Bridges durable/system event streams into the executive wake boundary.
+ * Bridges system event streams into the executive wake boundary.
  *
  * The adapter deliberately contains no planning, persistence, or execution
  * logic. It translates system events into wake signals and lets the existing
