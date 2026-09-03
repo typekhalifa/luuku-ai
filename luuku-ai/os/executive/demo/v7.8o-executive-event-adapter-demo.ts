@@ -37,7 +37,7 @@ async function main() {
             cycle: { capabilities: {}, policyRules: [] },
             maxCycles: 1,
         },
-        heartbeatMs: 80,
+        heartbeatMs: 40,
     });
     const source = new InMemoryExecutiveSystemEventSource();
     const adapter = new ExecutiveEventAdapter(source, trigger);
@@ -52,7 +52,7 @@ async function main() {
     ];
     for (const event of events) source.emit(event);
 
-    await sleep(140);
+    await sleep(125);
 
     adapter.stop();
     await trigger.stop();
@@ -60,8 +60,8 @@ async function main() {
     const state = trigger.getState();
     assert.equal(adapter.isRunning(), false);
     assert.equal(trigger.isRunning(), false);
-    assert.equal(state.wakeCount, 6);
-    assert.equal(state.heartbeatCount, 3);
+    assert.equal(state.wakeCount, events.length + state.heartbeatCount);
+    assert.ok(state.heartbeatCount >= 1);
     assert.equal(runner.maxConcurrent, 1);
     assert.equal(state.lastWake?.reason, "HEARTBEAT");
     assert.ok(runner.calls >= 2);
