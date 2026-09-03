@@ -21,6 +21,8 @@ export interface AutonomousExecutiveCycleOptions {
     readonly policyRules: readonly AutonomyPolicyRule[];
     readonly executeRuntime?: boolean;
     readonly workflowExecutor?: WorkflowStepExecutor;
+    /** Optional loop checkpoint hook used to suppress already-processed intents. */
+    readonly shouldProcessIntent?: (intent: ExecutiveIntent) => boolean | Promise<boolean>;
 }
 
 export interface AutonomousExecutiveIntentResult {
@@ -92,6 +94,10 @@ export class AutonomousExecutiveCycle {
         const intentResults: AutonomousExecutiveIntentResult[] = [];
 
         for (const intent of intents.intents) {
+            if (options.shouldProcessIntent && !(await options.shouldProcessIntent(intent))) {
+                continue;
+            }
+
             if (intent.type === "NO_ACTION" || intent.type === "WAIT_FOR_FOUNDER_DECISION" || intent.type === "MONITOR_ACTIVE_WORK") {
                 intentResults.push({ intent });
                 continue;
