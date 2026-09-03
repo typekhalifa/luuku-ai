@@ -46,9 +46,9 @@ async function main() {
     adapter.start();
 
     const events: ExecutiveSystemEvent[] = [
-        { type: "WORKFLOW_FAILED" },
-        { type: "APPROVAL_RECEIVED" },
-        { type: "AGENT_COMPLETED" },
+        { id: "event-workflow-failed", type: "WORKFLOW_FAILED" },
+        { id: "event-approval-received", type: "APPROVAL_RECEIVED" },
+        { id: "event-agent-completed", type: "AGENT_COMPLETED" },
     ];
     for (const event of events) source.emit(event);
 
