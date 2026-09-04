@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
-import type { ExecutiveObjectiveRecord } from "../objective-engine.js";
+import type { ExecutiveObjectiveRecord, ObjectiveAssessment } from "../objective-engine.js";
 import { ExecutiveObjectiveIntentBridge } from "../objective-intent-bridge.js";
-import type { ObjectiveAssessment } from "../objective-engine.js";
 
 const now = new Date();
 
@@ -56,7 +55,8 @@ async function main() {
     assert.equal(approvalIntent.evidence.objectiveId, objective.id);
 
     assert.equal(completedIntent.type, "NO_ACTION");
-    assert.equal(completedIntent.evidence.objectiveStatus, "ACTIVE");
+    assert.equal(completedIntent.evidence.objectiveStatus, "COMPLETED");
+    assert.equal(completedIntent.evidence.progress, 25);
 
     assert.throws(
         () => bridge.build({
