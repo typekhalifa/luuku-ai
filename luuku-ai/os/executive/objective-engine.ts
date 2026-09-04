@@ -68,7 +68,7 @@ export class ExecutiveObjectiveEngine {
             };
         }
 
-        if (state.approval > 0) {
+        if (state.waitingApproval > 0) {
             return {
                 objectiveId: objective.id,
                 status: objective.status,
