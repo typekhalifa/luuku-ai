@@ -30,8 +30,8 @@ export class ExecutiveObjectiveIntentBridge {
                 evidence: {
                     source: "executive-objective",
                     objectiveId: objective.id,
-                    objectiveStatus: objective.status,
-                    progress: objective.progress,
+                    objectiveStatus: assessment.status,
+                    progress: assessment.progress,
                     assessmentStatus: assessment.status,
                 },
             };
@@ -52,8 +52,8 @@ export class ExecutiveObjectiveIntentBridge {
             evidence: {
                 source: "executive-objective",
                 objectiveId: objective.id,
-                objectiveStatus: objective.status,
-                progress: objective.progress,
+                objectiveStatus: assessment.status,
+                progress: assessment.progress,
                 assessmentStatus: assessment.status,
             },
         };
