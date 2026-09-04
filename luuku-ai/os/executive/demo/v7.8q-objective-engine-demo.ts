@@ -20,18 +20,22 @@ const objective: ExecutiveObjectiveRecord = {
 };
 
 const healthyState: ExecutiveState = {
+    generatedAt: now,
     active: 0,
-    approval: 0,
+    waitingApproval: 0,
     failed: 0,
     completed: 4,
+    attention: [],
     failedWorkIds: [],
 };
 
 const blockedState: ExecutiveState = {
+    generatedAt: now,
     active: 0,
-    approval: 1,
+    waitingApproval: 1,
     failed: 0,
     completed: 4,
+    attention: ["Approval required: Send proposal (approval-1)"],
     failedWorkIds: [],
 };
 
