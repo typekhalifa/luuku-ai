@@ -56,18 +56,31 @@ export class PersistentExecutiveLoop {
 
             results.push(result);
 
-            const completedRecoveryKeys = result.intentResults
-                .filter((item) =>
-                    item.intent.type === "RECOVER_FAILED_WORK" &&
-                    item.decision?.status === "ELIGIBLE" &&
-                    (item.submission?.status === "SUBMITTED" || item.submission?.status === "ALREADY_SUBMITTED") &&
-                    result.runtime?.completed.length === 1,
-                )
+            // Checkpoint any actionable intent whose submitted workflow actually
+            // reached a V6 terminal completion. This deliberately avoids binding
+            // persistence to one intent type (for example RECOVER_FAILED_WORK),
+            // so newer autonomous intents such as INTERVENE_OBJECTIVE are durable
+            // without adding another special case here.
+            const completedIntentKeys = result.intentResults
+                .filter((item) => {
+                    const workflow = item.submission?.workflow;
+                    if (!workflow) return false;
+                    if (
+                        item.decision?.status !== "ELIGIBLE" ||
+                        (item.submission.status !== "SUBMITTED" && item.submission.status !== "ALREADY_SUBMITTED")
+                    ) {
+                        return false;
+                    }
+
+                    return workflow.steps.some((step) =>
+                        result.runtime?.completed.includes(`${workflow.id}:${step.id}`),
+                    );
+                })
                 .map((item) => intentCheckpointKey(item.intent));
 
             const handledIntentKeys = [...new Set([
                 ...checkpoint.handledIntentKeys,
-                ...completedRecoveryKeys,
+                ...completedIntentKeys,
             ])];
 
             checkpoint = {
@@ -83,7 +96,7 @@ export class PersistentExecutiveLoop {
                 (item.submission?.status === "SUBMITTED" || item.submission?.status === "ALREADY_SUBMITTED"),
             );
 
-            if (!createdNewAction || completedRecoveryKeys.length > 0) {
+            if (!createdNewAction || completedIntentKeys.length > 0) {
                 return {
                     cycles: results,
                     cycleCount: results.length,
