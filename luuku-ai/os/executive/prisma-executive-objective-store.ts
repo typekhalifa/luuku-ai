@@ -11,6 +11,9 @@ const toRecord = (record: {
     priority: string;
     status: string;
     progress: number;
+    previousProgress: number | null;
+    deadlineAt: Date | null;
+    staleAfterDays: number | null;
     createdAt: Date;
     updatedAt: Date;
 }): ExecutiveObjectiveRecord => {
@@ -28,6 +31,9 @@ const toRecord = (record: {
         priority: record.priority as ExecutiveObjectiveRecord["priority"],
         status: record.status as ExecutiveObjectiveRecord["status"],
         progress: record.progress,
+        ...(record.previousProgress !== null ? { previousProgress: record.previousProgress } : {}),
+        ...(record.deadlineAt !== null ? { deadlineAt: record.deadlineAt } : {}),
+        ...(record.staleAfterDays !== null ? { staleAfterDays: record.staleAfterDays } : {}),
         createdAt: record.createdAt,
         updatedAt: record.updatedAt,
     };
@@ -56,6 +62,9 @@ export class PrismaExecutiveObjectiveStore implements ExecutiveObjectiveStore {
                 priority: objective.priority,
                 status: objective.status,
                 progress: objective.progress,
+                previousProgress: objective.previousProgress ?? null,
+                deadlineAt: objective.deadlineAt ?? null,
+                staleAfterDays: objective.staleAfterDays ?? null,
                 createdAt: objective.createdAt,
                 updatedAt: objective.updatedAt,
             },
@@ -65,6 +74,9 @@ export class PrismaExecutiveObjectiveStore implements ExecutiveObjectiveStore {
                 priority: objective.priority,
                 status: objective.status,
                 progress: objective.progress,
+                previousProgress: objective.previousProgress ?? null,
+                deadlineAt: objective.deadlineAt ?? null,
+                staleAfterDays: objective.staleAfterDays ?? null,
                 updatedAt: objective.updatedAt,
             },
         });
