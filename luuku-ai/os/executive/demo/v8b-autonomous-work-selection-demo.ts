@@ -28,7 +28,11 @@ const recoveryAgent = {
             executionStatus: "completed",
             executed: true,
             verified: true,
-            evidence: { source: "v8b-controlled-agent", execution: executions },
+            evidence: {
+                provider: "v8b-controlled-agent",
+                externalId: `execution-${executions}`,
+                details: { execution: executions },
+            },
         };
     },
 };
@@ -129,7 +133,12 @@ async function main(): Promise<void> {
             maxObjectiveSelections: 2,
             workflowExecutor: {
                 async execute() {
-                    return recoveryAgent.execute();
+                    return recoveryAgent.execute({
+                        id: "v8b-controlled-task",
+                        title: "Recover selected objective work",
+                        description: "Controlled V8-B execution.",
+                        priority: "high",
+                    });
                 },
             },
         },
