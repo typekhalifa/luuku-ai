@@ -106,4 +106,7 @@ async function main(): Promise<void> {
     console.log("Production runtime   : PASS");
 }
 
-await main();
+main().catch((error) => {
+    console.error(error);
+    process.exitCode = 1;
+});
