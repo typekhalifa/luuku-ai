@@ -17,6 +17,7 @@ import { ExecutiveRuntimeContinuation, type RuntimeContinuationResult } from "./
 import { ObjectiveDrivenExecutiveCycle, type ObjectiveDrivenCycleResult } from "./objective-driven-executive-cycle.js";
 import type { ExecutiveObjectiveStore } from "./objective-engine.js";
 import type { ExecutiveState } from "./executive-state.js";
+import { InMemoryExecutiveMemoryStore, type ExecutiveMemoryStore } from "./executive-memory.js";
 
 export interface AutonomousExecutiveCycleOptions {
     readonly capabilities: IntentPlanCapabilityMap;
@@ -24,7 +25,7 @@ export interface AutonomousExecutiveCycleOptions {
     readonly executeRuntime?: boolean;
     readonly workflowExecutor?: WorkflowStepExecutor;
     readonly objectiveStore?: ExecutiveObjectiveStore;
-    /** Optional loop checkpoint hook used to suppress already-processed intents. */
+    readonly memoryStore?: ExecutiveMemoryStore;
     readonly shouldProcessIntent?: (intent: ExecutiveIntent) => boolean | Promise<boolean>;
 }
 
@@ -49,13 +50,6 @@ export interface AutonomousExecutiveCycleResult {
     readonly finalObservation: ExecutiveObservationSnapshot;
 }
 
-/**
- * Composes the executive control loop into one autonomous cycle.
- * The executive decides and submits work; V6 remains the execution authority.
- * When an objective store is configured, objective-derived intents are the
- * preferred source for matching autonomous work so the same intent is not
- * submitted twice through observation and objective paths.
- */
 export class AutonomousExecutiveCycle {
     private readonly stateSource: DurableExecutiveStateSource;
     private readonly feedbackSource: DurableExecutionFeedbackSource;
@@ -69,6 +63,7 @@ export class AutonomousExecutiveCycle {
     private readonly continuation: ExecutiveRuntimeContinuation;
     private readonly runtime: AutonomousRuntime;
     private readonly objectiveCycle?: ObjectiveDrivenExecutiveCycle;
+    private readonly memoryStore: ExecutiveMemoryStore;
 
     constructor(
         private readonly workflowStore: WorkflowStore,
@@ -88,8 +83,9 @@ export class AutonomousExecutiveCycle {
             new WorkflowOrchestrator(undefined, options.workflowExecutor ?? new SharedAgentWorkflowExecutor()),
             workflowStore,
         );
+        this.memoryStore = options.memoryStore ?? new InMemoryExecutiveMemoryStore();
         this.objectiveCycle = options.objectiveStore
-            ? new ObjectiveDrivenExecutiveCycle(options.objectiveStore, capabilityResolver)
+            ? new ObjectiveDrivenExecutiveCycle(options.objectiveStore, capabilityResolver, this.memoryStore)
             : undefined;
     }
 
@@ -108,7 +104,10 @@ export class AutonomousExecutiveCycle {
 
         const objectiveIntents = objectiveResults
             .map((result) => result.intent)
-            .filter((intent) => intent.type === "RECOVER_FAILED_WORK" && objectiveResults.some((result) => result.intent.id === intent.id && result.plan));
+            .filter((intent) =>
+                (intent.type === "RECOVER_FAILED_WORK" || intent.type === "INTERVENE_OBJECTIVE")
+                && objectiveResults.some((result) => result.intent.id === intent.id && result.plan),
+            );
         const objectiveIntentTypes = new Set(objectiveIntents.map((intent) => intent.type));
         const intents: ExecutiveIntentSnapshot = {
             ...observedIntents,
@@ -120,10 +119,7 @@ export class AutonomousExecutiveCycle {
         const intentResults: AutonomousExecutiveIntentResult[] = [];
 
         for (const intent of intents.intents) {
-            if (options.shouldProcessIntent && !(await options.shouldProcessIntent(intent))) {
-                continue;
-            }
-
+            if (options.shouldProcessIntent && !(await options.shouldProcessIntent(intent))) continue;
             if (intent.type === "NO_ACTION" || intent.type === "WAIT_FOR_FOUNDER_DECISION" || intent.type === "MONITOR_ACTIVE_WORK") {
                 intentResults.push({ intent });
                 continue;
@@ -138,14 +134,7 @@ export class AutonomousExecutiveCycle {
                 ? await this.continuation.continue(plan.id, now)
                 : undefined;
 
-            intentResults.push({
-                intent,
-                planId: plan.id,
-                policy,
-                decision,
-                submission,
-                continuation,
-            });
+            intentResults.push({ intent, planId: plan.id, policy, decision, submission, continuation });
         }
 
         const executableWorkflowIds = intentResults
@@ -155,6 +144,7 @@ export class AutonomousExecutiveCycle {
         let runtimeResult: AutonomousRuntimeCycleResult | undefined;
         if (options.executeRuntime && executableWorkflowIds.length > 0) {
             runtimeResult = await this.runtime.runPersistedCycle(executableWorkflowIds[0], now);
+            await this.recordRuntimeOutcome(runtimeResult, intentResults, objectiveResults, now);
         }
 
         const feedback = await this.feedbackSource.snapshot();
@@ -172,5 +162,50 @@ export class AutonomousExecutiveCycle {
             finalState,
             finalObservation,
         };
+    }
+
+    private async recordRuntimeOutcome(
+        runtime: AutonomousRuntimeCycleResult,
+        intentResults: readonly AutonomousExecutiveIntentResult[],
+        objectiveResults: readonly ObjectiveDrivenCycleResult[],
+        now: Date,
+    ): Promise<void> {
+        const terminalQueueIds = new Set([
+            ...runtime.completed,
+            ...runtime.failed,
+            ...runtime.blocked,
+            ...runtime.reconciled,
+            ...runtime.escalated,
+        ]);
+
+        for (const result of intentResults) {
+            const workflow = result.submission?.workflow;
+            if (!workflow) continue;
+
+            const terminalStep = workflow.steps.find((step) => terminalQueueIds.has(`${workflow.id}:${step.id}`));
+            if (!terminalStep) continue;
+
+            const workflowId = workflow.id;
+            const success = runtime.completed.includes(`${workflow.id}:${terminalStep.id}`);
+            const objectiveResult = objectiveResults.find((item) => item.intent.id === result.intent.id);
+            const outcome = success ? "Workflow completed." : "Workflow reached a non-success terminal outcome.";
+            const id = `executive-memory:${workflowId}:outcome`;
+            const existing = await this.memoryStore.list();
+            if (existing.some((record) => record.id === id)) continue;
+
+            await this.memoryStore.save({
+                id,
+                objectiveId: objectiveResult?.objective.id,
+                workflowId,
+                eventType: success ? "ACTION_COMPLETED" : "ACTION_FAILED",
+                action: objectiveResult?.adaptiveIntervention.mode ?? result.intent.type,
+                outcome,
+                success,
+                lesson: success
+                    ? "The selected executive approach completed successfully."
+                    : "The selected executive approach produced a non-success outcome and should be reconsidered.",
+                createdAt: now,
+            });
+        }
     }
 }
