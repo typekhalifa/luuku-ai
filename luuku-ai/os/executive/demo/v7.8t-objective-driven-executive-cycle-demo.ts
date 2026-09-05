@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
-import type { Agent } from "../../agents/agent.js";
+import type { Agent } from "../../../agents/agent.js";
 import type { ExecutiveState } from "../executive-state.js";
 import type { ExecutiveObjectiveRecord } from "../objective-engine.js";
 import { InMemoryExecutiveObjectiveStore } from "../objective-engine.js";
-import { AgentDiscovery } from "../../agents/agent-discovery.js";
-import { AgentRegistry } from "../../agents/agent-registry.js";
+import { AgentDiscovery } from "../../../agents/agent-discovery.js";
+import { AgentRegistry } from "../../../agents/agent-registry.js";
 import { CapabilityResolver } from "../../planning/capability-resolver.js";
 import { ObjectiveDrivenExecutiveCycle } from "../objective-driven-executive-cycle.js";
 
@@ -33,6 +33,7 @@ const objective: ExecutiveObjectiveRecord = {
 };
 
 const state: ExecutiveState = {
+    generatedAt: new Date("2026-09-04T00:00:00.000Z"),
     active: 0,
     waitingApproval: 0,
     failed: 1,
