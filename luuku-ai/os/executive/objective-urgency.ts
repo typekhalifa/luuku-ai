@@ -19,14 +19,22 @@ export class ExecutiveObjectiveUrgencyScorer {
     score(input: ObjectiveUrgencyInput): ObjectiveUrgencyScore {
         const { objective, assessment, now } = input;
         const metadata = objective as ExecutiveObjectiveRecord & {
+            readonly deadlineAt?: Date;
+            readonly staleAfterDays?: number;
             readonly metadata?: Readonly<Record<string, unknown>>;
         };
-        const deadlineAt = this.readDate(metadata.metadata?.deadlineAt);
-        const staleAfterDays = this.readPositiveNumber(metadata.metadata?.staleAfterDays);
+
+        const deadlineAt = this.readDate(metadata.deadlineAt ?? metadata.metadata?.deadlineAt);
+        const staleAfterDays = this.readPositiveNumber(
+            metadata.staleAfterDays ?? metadata.metadata?.staleAfterDays,
+        );
         const ageMs = Math.max(0, now.getTime() - objective.createdAt.getTime());
         const stale = staleAfterDays !== undefined && ageMs >= staleAfterDays * 86_400_000;
         const overdue = deadlineAt !== undefined && deadlineAt.getTime() < now.getTime();
-        const dueSoon = deadlineAt !== undefined && !overdue && deadlineAt.getTime() - now.getTime() <= 86_400_000;
+        const dueSoon =
+            deadlineAt !== undefined &&
+            !overdue &&
+            deadlineAt.getTime() - now.getTime() <= 86_400_000;
 
         let score = Math.max(0, 100 - assessment.progress);
         if (overdue) score += 100;
@@ -38,6 +46,7 @@ export class ExecutiveObjectiveUrgencyScorer {
     }
 
     private readDate(value: unknown): Date | undefined {
+        if (value instanceof Date && !Number.isNaN(value.getTime())) return value;
         if (typeof value !== "string") return undefined;
         const date = new Date(value);
         return Number.isNaN(date.getTime()) ? undefined : date;
