@@ -2,14 +2,14 @@ import assert from "node:assert/strict";
 
 import type { AgentResult } from "../../../shared/agents/interface.js";
 import { registerAgent } from "../../../shared/agents/registry.js";
-import { InMemoryWorkflowStore } from "../../../orchestration/workflow/workflow-store.js";
-import { InMemoryQueueStore } from "../../../orchestration/queue/queue.js";
 import { AgentRegistry } from "../../agents/registry.js";
 import { AgentDiscovery } from "../../agents/discovery.js";
 import { CapabilityResolver } from "../../planning/capability-resolver.js";
 import { InMemoryExecutiveObjectiveStore, type ExecutiveObjectiveRecord } from "../objective-engine.js";
 import { ObjectiveDrivenExecutiveCycle } from "../objective-driven-executive-cycle.js";
 import { AutonomousExecutiveCycle } from "../autonomous-executive-cycle.js";
+import { InMemoryWorkflowStore } from "../../../orchestration/workflow/workflow-store.js";
+import { InMemoryQueueStore } from "../../../orchestration/queue/queue.js";
 
 let executions = 0;
 const recoveryAgent = {
@@ -37,7 +37,11 @@ registerAgent(recoveryAgent);
 
 const now = new Date("2026-09-05T20:00:00.000Z");
 
-function objective(id: string, title: string, priority: ExecutiveObjectiveRecord["priority"]): ExecutiveObjectiveRecord {
+function objective(
+    id: string,
+    title: string,
+    priority: ExecutiveObjectiveRecord["priority"],
+): ExecutiveObjectiveRecord {
     return {
         id,
         title,
@@ -88,9 +92,6 @@ async function main(): Promise<void> {
 
     const workflowStore = new InMemoryWorkflowStore();
     const queueStore = new InMemoryQueueStore();
-
-    // No unrelated workflow or queue fixtures are created. The autonomous
-    // executive must create and execute the selected work itself.
     const cycle = new AutonomousExecutiveCycle(
         workflowStore,
         queueStore,
@@ -126,6 +127,7 @@ async function main(): Promise<void> {
         }],
         executeRuntime: true,
         maxObjectiveSelections: 2,
+        objectiveStore,
     }, now);
 
     assert.equal(result.objectiveResults.length, 2);
