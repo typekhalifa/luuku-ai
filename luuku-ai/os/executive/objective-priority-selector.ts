@@ -1,13 +1,13 @@
-import type { ExecutiveObjectiveRecord } from "./objective-engine.js";
-import type { ObjectiveAssessment } from "./objective-engine.js";
+import type { ExecutiveObjectiveRecord, ObjectiveAssessment } from "./objective-engine.js";
+import type { ObjectiveUrgencyScore } from "./objective-urgency.js";
 
 export interface ObjectiveSelectionCandidate {
     readonly objective: ExecutiveObjectiveRecord;
     readonly assessment: ObjectiveAssessment;
+    readonly urgency: ObjectiveUrgencyScore;
 }
 
 export interface ObjectivePrioritySelectorOptions {
-    /** Maximum number of objectives selected for the next work decision. */
     readonly maxSelections?: number;
 }
 
@@ -17,11 +17,7 @@ const priorityRank: Record<ExecutiveObjectiveRecord["priority"], number> = {
     low: 1,
 };
 
-/**
- * Deterministically ranks active objectives for the next executive decision.
- * Selection is pure: it does not create plans, request approval, enqueue work,
- * or execute agents.
- */
+/** Deterministically ranks objectives using urgency first, then priority and stable tie-breakers. */
 export class ExecutiveObjectivePrioritySelector {
     private readonly maxSelections: number;
 
@@ -35,18 +31,14 @@ export class ExecutiveObjectivePrioritySelector {
 
     rank(candidates: readonly ObjectiveSelectionCandidate[]): readonly ObjectiveSelectionCandidate[] {
         return [...candidates].sort((left, right) => {
+            const urgencyDifference = right.urgency.score - left.urgency.score;
+            if (urgencyDifference !== 0) return urgencyDifference;
             const priorityDifference = priorityRank[right.objective.priority] - priorityRank[left.objective.priority];
             if (priorityDifference !== 0) return priorityDifference;
-
-            const attentionDifference = Number(right.assessment.attentionRequired) - Number(left.assessment.attentionRequired);
-            if (attentionDifference !== 0) return attentionDifference;
-
             const progressDifference = left.assessment.progress - right.assessment.progress;
             if (progressDifference !== 0) return progressDifference;
-
             const createdAtDifference = left.objective.createdAt.getTime() - right.objective.createdAt.getTime();
             if (createdAtDifference !== 0) return createdAtDifference;
-
             return left.objective.id.localeCompare(right.objective.id);
         });
     }
