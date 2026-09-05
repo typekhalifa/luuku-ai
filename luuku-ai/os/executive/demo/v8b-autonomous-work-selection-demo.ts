@@ -2,11 +2,8 @@ import assert from "node:assert/strict";
 
 import type { AgentResult } from "../../../shared/agents/interface.js";
 import { registerAgent } from "../../../shared/agents/registry.js";
-import { Priority } from "../../../orchestration/task/priority.js";
-import { WorkflowStatus } from "../../../orchestration/workflow/workflow-status.js";
 import { InMemoryWorkflowStore } from "../../../orchestration/workflow/workflow-store.js";
 import { InMemoryQueueStore } from "../../../orchestration/queue/queue.js";
-import type { Workflow } from "../../../orchestration/workflow/workflow.js";
 import { AgentRegistry } from "../../agents/registry.js";
 import { AgentDiscovery } from "../../agents/discovery.js";
 import { CapabilityResolver } from "../../planning/capability-resolver.js";
@@ -53,30 +50,6 @@ function objective(id: string, title: string, priority: ExecutiveObjectiveRecord
     };
 }
 
-function workflow(id: string): Workflow {
-    return {
-        id,
-        goal: `Recover ${id}.`,
-        status: WorkflowStatus.READY,
-        steps: [{
-            id: "recover",
-            title: "Recover selected work",
-            description: "Controlled V8-B recovery step.",
-            agentId: recoveryAgent.id,
-            capability: "work.recover",
-            dependsOn: [],
-            priority: Priority.HIGH,
-            requiresApproval: false,
-            status: "READY",
-            input: { source: "v8b-demo" },
-        }],
-        requiresFounderApproval: false,
-        metadata: { source: "v8b-autonomous-work-selection-demo" },
-        createdAt: now,
-        updatedAt: now,
-    };
-}
-
 async function main(): Promise<void> {
     const agentRegistry = new AgentRegistry();
     agentRegistry.register({ agent: recoveryAgent, capabilities: ["work.recover"] });
@@ -115,13 +88,9 @@ async function main(): Promise<void> {
 
     const workflowStore = new InMemoryWorkflowStore();
     const queueStore = new InMemoryQueueStore();
-    // Workflows are pre-created only as controlled fixtures. The autonomous
-    // executive will create its own execution workflows from selected intents.
-    await workflowStore.create(workflow("workflow-critical-fixture"));
-    await workflowStore.create(workflow("workflow-secondary-fixture"));
 
-    // The fixtures above prove the V6 executor can run independently; the
-    // autonomous cycle below must select and submit its own two workflows.
+    // No unrelated workflow or queue fixtures are created. The autonomous
+    // executive must create and execute the selected work itself.
     const cycle = new AutonomousExecutiveCycle(
         workflowStore,
         queueStore,
@@ -163,6 +132,7 @@ async function main(): Promise<void> {
     const eligible = result.intentResults.filter((item) => item.decision?.status === "ELIGIBLE");
     assert.equal(eligible.length, 2);
     assert.equal(eligible.filter((item) => item.submission?.status === "SUBMITTED").length, 2);
+    assert.equal(result.runtime?.executed.length, 2);
     assert.equal(result.runtime?.completed.length, 2);
     assert.equal(executions, 2);
 
