@@ -29,9 +29,13 @@ export class ExecutiveObjectiveIntentBridge {
         }
 
         if (intervention && intervention.type !== "NO_INTERVENTION") {
+            const type = intervention.type === "RECOVER_FAILED_WORK"
+                ? "RECOVER_FAILED_WORK"
+                : "INTERVENE_OBJECTIVE";
+
             return {
-                id: `objective-intervention-${objective.id}`,
-                type: "INTERVENE_OBJECTIVE",
+                id: `objective-${intervention.type.toLowerCase()}-${objective.id}`,
+                type,
                 objective: objective.title,
                 reason: intervention.reason,
                 sourceObservationIds: [],
