@@ -81,16 +81,15 @@ async function main(): Promise<void> {
     assert(service.starts === 2 && service.stops === 2, "restart should cleanly stop and start the service");
 
     database.status = "FAILED";
-    await runtime.start().then(
-        () => { throw new Error("failed dependency should not start the runtime"); },
-        () => undefined,
-    );
-    assert(runtime.getState() === "FAILED", "failed dependency should block readiness");
+    const failed = await runtime.start();
+    assert(failed.state === "FAILED", "failed dependency should block startup");
+    assert(!failed.ready && !failed.live, "failed startup must not report readiness or liveness");
     assert(!service.isRunning(), "failed startup must not run the executive service");
 
     database.status = "READY";
-    await runtime.start();
-    assert(runtime.health().state === "READY", "runtime should recover after dependency recovery");
+    const recovered = await runtime.start();
+    assert(recovered.state === "READY", "runtime should recover after dependency recovery");
+    assert(service.starts === 3, "recovery should start the service exactly once");
     await runtime.stop();
 
     console.log("✓ runtime starts and reaches READY");
