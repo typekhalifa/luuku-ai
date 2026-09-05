@@ -5,6 +5,7 @@ import type { ExecutionPlan } from "../planning/execution-plan.js";
 import type { ExecutiveIntent } from "./executive-intent.js";
 import { ExecutiveObjectiveEngine, type ExecutiveObjectiveRecord, type ExecutiveObjectiveStore, type ObjectiveAssessment } from "./objective-engine.js";
 import { ExecutiveObjectiveIntentBridge } from "./objective-intent-bridge.js";
+import { ExecutiveObjectiveInterventionEngine, type ObjectiveIntervention } from "./objective-intervention.js";
 import { ExecutiveObjectivePrioritySelector } from "./objective-priority-selector.js";
 import { ExecutiveObjectiveProgressTrendScorer, type ObjectiveProgressTrendScore } from "./objective-progress-trend.js";
 import { ExecutiveObjectiveUrgencyScorer, type ObjectiveUrgencyScore } from "./objective-urgency.js";
@@ -15,14 +16,16 @@ export interface ObjectiveDrivenCycleResult {
     readonly assessment: ObjectiveAssessment;
     readonly urgency: ObjectiveUrgencyScore;
     readonly progressTrend: ObjectiveProgressTrendScore;
+    readonly intervention: ObjectiveIntervention;
     readonly intent: ExecutiveIntent;
     readonly plan?: ExecutionPlan;
 }
 
-/** Connects objective assessment, urgency, progress trend, selection, intent, and planning. */
+/** Connects objective assessment, urgency, progress trend, intervention, selection, intent, and planning. */
 export class ObjectiveDrivenExecutiveCycle {
     private readonly objectiveEngine: ExecutiveObjectiveEngine;
     private readonly intentBridge = new ExecutiveObjectiveIntentBridge();
+    private readonly interventionEngine = new ExecutiveObjectiveInterventionEngine();
     private readonly planBuilder: ExecutiveIntentPlanBuilder;
     private readonly selector = new ExecutiveObjectivePrioritySelector();
     private readonly urgencyScorer = new ExecutiveObjectiveUrgencyScorer();
@@ -63,15 +66,16 @@ export class ObjectiveDrivenExecutiveCycle {
         const results: ObjectiveDrivenCycleResult[] = [];
 
         for (const { objective, assessment, urgency, progressTrend } of selected) {
-            const intent = this.intentBridge.build({ objective, assessment });
+            const intervention = this.interventionEngine.assess({ objective, assessment, progressTrend });
+            const intent = this.intentBridge.build({ objective, assessment, intervention });
 
             if (intent.type === "NO_ACTION" || intent.type === "WAIT_FOR_FOUNDER_DECISION" || intent.type === "MONITOR_ACTIVE_WORK") {
-                results.push({ objective, assessment, urgency, progressTrend, intent });
+                results.push({ objective, assessment, urgency, progressTrend, intervention, intent });
                 continue;
             }
 
             const plan = this.planBuilder.build({ intent, capabilities });
-            results.push({ objective, assessment, urgency, progressTrend, intent, plan });
+            results.push({ objective, assessment, urgency, progressTrend, intervention, intent, plan });
         }
 
         return results;
