@@ -110,13 +110,7 @@ async function main(): Promise<void> {
             executeRuntime: true,
             workflowExecutor: {
                 async execute() {
-                    return recoveryAgent.execute({
-                        id: "objective-recovery-runtime-task",
-                        title: "Recover failed operation",
-                        description: "Controlled objective recovery execution.",
-                        priority: "high",
-                        metadata: { source: "v7.8u-demo" },
-                    });
+                    return recoveryAgent.execute();
                 },
             },
         },
