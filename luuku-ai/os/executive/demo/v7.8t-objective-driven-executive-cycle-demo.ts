@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
-import type { Agent } from "../../../agents/agent.js";
+import type { Agent } from "../../../shared/agents/interface.js";
 import type { ExecutiveState } from "../executive-state.js";
 import type { ExecutiveObjectiveRecord } from "../objective-engine.js";
 import { InMemoryExecutiveObjectiveStore } from "../objective-engine.js";
-import { AgentDiscovery } from "../../../agents/agent-discovery.js";
-import { AgentRegistry } from "../../../agents/agent-registry.js";
+import { AgentDiscovery } from "../../agents/discovery.js";
+import { AgentRegistry } from "../../agents/registry.js";
 import { CapabilityResolver } from "../../planning/capability-resolver.js";
 import { ObjectiveDrivenExecutiveCycle } from "../objective-driven-executive-cycle.js";
 
@@ -13,8 +13,7 @@ let executions = 0;
 const agent: Agent = {
     id: "recovery-agent-t",
     name: "Recovery Agent T",
-    description: "Handles failed operational work.",
-    capabilities: ["recover-failed-work"],
+    role: "Handles failed operational work.",
     async execute() {
         executions += 1;
         throw new Error("Execution must not occur in the objective-driven planning demo.");
@@ -47,7 +46,10 @@ async function main(): Promise<void> {
     await store.save(objective);
 
     const registry = new AgentRegistry();
-    registry.register(agent);
+    registry.register({
+        agent,
+        capabilities: ["recover-failed-work"],
+    });
 
     const discovery = new AgentDiscovery(registry);
     const resolver = new CapabilityResolver(discovery);
