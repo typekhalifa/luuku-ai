@@ -7,6 +7,7 @@ export interface ExecutiveObjectiveRecord extends ExecutiveObjective {
     readonly id: string;
     readonly status: ExecutiveObjectiveStatus;
     readonly progress: number;
+    readonly previousProgress?: number;
     readonly deadlineAt?: Date;
     readonly staleAfterDays?: number;
     readonly createdAt: Date;
