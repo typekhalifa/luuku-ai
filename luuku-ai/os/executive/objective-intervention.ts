@@ -75,6 +75,21 @@ export class ExecutiveObjectiveInterventionEngine {
             };
         }
 
+        // An active objective with no existing failure or regression still
+        // represents an autonomous work-selection opportunity. The executive
+        // must be able to determine useful next work without waiting for a
+        // user-created failure condition. Keep this as an explicit intervention
+        // rather than collapsing the objective into MONITOR_ACTIVE_WORK.
+        if (assessment.attentionRequired) {
+            return {
+                objectiveId: objective.id,
+                type: "INVESTIGATE_STAGNATION",
+                reason: "Objective is active and requires the executive to determine its next useful work.",
+                interventionRequired: true,
+                evidence,
+            };
+        }
+
         return {
             objectiveId: objective.id,
             type: "NO_INTERVENTION",
