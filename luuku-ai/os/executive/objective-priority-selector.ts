@@ -1,10 +1,12 @@
 import type { ExecutiveObjectiveRecord, ObjectiveAssessment } from "./objective-engine.js";
+import type { ObjectiveProgressTrendScore } from "./objective-progress-trend.js";
 import type { ObjectiveUrgencyScore } from "./objective-urgency.js";
 
 export interface ObjectiveSelectionCandidate {
     readonly objective: ExecutiveObjectiveRecord;
     readonly assessment: ObjectiveAssessment;
     readonly urgency: ObjectiveUrgencyScore;
+    readonly progressTrend: ObjectiveProgressTrendScore;
 }
 
 export interface ObjectivePrioritySelectorOptions {
@@ -17,7 +19,7 @@ const priorityRank: Record<ExecutiveObjectiveRecord["priority"], number> = {
     low: 1,
 };
 
-/** Deterministically ranks objectives using urgency first, then priority and stable tie-breakers. */
+/** Deterministically ranks objectives using urgency, progress intervention, priority, and stable tie-breakers. */
 export class ExecutiveObjectivePrioritySelector {
     private readonly maxSelections: number;
 
@@ -33,6 +35,8 @@ export class ExecutiveObjectivePrioritySelector {
         return [...candidates].sort((left, right) => {
             const urgencyDifference = right.urgency.score - left.urgency.score;
             if (urgencyDifference !== 0) return urgencyDifference;
+            const interventionDifference = right.progressTrend.interventionScore - left.progressTrend.interventionScore;
+            if (interventionDifference !== 0) return interventionDifference;
             const priorityDifference = priorityRank[right.objective.priority] - priorityRank[left.objective.priority];
             if (priorityDifference !== 0) return priorityDifference;
             const progressDifference = left.assessment.progress - right.assessment.progress;
