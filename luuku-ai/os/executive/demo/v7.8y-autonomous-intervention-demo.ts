@@ -104,62 +104,66 @@ const failed = interventionEngine.assess({
     },
 });
 
-const agentExecutions = { count: 0 };
-const interventionAgent: Agent = {
-    id: "objective-investigation-agent-y",
-    name: "Objective Investigation Agent",
-    role: "Investigates objective bottlenecks",
-    async execute() {
-        agentExecutions.count += 1;
-        return {
-            success: true,
-            summary: "Investigation completed.",
-            completedAt: new Date().toISOString(),
-        };
-    },
-};
+async function main(): Promise<void> {
+    const agentExecutions = { count: 0 };
+    const interventionAgent: Agent = {
+        id: "objective-investigation-agent-y",
+        name: "Objective Investigation Agent",
+        role: "Investigates objective bottlenecks",
+        async execute() {
+            agentExecutions.count += 1;
+            return {
+                success: true,
+                summary: "Investigation completed.",
+                completedAt: new Date().toISOString(),
+            };
+        },
+    };
 
-const registry = new AgentRegistry();
-registry.register({
-    agent: interventionAgent,
-    capabilities: ["investigate-objective-bottleneck"],
-});
-const resolver = new CapabilityResolver(new AgentDiscovery(registry));
-const objectiveStore = new InMemoryExecutiveObjectiveStore();
-await objectiveStore.save(baseObjective({ progress: 30, previousProgress: 40 }));
+    const registry = new AgentRegistry();
+    registry.register({
+        agent: interventionAgent,
+        capabilities: ["investigate-objective-bottleneck"],
+    });
+    const resolver = new CapabilityResolver(new AgentDiscovery(registry));
+    const objectiveStore = new InMemoryExecutiveObjectiveStore();
+    await objectiveStore.save(baseObjective({ progress: 30, previousProgress: 40 }));
 
-const cycle = new ObjectiveDrivenExecutiveCycle(objectiveStore, resolver);
-const results = await cycle.run(
-    state,
-    { INTERVENE_OBJECTIVE: "investigate-objective-bottleneck" },
-    now,
-);
+    const cycle = new ObjectiveDrivenExecutiveCycle(objectiveStore, resolver);
+    const results = await cycle.run(
+        state,
+        { INTERVENE_OBJECTIVE: "investigate-objective-bottleneck" },
+        now,
+    );
 
-const result = results[0];
-if (!result) throw new Error("Y demo expected one selected objective.");
-if (result.intervention.type !== "RECOVER_REGRESSION") throw new Error("Y demo expected regression recovery intervention.");
-if (result.intent.type !== "INTERVENE_OBJECTIVE") throw new Error("Y demo expected intervention intent.");
-if (!result.plan) throw new Error("Y demo expected an intervention execution plan.");
-if (agentExecutions.count !== 0) throw new Error("Y planning demo must not execute the agent.");
+    const result = results[0];
+    if (!result) throw new Error("Y demo expected one selected objective.");
+    if (result.intervention.type !== "RECOVER_REGRESSION") throw new Error("Y demo expected regression recovery intervention.");
+    if (result.intent.type !== "INTERVENE_OBJECTIVE") throw new Error("Y demo expected intervention intent.");
+    if (!result.plan) throw new Error("Y demo expected an intervention execution plan.");
+    if (agentExecutions.count !== 0) throw new Error("Y planning demo must not execute the agent.");
 
-if (stagnant.type !== "INVESTIGATE_STAGNATION") throw new Error("Y demo expected stagnation investigation.");
-if (regressing.type !== "RECOVER_REGRESSION") throw new Error("Y demo expected regression recovery.");
-if (improving.type !== "NO_INTERVENTION") throw new Error("Y demo expected no intervention for improving progress.");
-if (failed.type !== "RECOVER_FAILED_WORK") throw new Error("Y demo expected failed-work recovery.");
+    if (stagnant.type !== "INVESTIGATE_STAGNATION") throw new Error("Y demo expected stagnation investigation.");
+    if (regressing.type !== "RECOVER_REGRESSION") throw new Error("Y demo expected regression recovery.");
+    if (improving.type !== "NO_INTERVENTION") throw new Error("Y demo expected no intervention for improving progress.");
+    if (failed.type !== "RECOVER_FAILED_WORK") throw new Error("Y demo expected failed-work recovery.");
 
-console.log("V7.8-Y AUTONOMOUS INTERVENTION DEMO");
-console.log(`Stagnant intervention: ${stagnant.type}`);
-console.log(`Regressing intervention: ${regressing.type}`);
-console.log(`Improving intervention: ${improving.type}`);
-console.log(`Failed-work intervention: ${failed.type}`);
-console.log(`Cycle intervention   : ${result.intervention.type}`);
-console.log(`Intent               : ${result.intent.type}`);
-console.log(`Plan                 : ${result.plan.id}`);
-console.log(`Agent executions     : ${agentExecutions.count}`);
-console.log("");
-console.log("✓ Stagnant objectives trigger explicit bottleneck investigation.");
-console.log("✓ Regressing objectives trigger corrective intervention.");
-console.log("✓ Failed work preserves the existing recovery path.");
-console.log("✓ Improving objectives do not trigger unnecessary intervention.");
-console.log("✓ Intervention flows into the existing intent → capability → plan pipeline.");
-console.log("✓ The intervention layer remains side-effect free; V6 execution stays below planning.");
+    console.log("V7.8-Y AUTONOMOUS INTERVENTION DEMO");
+    console.log(`Stagnant intervention: ${stagnant.type}`);
+    console.log(`Regressing intervention: ${regressing.type}`);
+    console.log(`Improving intervention: ${improving.type}`);
+    console.log(`Failed-work intervention: ${failed.type}`);
+    console.log(`Cycle intervention   : ${result.intervention.type}`);
+    console.log(`Intent               : ${result.intent.type}`);
+    console.log(`Plan                 : ${result.plan.id}`);
+    console.log(`Agent executions     : ${agentExecutions.count}`);
+    console.log("");
+    console.log("✓ Stagnant objectives trigger explicit bottleneck investigation.");
+    console.log("✓ Regressing objectives trigger corrective intervention.");
+    console.log("✓ Failed work preserves the existing recovery path.");
+    console.log("✓ Improving objectives do not trigger unnecessary intervention.");
+    console.log("✓ Intervention flows into the existing intent → capability → plan pipeline.");
+    console.log("✓ The intervention layer remains side-effect free; V6 execution stays below planning.");
+}
+
+void main();
