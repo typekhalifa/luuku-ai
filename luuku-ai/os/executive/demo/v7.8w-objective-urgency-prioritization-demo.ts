@@ -76,6 +76,7 @@ const candidates: ObjectiveSelectionCandidate[] = [urgentDueSoon, highButNotUrge
         attentionRequired: false,
         reason: "Objective requires useful next work.",
     };
+
     return {
         objective: item,
         assessment,
@@ -83,12 +84,14 @@ const candidates: ObjectiveSelectionCandidate[] = [urgentDueSoon, highButNotUrge
     };
 });
 
-assert.equal(candidates.find((candidate) => candidate.objective.id === overdue.id)?.urgency.overdue, true);
-assert.equal(candidates.find((candidate) => candidate.objective.id === urgentDueSoon.id)?.urgency.dueSoon, true);
-assert.equal(candidates.find((candidate) => candidate.objective.id === stale.id)?.urgency.stale, true);
+const find = (id: string) => candidates.find((candidate) => candidate.objective.id === id)!;
 
-const overdueScore = candidates.find((candidate) => candidate.objective.id === overdue.id)?.urgency.score ?? 0;
-const highLaterScore = candidates.find((candidate) => candidate.objective.id === highButNotUrgent.id)?.urgency.score ?? 0;
+assert.equal(find(overdue.id).urgency.overdue, true);
+assert.equal(find(urgentDueSoon.id).urgency.dueSoon, true);
+assert.equal(find(stale.id).urgency.stale, true);
+
+const overdueScore = find(overdue.id).urgency.score;
+const highLaterScore = find(highButNotUrgent.id).urgency.score;
 assert(overdueScore > highLaterScore);
 
 const prioritySelector = new ExecutiveObjectivePrioritySelector();
