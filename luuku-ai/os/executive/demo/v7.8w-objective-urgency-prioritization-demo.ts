@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import type { ExecutiveObjectiveRecord } from "../objective-engine.js";
 import type { ExecutiveState } from "../executive-state.js";
 import { ExecutiveObjectiveUrgencyScorer } from "../objective-urgency.js";
-import { ExecutiveObjectivePrioritySelector } from "../objective-priority-selector.js";
+import { ExecutiveObjectivePrioritySelector, type ObjectiveSelectionCandidate } from "../objective-priority-selector.js";
 
 const now = new Date("2026-09-05T06:00:00.000Z");
 const state: ExecutiveState = {
@@ -68,7 +68,7 @@ const stale = objective(
 );
 
 const scorer = new ExecutiveObjectiveUrgencyScorer();
-const candidates = [urgentDueSoon, highButNotUrgent, overdue, stale].map((item) => {
+const candidates: ObjectiveSelectionCandidate[] = [urgentDueSoon, highButNotUrgent, overdue, stale].map((item) => {
     const assessment = {
         objectiveId: item.id,
         status: "ACTIVE" as const,
@@ -86,37 +86,31 @@ const candidates = [urgentDueSoon, highButNotUrgent, overdue, stale].map((item) 
 assert.equal(candidates.find((candidate) => candidate.objective.id === overdue.id)?.urgency.overdue, true);
 assert.equal(candidates.find((candidate) => candidate.objective.id === urgentDueSoon.id)?.urgency.dueSoon, true);
 assert.equal(candidates.find((candidate) => candidate.objective.id === stale.id)?.urgency.stale, true);
-assert(
-    (candidates.find((candidate) => candidate.objective.id === overdue.id)?.urgency.score ?? 0) >
-    (candidates.find((candidate) => candidate.objective.id === highButNotUrgent.id)?.urgency.score ?? 0),
-);
+
+const overdueScore = candidates.find((candidate) => candidate.objective.id === overdue.id)?.urgency.score ?? 0;
+const highLaterScore = candidates.find((candidate) => candidate.objective.id === highButNotUrgent.id)?.urgency.score ?? 0;
+assert(overdueScore > highLaterScore);
 
 const prioritySelector = new ExecutiveObjectivePrioritySelector();
-const selected = prioritySelector.select(
-    candidates
-        .map(({ objective, assessment, urgency }) => ({
-            objective,
-            assessment,
-            urgencyScore: urgency.score,
-        }))
-        .sort((left, right) => right.urgencyScore - left.urgencyScore)
-        .map(({ objective, assessment }) => ({ objective, assessment })),
-);
+const ranked = prioritySelector.rank(candidates);
+const selected = prioritySelector.select(candidates);
 
+assert.equal(ranked[0]?.objective.id, overdue.id);
 assert.equal(selected.length, 1);
-assert.equal(selected[0]?.objective.id, highButNotUrgent.id);
+assert.equal(selected[0]?.objective.id, overdue.id);
+assert.equal(state.failed, 0);
 
 console.log("V7.8-W OBJECTIVE URGENCY + PRIORITIZATION DEMO");
 console.log(`Candidates         : ${candidates.length}`);
 console.log(`Overdue objective  : ${overdue.title}`);
-console.log(`Due-soon objective : ${urgentDueSoon.title}`);
-console.log(`Stale objective    : ${stale.title}`);
+console.log(`Overdue score      : ${overdueScore}`);
+console.log(`High-later score   : ${highLaterScore}`);
 console.log(`Selected for work  : ${selected[0]?.objective.title}`);
 console.log(`Selected count     : ${selected.length}`);
 
 console.log("\n✓ Deadline-aware urgency signals are computed deterministically.");
-console.log("✓ Overdue work receives stronger urgency than non-urgent work.");
+console.log("✓ An overdue lower-priority objective outranks a higher-priority objective that is not urgent.");
 console.log("✓ Due-soon and stale objectives expose explicit urgency signals.");
-console.log("✓ One next-work candidate is selected after urgency ordering.");
-console.log("✓ The urgency layer remains side-effect free.");
+console.log("✓ Urgency is part of the actual selector contract, not a separate sorting pass.");
+console.log("✓ The urgency/prioritization boundary remains side-effect free.");
 console.log("✓ No planning, approval, queue, or agent execution occurred.");
