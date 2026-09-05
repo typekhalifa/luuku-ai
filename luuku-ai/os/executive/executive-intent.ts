@@ -7,6 +7,7 @@ export type ExecutiveIntentType =
     | "RECOVER_FAILED_WORK"
     | "WAIT_FOR_FOUNDER_DECISION"
     | "MONITOR_ACTIVE_WORK"
+    | "INTERVENE_OBJECTIVE"
     | "NO_ACTION";
 
 export interface ExecutiveIntent {
