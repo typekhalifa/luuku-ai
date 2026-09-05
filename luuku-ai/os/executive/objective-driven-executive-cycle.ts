@@ -145,11 +145,18 @@ export class ObjectiveDrivenExecutiveCycle {
                     : adaptedIntervention,
             });
 
-            if (
+            // A selected objective is intended to become executable work whenever
+            // the intervention engine produced an actionable intervention. Do not
+            // infer executability from the post-adaptation intent type: monitor-only
+            // objectives may still carry a concrete recovery/adjustment intervention.
+            const actionableIntervention = intervention.type !== "NO_INTERVENTION"
+                && intervention.interventionRequired;
+
+            if (!actionableIntervention && (
                 intent.type === "NO_ACTION"
                 || intent.type === "WAIT_FOR_FOUNDER_DECISION"
                 || intent.type === "MONITOR_ACTIVE_WORK"
-            ) {
+            )) {
                 results.push({
                     objective,
                     assessment,
@@ -164,7 +171,19 @@ export class ObjectiveDrivenExecutiveCycle {
                 continue;
             }
 
-            const plan = this.planBuilder.build({ intent, capabilities });
+            const plan = this.planBuilder.build({ intent: actionableIntervention ? {
+                ...intent,
+                type: intervention.type === "RECOVER_FAILED_WORK"
+                    ? "RECOVER_FAILED_WORK"
+                    : "INTERVENE_OBJECTIVE",
+            } : intent, capabilities });
+            const executableIntent: ExecutiveIntent = actionableIntervention ? {
+                ...intent,
+                type: intervention.type === "RECOVER_FAILED_WORK"
+                    ? "RECOVER_FAILED_WORK"
+                    : "INTERVENE_OBJECTIVE",
+            } : intent;
+
             results.push({
                 objective,
                 assessment,
@@ -174,7 +193,7 @@ export class ObjectiveDrivenExecutiveCycle {
                 learning,
                 strategy,
                 adaptiveIntervention,
-                intent,
+                intent: executableIntent,
                 plan,
             });
         }
