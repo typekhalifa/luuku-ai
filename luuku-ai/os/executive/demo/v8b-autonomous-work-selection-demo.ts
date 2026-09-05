@@ -133,12 +133,7 @@ async function main(): Promise<void> {
             maxObjectiveSelections: 2,
             workflowExecutor: {
                 async execute() {
-                    return recoveryAgent.execute({
-                        id: "v8b-controlled-task",
-                        title: "Recover selected objective work",
-                        description: "Controlled V8-B execution.",
-                        priority: "high",
-                    });
+                    return recoveryAgent.execute();
                 },
             },
         },
