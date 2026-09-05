@@ -33,16 +33,20 @@ export class ExecutiveObjectivePrioritySelector {
 
     rank(candidates: readonly ObjectiveSelectionCandidate[]): readonly ObjectiveSelectionCandidate[] {
         return [...candidates].sort((left, right) => {
-            const urgencyDifference = right.urgency.score - left.urgency.score;
+            const urgencyDifference =
+                (right.urgency.score + right.progressTrend.interventionScore) -
+                (left.urgency.score + left.progressTrend.interventionScore);
             if (urgencyDifference !== 0) return urgencyDifference;
-            const interventionDifference = right.progressTrend.interventionScore - left.progressTrend.interventionScore;
-            if (interventionDifference !== 0) return interventionDifference;
+
             const priorityDifference = priorityRank[right.objective.priority] - priorityRank[left.objective.priority];
             if (priorityDifference !== 0) return priorityDifference;
+
             const progressDifference = left.assessment.progress - right.assessment.progress;
             if (progressDifference !== 0) return progressDifference;
+
             const createdAtDifference = left.objective.createdAt.getTime() - right.objective.createdAt.getTime();
             if (createdAtDifference !== 0) return createdAtDifference;
+
             return left.objective.id.localeCompare(right.objective.id);
         });
     }
