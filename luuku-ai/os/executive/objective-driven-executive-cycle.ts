@@ -52,6 +52,10 @@ export interface ObjectiveDrivenCycleResult {
     readonly plan?: ExecutionPlan;
 }
 
+export interface ObjectiveDrivenExecutiveCycleOptions {
+    readonly maxSelections?: number;
+}
+
 /**
  * Connects objective assessment, urgency, progress trend, intervention,
  * historical learning, adaptive strategy, intent, and planning.
@@ -62,7 +66,7 @@ export class ObjectiveDrivenExecutiveCycle {
     private readonly intentBridge = new ExecutiveObjectiveIntentBridge();
     private readonly interventionEngine = new ExecutiveObjectiveInterventionEngine();
     private readonly planBuilder: ExecutiveIntentPlanBuilder;
-    private readonly selector = new ExecutiveObjectivePrioritySelector();
+    private readonly selector: ExecutiveObjectivePrioritySelector;
     private readonly urgencyScorer = new ExecutiveObjectiveUrgencyScorer();
     private readonly progressTrendScorer = new ExecutiveObjectiveProgressTrendScorer();
     private readonly learningEngine: ExecutiveLearningEngine;
@@ -73,9 +77,11 @@ export class ObjectiveDrivenExecutiveCycle {
         objectiveStore: ExecutiveObjectiveStore,
         capabilityResolver: CapabilityResolver,
         memoryStore: ExecutiveMemoryStore = new InMemoryExecutiveMemoryStore(),
+        options: ObjectiveDrivenExecutiveCycleOptions = {},
     ) {
         this.objectiveEngine = new ExecutiveObjectiveEngine(objectiveStore);
         this.planBuilder = new ExecutiveIntentPlanBuilder(capabilityResolver);
+        this.selector = new ExecutiveObjectivePrioritySelector({ maxSelections: options.maxSelections ?? 1 });
         this.learningEngine = new ExecutiveLearningEngine(memoryStore);
     }
 
