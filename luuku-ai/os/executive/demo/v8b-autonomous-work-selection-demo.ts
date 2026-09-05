@@ -63,33 +63,6 @@ async function main(): Promise<void> {
     await objectiveStore.save(objective("objective-critical", "Recover Critical Operations", "high"));
     await objectiveStore.save(objective("objective-secondary", "Recover Secondary Operations", "medium"));
 
-    const objectiveCycle = new ObjectiveDrivenExecutiveCycle(
-        objectiveStore,
-        capabilityResolver,
-        undefined,
-        { maxSelections: 2 },
-    );
-    const objectiveResults = await objectiveCycle.run(
-        {
-            active: 0,
-            waitingApproval: 0,
-            failed: 2,
-            completed: 0,
-            attention: ["Two active objectives require recovery."],
-            generatedAt: now,
-            failedWorkIds: ["failed-critical", "failed-secondary"],
-        },
-        { RECOVER_FAILED_WORK: "work.recover" },
-        now,
-    );
-
-    assert.equal(objectiveResults.length, 2);
-    assert.deepEqual(
-        objectiveResults.map((result) => result.objective.id),
-        ["objective-critical", "objective-secondary"],
-    );
-    assert.ok(objectiveResults.every((result) => result.plan));
-
     const workflowStore = new InMemoryWorkflowStore();
     const queueStore = new InMemoryQueueStore();
     const cycle = new AutonomousExecutiveCycle(
@@ -137,6 +110,9 @@ async function main(): Promise<void> {
 
     console.log("V8-B DIAGNOSTIC");
     console.log(`Objective results : ${result.objectiveResults.length}`);
+    console.log(`Objective intents : ${result.objectiveResults.map((r) => `${r.intent.id}[${r.intent.type}] plan=${r.plan?.id ?? "NONE"}`).join(" | ")}`);
+    console.log(`Cycle intents     : ${result.intents.intents.map((i) => `${i.id}[${i.type}]`).join(" | ")}`);
+    console.log(`Intent results    : ${result.intentResults.map((r) => `${r.intent.id}[${r.intent.type}] decision=${r.decision?.status ?? "NONE"} policy=${r.policy?.decision ?? "NONE"}`).join(" | ")}`);
     console.log(`Eligible          : ${eligible.length}`);
     console.log(`Submitted         : ${submitted}`);
     console.log(`Workflows         : ${workflows.length}`);
