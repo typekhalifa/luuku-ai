@@ -1,9 +1,11 @@
 import type { ExecutiveIntent } from "./executive-intent.js";
 import type { ExecutiveObjectiveRecord, ObjectiveAssessment } from "./objective-engine.js";
+import type { ObjectiveIntervention } from "./objective-intervention.js";
 
 export interface ObjectiveIntentBridgeRequest {
     readonly objective: ExecutiveObjectiveRecord;
     readonly assessment: ObjectiveAssessment;
+    readonly intervention?: ObjectiveIntervention;
 }
 
 /**
@@ -12,12 +14,32 @@ export interface ObjectiveIntentBridgeRequest {
  */
 export class ExecutiveObjectiveIntentBridge {
     build(request: ObjectiveIntentBridgeRequest): ExecutiveIntent {
-        const { objective, assessment } = request;
+        const { objective, assessment, intervention } = request;
 
         if (assessment.objectiveId !== objective.id) {
             throw new Error(
                 `Objective intent bridge failed: assessment ${assessment.objectiveId} does not match objective ${objective.id}.`,
             );
+        }
+
+        if (intervention && intervention.objectiveId !== objective.id) {
+            throw new Error(
+                `Objective intent bridge failed: intervention ${intervention.objectiveId} does not match objective ${objective.id}.`,
+            );
+        }
+
+        if (intervention && intervention.type !== "NO_INTERVENTION") {
+            return {
+                id: `objective-intervention-${objective.id}`,
+                type: "INTERVENE_OBJECTIVE",
+                objective: objective.title,
+                reason: intervention.reason,
+                sourceObservationIds: [],
+                evidence: {
+                    ...intervention.evidence,
+                    interventionType: intervention.type,
+                },
+            };
         }
 
         if (!assessment.attentionRequired) {
