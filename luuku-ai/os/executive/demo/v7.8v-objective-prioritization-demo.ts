@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import type { ExecutiveObjectiveRecord } from "../objective-engine.js";
 import { InMemoryExecutiveObjectiveStore, ExecutiveObjectiveEngine } from "../objective-engine.js";
 import { ExecutiveObjectivePrioritySelector } from "../objective-priority-selector.js";
+import { ExecutiveObjectiveUrgencyScorer } from "../objective-urgency.js";
 import type { ExecutiveState } from "../executive-state.js";
 
 const baseTime = new Date("2026-09-05T04:00:00.000Z");
@@ -12,6 +13,7 @@ const objective = (
     priority: ExecutiveObjectiveRecord["priority"],
     progress: number,
     offsetMinutes: number,
+    metadata?: Record<string, unknown>,
 ): ExecutiveObjectiveRecord => ({
     id,
     title,
@@ -21,14 +23,19 @@ const objective = (
     progress,
     createdAt: new Date(baseTime.getTime() + offsetMinutes * 60_000),
     updatedAt: new Date(baseTime.getTime() + offsetMinutes * 60_000),
-});
+    ...(metadata ? { metadata } : {}),
+} as ExecutiveObjectiveRecord);
 
 async function main(): Promise<void> {
     const store = new InMemoryExecutiveObjectiveStore();
     await store.save(objective("objective-low", "Improve Agent Efficiency", "low", 5, 0));
     await store.save(objective("objective-medium", "Maintain Agent Momentum", "medium", 20, 1));
-    await store.save(objective("objective-high-progress", "Strategic Growth", "high", 80, 2));
-    await store.save(objective("objective-high-priority", "Recover Critical Operations", "high", 10, 3));
+    await store.save(objective("objective-high-future", "Strategic Growth", "high", 80, 2, {
+        deadlineAt: "2026-09-20T04:00:00.000Z",
+    }));
+    await store.save(objective("objective-medium-overdue", "Recover Critical Operations", "medium", 50, 3, {
+        deadlineAt: "2026-09-04T04:00:00.000Z",
+    }));
 
     const state: ExecutiveState = {
         active: 1,
@@ -42,34 +49,39 @@ async function main(): Promise<void> {
 
     const engine = new ExecutiveObjectiveEngine(store);
     const objectives = await engine.listActive();
+    const urgencyScorer = new ExecutiveObjectiveUrgencyScorer();
     const candidates = await Promise.all(
-        objectives.map(async (objectiveRecord) => ({
-            objective: objectiveRecord,
-            assessment: await engine.assess(objectiveRecord, state),
-        })),
+        objectives.map(async (objectiveRecord) => {
+            const assessment = await engine.assess(objectiveRecord, state);
+            return {
+                objective: objectiveRecord,
+                assessment,
+                urgency: urgencyScorer.score({ objective: objectiveRecord, assessment, now: new Date(baseTime) }),
+            };
+        }),
     );
 
     const selector = new ExecutiveObjectivePrioritySelector();
     const ranked = selector.rank(candidates);
     const selected = selector.select(candidates);
 
-    assert.equal(ranked[0]?.objective.id, "objective-high-priority");
+    assert.equal(ranked[0]?.objective.id, "objective-medium-overdue");
+    assert.equal(ranked[0]?.urgency.overdue, true);
     assert.equal(selected.length, 1);
-    assert.equal(selected[0]?.objective.id, "objective-high-priority");
+    assert.equal(selected[0]?.objective.id, "objective-medium-overdue");
     assert.equal(selected[0]?.assessment.attentionRequired, true);
 
-    console.log("V7.8-V OBJECTIVE PRIORITIZATION DEMO");
+    console.log("V7.8-W OBJECTIVE URGENCY + PRIORITIZATION DEMO");
     console.log(`Active objectives : ${objectives.length}`);
     console.log(`Top objective     : ${ranked[0]?.objective.title}`);
     console.log(`Top priority      : ${ranked[0]?.objective.priority}`);
-    console.log(`Top progress      : ${ranked[0]?.assessment.progress}%`);
+    console.log(`Urgency score     : ${ranked[0]?.urgency.score}`);
+    console.log(`Overdue           : ${ranked[0]?.urgency.overdue}`);
     console.log(`Selected for work : ${selected[0]?.objective.title}`);
-    console.log(`Selected count    : ${selected.length}`);
     console.log("");
-    console.log("✓ High-priority objectives outrank medium and low priority work.");
-    console.log("✓ Lower progress breaks ties between objectives with the same priority.");
-    console.log("✓ Selection is deterministic and produces one next-work candidate.");
-    console.log("✓ Objective prioritization remains side-effect free.");
+    console.log("✓ An overdue medium-priority objective outranks a high-priority objective due later.");
+    console.log("✓ Deadline urgency is computed deterministically from objective metadata.");
+    console.log("✓ Objective selection remains side-effect free.");
     console.log("✓ No planning, approval, queue, or agent execution occurred.");
 }
 
