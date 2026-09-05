@@ -5,6 +5,7 @@ import type { ExecutionPlan } from "../planning/execution-plan.js";
 import type { ExecutiveIntent } from "./executive-intent.js";
 import { ExecutiveObjectiveEngine, type ExecutiveObjectiveRecord, type ExecutiveObjectiveStore, type ObjectiveAssessment } from "./objective-engine.js";
 import { ExecutiveObjectiveIntentBridge } from "./objective-intent-bridge.js";
+import { ExecutiveObjectivePrioritySelector } from "./objective-priority-selector.js";
 import type { ExecutiveState } from "./executive-state.js";
 
 export interface ObjectiveDrivenCycleResult {
@@ -22,6 +23,7 @@ export class ObjectiveDrivenExecutiveCycle {
     private readonly objectiveEngine: ExecutiveObjectiveEngine;
     private readonly intentBridge = new ExecutiveObjectiveIntentBridge();
     private readonly planBuilder: ExecutiveIntentPlanBuilder;
+    private readonly selector = new ExecutiveObjectivePrioritySelector();
 
     constructor(
         objectiveStore: ExecutiveObjectiveStore,
@@ -36,10 +38,19 @@ export class ObjectiveDrivenExecutiveCycle {
         capabilities: IntentPlanCapabilityMap,
     ): Promise<readonly ObjectiveDrivenCycleResult[]> {
         const objectives = await this.objectiveEngine.listActive();
-        const results: ObjectiveDrivenCycleResult[] = [];
+        const candidates: Array<{ objective: ExecutiveObjectiveRecord; assessment: ObjectiveAssessment }> = [];
 
         for (const objective of objectives) {
-            const assessment = await this.objectiveEngine.assess(objective, state);
+            candidates.push({
+                objective,
+                assessment: await this.objectiveEngine.assess(objective, state),
+            });
+        }
+
+        const selected = this.selector.select(candidates);
+        const results: ObjectiveDrivenCycleResult[] = [];
+
+        for (const { objective, assessment } of selected) {
             const intent = this.intentBridge.build({ objective, assessment });
 
             if (intent.type === "NO_ACTION" || intent.type === "WAIT_FOR_FOUNDER_DECISION" || intent.type === "MONITOR_ACTIVE_WORK") {
