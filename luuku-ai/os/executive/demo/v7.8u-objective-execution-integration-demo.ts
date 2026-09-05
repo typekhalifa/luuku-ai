@@ -28,7 +28,10 @@ const recoveryAgent = {
             executionStatus: "completed",
             executed: true,
             verified: true,
-            evidence: { provider: "controlled-v7.8u-agent", execution: executions },
+            evidence: {
+                provider: "controlled-v7.8u-agent",
+                externalId: `execution-${executions}`,
+            },
         };
     },
 };
@@ -80,6 +83,7 @@ async function main(): Promise<void> {
         waitingApproval: 0,
         active: 0,
         completed: 0,
+        attention: ["Failed objective work requires recovery."],
         generatedAt: new Date("2026-09-05T04:00:10.000Z"),
     }, { RECOVER_FAILED_WORK: "work.recover" });
 
@@ -105,15 +109,13 @@ async function main(): Promise<void> {
             }],
             executeRuntime: true,
             workflowExecutor: {
-                async execute(step) {
+                async execute() {
                     return recoveryAgent.execute({
-                        id: step.id,
-                        type: "SUPPORT",
-                        title: step.title,
-                        description: step.description,
-                        priority: step.priority,
-                        input: step.input,
-                        metadata: {},
+                        id: "objective-recovery-runtime-task",
+                        title: "Recover failed operation",
+                        description: "Controlled objective recovery execution.",
+                        priority: "high",
+                        metadata: { source: "v7.8u-demo" },
                     });
                 },
             },
