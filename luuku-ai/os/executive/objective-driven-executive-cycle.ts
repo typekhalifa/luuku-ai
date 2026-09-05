@@ -92,12 +92,12 @@ export class ObjectiveDrivenExecutiveCycle {
     ): Promise<readonly ObjectiveDrivenCycleResult[]> {
         const objectives = await this.objectiveEngine.listActive();
         const learning = await this.learningEngine.learn();
-        const candidates = [] as Array<{
+        const candidates: Array<{
             objective: ExecutiveObjectiveRecord;
             assessment: ObjectiveAssessment;
             urgency: ObjectiveUrgencyScore;
             progressTrend: ObjectiveProgressTrendScore;
-        }>;
+        }> = [];
 
         for (const objective of objectives) {
             const assessment = await this.objectiveEngine.assess(objective, state);
@@ -137,26 +137,32 @@ export class ObjectiveDrivenExecutiveCycle {
                 reason: adaptiveIntervention.reason,
                 evidence: adaptiveIntervention.evidence,
             };
-            const intent = this.intentBridge.build({
-                objective,
-                assessment,
-                intervention: adaptiveIntervention.mode === "CONTINUE"
-                    ? intervention
-                    : adaptedIntervention,
-            });
 
-            // A selected objective is intended to become executable work whenever
-            // the intervention engine produced an actionable intervention. Do not
-            // infer executability from the post-adaptation intent type: monitor-only
-            // objectives may still carry a concrete recovery/adjustment intervention.
-            const actionableIntervention = intervention.type !== "NO_INTERVENTION"
+            const executableIntervention = intervention.type !== "NO_INTERVENTION"
                 && intervention.interventionRequired;
 
-            if (!actionableIntervention && (
-                intent.type === "NO_ACTION"
-                || intent.type === "WAIT_FOR_FOUNDER_DECISION"
-                || intent.type === "MONITOR_ACTIVE_WORK"
-            )) {
+            // The intent bridge preserves the semantic reason for the objective.
+            // For executable interventions, normalize the intent type at this
+            // boundary so the downstream planning/policy pipeline receives an
+            // explicitly executable intent rather than MONITOR_ACTIVE_WORK.
+            const bridgedIntent = this.intentBridge.build({
+                objective,
+                assessment,
+                intervention: executableIntervention ? adaptedIntervention : (
+                    adaptiveIntervention.mode === "CONTINUE" ? undefined : adaptedIntervention
+                ),
+            });
+
+            const intent: ExecutiveIntent = executableIntervention
+                ? {
+                    ...bridgedIntent,
+                    type: intervention.type === "RECOVER_FAILED_WORK"
+                        ? "RECOVER_FAILED_WORK"
+                        : "INTERVENE_OBJECTIVE",
+                }
+                : bridgedIntent;
+
+            if (!executableIntervention) {
                 results.push({
                     objective,
                     assessment,
@@ -171,19 +177,7 @@ export class ObjectiveDrivenExecutiveCycle {
                 continue;
             }
 
-            const plan = this.planBuilder.build({ intent: actionableIntervention ? {
-                ...intent,
-                type: intervention.type === "RECOVER_FAILED_WORK"
-                    ? "RECOVER_FAILED_WORK"
-                    : "INTERVENE_OBJECTIVE",
-            } : intent, capabilities });
-            const executableIntent: ExecutiveIntent = actionableIntervention ? {
-                ...intent,
-                type: intervention.type === "RECOVER_FAILED_WORK"
-                    ? "RECOVER_FAILED_WORK"
-                    : "INTERVENE_OBJECTIVE",
-            } : intent;
-
+            const plan = this.planBuilder.build({ intent, capabilities });
             results.push({
                 objective,
                 assessment,
@@ -193,7 +187,7 @@ export class ObjectiveDrivenExecutiveCycle {
                 learning,
                 strategy,
                 adaptiveIntervention,
-                intent: executableIntent,
+                intent,
                 plan,
             });
         }
