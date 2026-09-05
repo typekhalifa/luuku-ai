@@ -2,7 +2,6 @@ import assert from "node:assert/strict";
 
 import type { AgentResult } from "../../../shared/agents/interface.js";
 import { registerAgent } from "../../../shared/agents/registry.js";
-import { Priority } from "../../../orchestration/task/priority.js";
 import { AgentRegistry } from "../../agents/registry.js";
 import { AgentDiscovery } from "../../agents/discovery.js";
 import { CapabilityResolver } from "../../planning/capability-resolver.js";
@@ -29,7 +28,7 @@ const interventionAgent = {
             verified: true,
             evidence: {
                 provider: "controlled-v7.8ae-agent",
-                execution: executions,
+                details: { execution: executions },
             },
         };
     },
