@@ -29,6 +29,7 @@ export interface ExecutiveCompositionDependencies {
     readonly workflowExecutor?: WorkflowStepExecutor;
     readonly executeRuntime?: boolean;
     readonly maxCycles?: number;
+    readonly maxObjectiveSelections?: number;
     readonly intervalMs: number;
     readonly runImmediately?: boolean;
     readonly onError?: (error: unknown) => void | Promise<void>;
@@ -51,6 +52,7 @@ export function createExecutiveComposition(
         workflowExecutor: dependencies.workflowExecutor,
         objectiveStore: dependencies.objectiveStore,
         memoryStore: dependencies.memoryStore,
+        maxObjectiveSelections: dependencies.maxObjectiveSelections,
     };
 
     const cycle = new AutonomousExecutiveCycle(
