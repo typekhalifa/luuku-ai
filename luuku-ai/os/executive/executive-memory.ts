@@ -30,6 +30,7 @@ export type ExecutiveLearningPattern = "SUCCESS_PATTERN" | "FAILURE_PATTERN" | "
 export interface ExecutiveLearningRecord {
     readonly pattern: ExecutiveLearningPattern;
     readonly action: string;
+    readonly objectiveIds: readonly string[];
     readonly occurrences: number;
     readonly successfulOccurrences: number;
     readonly failedOccurrences: number;
@@ -73,6 +74,7 @@ export class ExecutiveLearningEngine {
             const confidence = actionRecords.length === 0 ? 0 : successfulOccurrences / actionRecords.length;
             const repeatedFailure = failedOccurrences >= 2 && failedOccurrences > successfulOccurrences;
             const lesson = actionRecords.find((record) => record.lesson)?.lesson;
+            const objectiveIds = [...new Set(actionRecords.map((record) => record.objectiveId).filter((id): id is string => id !== undefined))].sort();
 
             let pattern: ExecutiveLearningPattern;
             if (repeatedFailure) pattern = "REPEATED_FAILURE";
@@ -83,6 +85,7 @@ export class ExecutiveLearningEngine {
             return {
                 pattern,
                 action,
+                objectiveIds,
                 occurrences: actionRecords.length,
                 successfulOccurrences,
                 failedOccurrences,
