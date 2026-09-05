@@ -6,6 +6,7 @@ import { TaskStatus } from "../../orchestration/task/task-status.js";
 import { TaskType } from "../../orchestration/task/task-type.js";
 import type { Task } from "../../orchestration/task/task.js";
 import type { Plan } from "../../orchestration/planner/plan.js";
+import { V8_OBJECTIVE_CAPABILITY_ALIASES } from "./capability-aliases.js";
 
 export interface IntentPlanCapabilityMap {
     readonly [intentType: string]: string;
@@ -24,7 +25,8 @@ export class ExecutiveIntentPlanBuilder {
     constructor(private readonly resolver: CapabilityResolver) {}
 
     build(request: IntentPlanRequest): ExecutionPlan {
-        const capability = request.capabilities[request.intent.type];
+        const capability = request.capabilities[request.intent.type]
+            ?? V8_OBJECTIVE_CAPABILITY_ALIASES[request.intent.type];
         if (!capability || capability.trim() === "") {
             throw new Error(`Intent plan failed: no capability mapping for ${request.intent.type}.`);
         }
