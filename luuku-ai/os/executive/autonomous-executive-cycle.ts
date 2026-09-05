@@ -26,7 +26,6 @@ export interface AutonomousExecutiveCycleOptions {
     readonly workflowExecutor?: WorkflowStepExecutor;
     readonly objectiveStore?: ExecutiveObjectiveStore;
     readonly memoryStore?: ExecutiveMemoryStore;
-    /** Optional loop checkpoint hook used to suppress already-processed intents. */
     readonly shouldProcessIntent?: (intent: ExecutiveIntent) => boolean | Promise<boolean>;
 }
 
@@ -51,13 +50,6 @@ export interface AutonomousExecutiveCycleResult {
     readonly finalObservation: ExecutiveObservationSnapshot;
 }
 
-/**
- * Composes the executive control loop into one autonomous cycle.
- * The executive decides and submits work; V6 remains the execution authority.
- * When an objective store is configured, objective-derived intents are the
- * preferred source for matching autonomous work so the same intent is not
- * submitted twice through observation and objective paths.
- */
 export class AutonomousExecutiveCycle {
     private readonly stateSource: DurableExecutiveStateSource;
     private readonly feedbackSource: DurableExecutionFeedbackSource;
@@ -127,10 +119,7 @@ export class AutonomousExecutiveCycle {
         const intentResults: AutonomousExecutiveIntentResult[] = [];
 
         for (const intent of intents.intents) {
-            if (options.shouldProcessIntent && !(await options.shouldProcessIntent(intent))) {
-                continue;
-            }
-
+            if (options.shouldProcessIntent && !(await options.shouldProcessIntent(intent))) continue;
             if (intent.type === "NO_ACTION" || intent.type === "WAIT_FOR_FOUNDER_DECISION" || intent.type === "MONITOR_ACTIVE_WORK") {
                 intentResults.push({ intent });
                 continue;
@@ -145,14 +134,7 @@ export class AutonomousExecutiveCycle {
                 ? await this.continuation.continue(plan.id, now)
                 : undefined;
 
-            intentResults.push({
-                intent,
-                planId: plan.id,
-                policy,
-                decision,
-                submission,
-                continuation,
-            });
+            intentResults.push({ intent, planId: plan.id, policy, decision, submission, continuation });
         }
 
         const executableWorkflowIds = intentResults
@@ -188,7 +170,7 @@ export class AutonomousExecutiveCycle {
         objectiveResults: readonly ObjectiveDrivenCycleResult[],
         now: Date,
     ): Promise<void> {
-        const terminalIds = new Set([
+        const terminalQueueIds = new Set([
             ...runtime.completed,
             ...runtime.failed,
             ...runtime.blocked,
@@ -196,12 +178,16 @@ export class AutonomousExecutiveCycle {
             ...runtime.escalated,
         ]);
 
-        for (const workflowId of terminalIds) {
-            const result = intentResults.find((item) => item.submission?.workflow?.id && item.submission.workflow.id === workflowId);
-            if (!result) continue;
+        for (const result of intentResults) {
+            const workflow = result.submission?.workflow;
+            if (!workflow) continue;
 
+            const terminalStep = workflow.steps.find((step) => terminalQueueIds.has(`${workflow.id}:${step.id}`));
+            if (!terminalStep) continue;
+
+            const workflowId = workflow.id;
+            const success = runtime.completed.includes(`${workflow.id}:${terminalStep.id}`);
             const objectiveResult = objectiveResults.find((item) => item.intent.id === result.intent.id);
-            const success = runtime.completed.includes(workflowId);
             const outcome = success ? "Workflow completed." : "Workflow reached a non-success terminal outcome.";
             const id = `executive-memory:${workflowId}:outcome`;
             const existing = await this.memoryStore.list();
