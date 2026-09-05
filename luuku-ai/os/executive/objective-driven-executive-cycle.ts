@@ -138,22 +138,20 @@ export class ObjectiveDrivenExecutiveCycle {
                 evidence: adaptiveIntervention.evidence,
             };
 
-            const executableIntervention = intervention.type !== "NO_INTERVENTION"
+            const actionableIntervention = intervention.type !== "NO_INTERVENTION"
                 && intervention.interventionRequired;
 
-            // The intent bridge preserves the semantic reason for the objective.
-            // For executable interventions, normalize the intent type at this
-            // boundary so the downstream planning/policy pipeline receives an
-            // explicitly executable intent rather than MONITOR_ACTIVE_WORK.
             const bridgedIntent = this.intentBridge.build({
                 objective,
                 assessment,
-                intervention: executableIntervention ? adaptedIntervention : (
-                    adaptiveIntervention.mode === "CONTINUE" ? undefined : adaptedIntervention
-                ),
+                intervention: actionableIntervention
+                    ? adaptedIntervention
+                    : adaptiveIntervention.mode === "CONTINUE"
+                        ? undefined
+                        : adaptedIntervention,
             });
 
-            const intent: ExecutiveIntent = executableIntervention
+            const intent: ExecutiveIntent = actionableIntervention
                 ? {
                     ...bridgedIntent,
                     type: intervention.type === "RECOVER_FAILED_WORK"
@@ -162,7 +160,7 @@ export class ObjectiveDrivenExecutiveCycle {
                 }
                 : bridgedIntent;
 
-            if (!executableIntervention) {
+            if (!actionableIntervention) {
                 results.push({
                     objective,
                     assessment,
