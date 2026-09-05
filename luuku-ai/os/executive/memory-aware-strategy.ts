@@ -21,8 +21,7 @@ export interface MemoryAwareStrategyDecision {
 export class MemoryAwareStrategyEngine {
     evaluate(input: MemoryAwareStrategyInput): MemoryAwareStrategyDecision {
         const relevantPatterns = input.learning.filter((record) =>
-            record.action.toLowerCase().includes(input.objective.title.toLowerCase()) ||
-            record.lesson?.toLowerCase().includes(input.objective.title.toLowerCase()),
+            record.objectiveIds.includes(input.objective.objectiveId),
         );
 
         const repeatedFailure = relevantPatterns.find((record) => record.pattern === "REPEATED_FAILURE");
