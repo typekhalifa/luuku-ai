@@ -27,6 +27,7 @@ export interface AutonomousExecutiveCycleOptions {
     readonly objectiveStore?: ExecutiveObjectiveStore;
     readonly memoryStore?: ExecutiveMemoryStore;
     readonly shouldProcessIntent?: (intent: ExecutiveIntent) => boolean | Promise<boolean>;
+    readonly maxObjectiveSelections?: number;
 }
 
 export interface AutonomousExecutiveIntentResult {
@@ -85,7 +86,12 @@ export class AutonomousExecutiveCycle {
         );
         this.memoryStore = options.memoryStore ?? new InMemoryExecutiveMemoryStore();
         this.objectiveCycle = options.objectiveStore
-            ? new ObjectiveDrivenExecutiveCycle(options.objectiveStore, capabilityResolver, this.memoryStore)
+            ? new ObjectiveDrivenExecutiveCycle(
+                options.objectiveStore,
+                capabilityResolver,
+                this.memoryStore,
+                { maxSelections: options.maxObjectiveSelections ?? 1 },
+            )
             : undefined;
     }
 
@@ -137,13 +143,43 @@ export class AutonomousExecutiveCycle {
             intentResults.push({ intent, planId: plan.id, policy, decision, submission, continuation });
         }
 
-        const executableWorkflowIds = intentResults
-            .map((result) => result.submission?.workflow?.id)
-            .filter((id): id is string => id !== undefined);
+        const executableWorkflowIds = [...new Set(
+            intentResults
+                .map((result) => result.submission?.workflow?.id)
+                .filter((id): id is string => id !== undefined),
+        )];
 
         let runtimeResult: AutonomousRuntimeCycleResult | undefined;
         if (options.executeRuntime && executableWorkflowIds.length > 0) {
-            runtimeResult = await this.runtime.runPersistedCycle(executableWorkflowIds[0], now);
+            runtimeResult = {
+                scheduled: [],
+                recovered: [],
+                claimed: [],
+                executed: [],
+                completed: [],
+                retried: [],
+                failed: [],
+                blocked: [],
+                reconciled: [],
+                escalated: [],
+            };
+
+            for (const workflowId of executableWorkflowIds) {
+                const result = await this.runtime.runPersistedCycle(workflowId, now);
+                runtimeResult = {
+                    scheduled: [...runtimeResult.scheduled, ...result.scheduled],
+                    recovered: [...runtimeResult.recovered, ...result.recovered],
+                    claimed: [...runtimeResult.claimed, ...result.claimed],
+                    executed: [...runtimeResult.executed, ...result.executed],
+                    completed: [...runtimeResult.completed, ...result.completed],
+                    retried: [...runtimeResult.retried, ...result.retried],
+                    failed: [...runtimeResult.failed, ...result.failed],
+                    blocked: [...runtimeResult.blocked, ...result.blocked],
+                    reconciled: [...runtimeResult.reconciled, ...result.reconciled],
+                    escalated: [...runtimeResult.escalated, ...result.escalated],
+                };
+            }
+
             await this.recordRuntimeOutcome(runtimeResult, intentResults, objectiveResults, now);
         }
 
