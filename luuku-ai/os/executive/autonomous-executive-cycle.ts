@@ -14,6 +14,8 @@ import { ExecutiveObservationLoop, type ExecutiveObservationSnapshot } from "./e
 import { DurableExecutiveStateSource } from "../control/durable-executive-state.js";
 import { DurableExecutiveSubmission, type ExecutiveSubmissionResult } from "./executive-submission.js";
 import { ExecutiveRuntimeContinuation, type RuntimeContinuationResult } from "./runtime-continuation.js";
+import { ObjectiveDrivenExecutiveCycle, type ObjectiveDrivenCycleResult } from "./objective-driven-executive-cycle.js";
+import type { ExecutiveObjectiveStore } from "./objective-engine.js";
 import type { ExecutiveState } from "./executive-state.js";
 
 export interface AutonomousExecutiveCycleOptions {
@@ -21,6 +23,7 @@ export interface AutonomousExecutiveCycleOptions {
     readonly policyRules: readonly AutonomyPolicyRule[];
     readonly executeRuntime?: boolean;
     readonly workflowExecutor?: WorkflowStepExecutor;
+    readonly objectiveStore?: ExecutiveObjectiveStore;
     /** Optional loop checkpoint hook used to suppress already-processed intents. */
     readonly shouldProcessIntent?: (intent: ExecutiveIntent) => boolean | Promise<boolean>;
 }
@@ -38,6 +41,7 @@ export interface AutonomousExecutiveCycleResult {
     readonly initialState: ExecutiveState;
     readonly initialObservation: ExecutiveObservationSnapshot;
     readonly intents: ExecutiveIntentSnapshot;
+    readonly objectiveResults: readonly ObjectiveDrivenCycleResult[];
     readonly intentResults: readonly AutonomousExecutiveIntentResult[];
     readonly runtime?: AutonomousRuntimeCycleResult;
     readonly feedback: ExecutionFeedbackSnapshot;
@@ -48,6 +52,9 @@ export interface AutonomousExecutiveCycleResult {
 /**
  * Composes the executive control loop into one autonomous cycle.
  * The executive decides and submits work; V6 remains the execution authority.
+ * When an objective store is configured, objective-derived intents are the
+ * preferred source for matching autonomous work so the same intent is not
+ * submitted twice through observation and objective paths.
  */
 export class AutonomousExecutiveCycle {
     private readonly stateSource: DurableExecutiveStateSource;
@@ -61,6 +68,7 @@ export class AutonomousExecutiveCycle {
     private readonly submission: DurableExecutiveSubmission;
     private readonly continuation: ExecutiveRuntimeContinuation;
     private readonly runtime: AutonomousRuntime;
+    private readonly objectiveCycle?: ObjectiveDrivenExecutiveCycle;
 
     constructor(
         private readonly workflowStore: WorkflowStore,
@@ -80,6 +88,9 @@ export class AutonomousExecutiveCycle {
             new WorkflowOrchestrator(undefined, options.workflowExecutor ?? new SharedAgentWorkflowExecutor()),
             workflowStore,
         );
+        this.objectiveCycle = options.objectiveStore
+            ? new ObjectiveDrivenExecutiveCycle(options.objectiveStore, capabilityResolver)
+            : undefined;
     }
 
     async run(
@@ -90,7 +101,22 @@ export class AutonomousExecutiveCycle {
         const initialFeedback = await this.feedbackSource.snapshot();
         const stateWithFeedback = this.feedbackProjector.apply(initialState, initialFeedback);
         const initialObservation = this.observer.observe(stateWithFeedback);
-        const intents = this.intentProjector.derive(initialObservation);
+        const observedIntents = this.intentProjector.derive(initialObservation);
+        const objectiveResults = this.objectiveCycle
+            ? await this.objectiveCycle.run(stateWithFeedback, options.capabilities)
+            : [];
+
+        const objectiveIntents = objectiveResults
+            .map((result) => result.intent)
+            .filter((intent) => intent.type === "RECOVER_FAILED_WORK" && objectiveResults.some((result) => result.intent.id === intent.id && result.plan));
+        const objectiveIntentTypes = new Set(objectiveIntents.map((intent) => intent.type));
+        const intents: ExecutiveIntentSnapshot = {
+            ...observedIntents,
+            intents: [
+                ...objectiveIntents,
+                ...observedIntents.intents.filter((intent) => !objectiveIntentTypes.has(intent.type)),
+            ],
+        };
         const intentResults: AutonomousExecutiveIntentResult[] = [];
 
         for (const intent of intents.intents) {
@@ -103,7 +129,8 @@ export class AutonomousExecutiveCycle {
                 continue;
             }
 
-            const plan = this.planBuilder.build({ intent, capabilities: options.capabilities });
+            const objectivePlan = objectiveResults.find((result) => result.intent.id === intent.id)?.plan;
+            const plan = objectivePlan ?? this.planBuilder.build({ intent, capabilities: options.capabilities });
             const policy = this.policy.evaluate({ intent, plan });
             const decision = this.decisionProjector.decide(intent, plan, policy);
             const submission = await this.submission.submit(decision, plan);
@@ -138,6 +165,7 @@ export class AutonomousExecutiveCycle {
             initialState: stateWithFeedback,
             initialObservation,
             intents,
+            objectiveResults,
             intentResults,
             runtime: runtimeResult,
             feedback,
