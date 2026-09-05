@@ -12,7 +12,7 @@ model Company {
   name       String        @unique
   industry   String
   website    String?
-  country   String
+  country    String
   city       String?
   size       CompanySize?
   status     CompanyStatus
@@ -79,9 +79,9 @@ model Activity {
   completed   Boolean      @default(false)
   dueAt       DateTime?
   createdAt   DateTime     @default(now())
-  company     Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  contact     Contact?     @relation(fields: [contactId], references: [id])
-  deal        Deal?        @relation(fields: [dealId], references: [id])
+  company     Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  contact     Contact?    @relation(fields: [contactId], references: [id])
+  deal        Deal?       @relation(fields: [dealId], references: [id])
   @@index([companyId])
   @@index([contactId])
   @@index([dealId])
@@ -141,7 +141,7 @@ model CommunicationEvent {
 }
 
 model CommunicationExecution {
-  id                String                     @id @default(uuid())
+  id                String                     @id
   conversationId    String?
   taskId            String?
   idempotencyKey    String?
@@ -193,13 +193,13 @@ model WorkflowStep {
   dependsOn         Json
   priority          String
   requiresApproval  Boolean  @default(false)
-  status            String
-  input             Json?
-  output            Json?
-  error             String?
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-  workflow          Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  status             String
+  input              Json?
+  output             Json?
+  error              String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  workflow           Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
   @@index([workflowId])
   @@index([status])
   @@index([agentId])
@@ -248,14 +248,17 @@ model ExecutiveEventInbox {
 }
 
 model ExecutiveObjective {
-  id          String   @id
-  title       String
-  description String
-  priority    String
-  status      String   @default("ACTIVE")
-  progress    Int      @default(0)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id              String   @id
+  title           String
+  description     String
+  priority        String
+  status          String   @default("ACTIVE")
+  progress        Int      @default(0)
+  previousProgress Int?
+  deadlineAt      DateTime?
+  staleAfterDays  Float?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
   @@index([status, priority])
 }
 
