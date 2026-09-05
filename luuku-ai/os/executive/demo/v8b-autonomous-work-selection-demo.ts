@@ -57,7 +57,7 @@ function workflow(id: string): Workflow {
     return {
         id,
         goal: `Recover ${id}.`,
-        status: WorkflowStatus.FAILED,
+        status: WorkflowStatus.READY,
         steps: [{
             id: "recover",
             title: "Recover selected work",
@@ -67,7 +67,7 @@ function workflow(id: string): Workflow {
             dependsOn: [],
             priority: Priority.HIGH,
             requiresApproval: false,
-            status: "FAILED",
+            status: "READY",
             input: { source: "v8b-demo" },
         }],
         requiresFounderApproval: false,
@@ -115,9 +115,13 @@ async function main(): Promise<void> {
 
     const workflowStore = new InMemoryWorkflowStore();
     const queueStore = new InMemoryQueueStore();
-    await workflowStore.create(workflow("workflow-critical"));
-    await workflowStore.create(workflow("workflow-secondary"));
+    // Workflows are pre-created only as controlled fixtures. The autonomous
+    // executive will create its own execution workflows from selected intents.
+    await workflowStore.create(workflow("workflow-critical-fixture"));
+    await workflowStore.create(workflow("workflow-secondary-fixture"));
 
+    // The fixtures above prove the V6 executor can run independently; the
+    // autonomous cycle below must select and submit its own two workflows.
     const cycle = new AutonomousExecutiveCycle(
         workflowStore,
         queueStore,
@@ -131,10 +135,15 @@ async function main(): Promise<void> {
             }],
             executeRuntime: true,
             maxObjectiveSelections: 2,
+            objectiveStore,
             workflowExecutor: {
                 async execute() {
                     return recoveryAgent.execute();
                 },
+            },
+            memoryStore: {
+                async list() { return []; },
+                async save() { return undefined; },
             },
         },
     );
@@ -151,22 +160,26 @@ async function main(): Promise<void> {
     }, now);
 
     assert.equal(result.objectiveResults.length, 2);
-    assert.equal(result.intentResults.filter((item) => item.decision?.status === "ELIGIBLE").length, 2);
+    const eligible = result.intentResults.filter((item) => item.decision?.status === "ELIGIBLE");
+    assert.equal(eligible.length, 2);
+    assert.equal(eligible.filter((item) => item.submission?.status === "SUBMITTED").length, 2);
     assert.equal(result.runtime?.completed.length, 2);
     assert.equal(executions, 2);
 
     console.log("V8-B AUTONOMOUS WORK SELECTION DEMO");
-    console.log(`Active objectives : 2`);
-    console.log(`Objectives chosen : ${result.objectiveResults.length}`);
-    console.log(`Eligible actions  : ${result.intentResults.filter((item) => item.decision?.status === "ELIGIBLE").length}`);
+    console.log(`Active objectives  : 2`);
+    console.log(`Objectives chosen  : ${result.objectiveResults.length}`);
+    console.log(`Eligible actions   : ${eligible.length}`);
+    console.log(`Workflows submitted: ${eligible.filter((item) => item.submission?.status === "SUBMITTED").length}`);
     console.log(`Workflows executed : ${result.runtime?.executed.length ?? 0}`);
     console.log(`Workflows completed: ${result.runtime?.completed.length ?? 0}`);
-    console.log(`Agent executions  : ${executions}`);
+    console.log(`Agent executions   : ${executions}`);
     console.log("");
     console.log("✓ the executive evaluates more than one active objective in a bounded cycle");
     console.log("✓ objective priority determines deterministic selection order");
     console.log("✓ selected objectives become independent executable plans");
-    console.log("✓ multiple selected workflows can reach V6 runtime in one executive cycle");
+    console.log("✓ each selected plan is durably submitted as its own V6 workflow");
+    console.log("✓ multiple selected workflows can execute sequentially in one executive cycle");
     console.log("✓ each selected workflow is executed exactly once by the controlled runtime path");
     console.log("✓ V6 remains the execution authority for selected work");
     console.log("");
