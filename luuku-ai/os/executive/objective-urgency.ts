@@ -19,7 +19,7 @@ export class ExecutiveObjectiveUrgencyScorer {
     score(input: ObjectiveUrgencyInput): ObjectiveUrgencyScore {
         const { objective, assessment, now } = input;
         const metadata = objective as ExecutiveObjectiveRecord & {
-            readonly deadlineAt?: Date;
+            readonly deadlineAt?: Date | string;
             readonly staleAfterDays?: number;
             readonly metadata?: Readonly<Record<string, unknown>>;
         };
