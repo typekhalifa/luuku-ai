@@ -130,10 +130,27 @@ async function main(): Promise<void> {
         objectiveStore,
     }, now);
 
-    assert.equal(result.objectiveResults.length, 2);
     const eligible = result.intentResults.filter((item) => item.decision?.status === "ELIGIBLE");
+    const submitted = eligible.filter((item) => item.submission?.status === "SUBMITTED").length;
+    const workflows = await workflowStore.list();
+    const queue = await queueStore.list();
+
+    console.log("V8-B DIAGNOSTIC");
+    console.log(`Objective results : ${result.objectiveResults.length}`);
+    console.log(`Eligible          : ${eligible.length}`);
+    console.log(`Submitted         : ${submitted}`);
+    console.log(`Workflows         : ${workflows.length}`);
+    console.log(`Queue items       : ${queue.length}`);
+    console.log(`Runtime executed  : ${result.runtime?.executed.length ?? 0}`);
+    console.log(`Runtime completed : ${result.runtime?.completed.length ?? 0}`);
+    console.log(`Agent executions  : ${executions}`);
+    console.log(`Workflow steps    : ${workflows.map((w) => `${w.id}[${w.status}]=>${w.steps.map((s) => `${s.id}:${s.status}`).join(",")}`).join(" | ")}`);
+    console.log(`Queue state       : ${queue.map((q) => `${q.id}[${q.status}]`).join(" | ")}`);
+    console.log("");
+
+    assert.equal(result.objectiveResults.length, 2);
     assert.equal(eligible.length, 2);
-    assert.equal(eligible.filter((item) => item.submission?.status === "SUBMITTED").length, 2);
+    assert.equal(submitted, 2);
     assert.equal(result.runtime?.executed.length, 2);
     assert.equal(result.runtime?.completed.length, 2);
     assert.equal(executions, 2);
@@ -142,7 +159,7 @@ async function main(): Promise<void> {
     console.log(`Active objectives  : 2`);
     console.log(`Objectives chosen  : ${result.objectiveResults.length}`);
     console.log(`Eligible actions   : ${eligible.length}`);
-    console.log(`Workflows submitted: ${eligible.filter((item) => item.submission?.status === "SUBMITTED").length}`);
+    console.log(`Workflows submitted: ${submitted}`);
     console.log(`Workflows executed : ${result.runtime?.executed.length ?? 0}`);
     console.log(`Workflows completed: ${result.runtime?.completed.length ?? 0}`);
     console.log(`Agent executions   : ${executions}`);
