@@ -10,34 +10,14 @@ import {
     type ObjectiveAssessment,
 } from "./objective-engine.js";
 import { ExecutiveObjectiveIntentBridge } from "./objective-intent-bridge.js";
-import {
-    ExecutiveObjectiveInterventionEngine,
-    type ObjectiveIntervention,
-} from "./objective-intervention.js";
-import { ExecutiveObjectivePrioritySelector } from "./objective-priority-selector.js";
-import {
-    ExecutiveObjectiveProgressTrendScorer,
-    type ObjectiveProgressTrendScore,
-} from "./objective-progress-trend.js";
-import {
-    ExecutiveObjectiveUrgencyScorer,
-    type ObjectiveUrgencyScore,
-} from "./objective-urgency.js";
+import { ExecutiveObjectiveInterventionEngine, type ObjectiveIntervention } from "./objective-intervention.js";
+import { ExecutiveObjectiveProgressTrendScorer, type ObjectiveProgressTrendScore } from "./objective-progress-trend.js";
+import { ExecutiveObjectiveUrgencyScorer, type ObjectiveUrgencyScore } from "./objective-urgency.js";
 import type { ExecutiveState } from "./executive-state.js";
-import {
-    ExecutiveLearningEngine,
-    InMemoryExecutiveMemoryStore,
-    type ExecutiveLearningRecord,
-    type ExecutiveMemoryStore,
-} from "./executive-memory.js";
-import {
-    MemoryAwareStrategyEngine,
-    type MemoryAwareStrategyDecision,
-} from "./memory-aware-strategy.js";
-import {
-    ExecutiveAdaptiveInterventionPolicy,
-    type AdaptiveInterventionDecision,
-} from "./adaptive-intervention-policy.js";
+import { ExecutiveLearningEngine, InMemoryExecutiveMemoryStore, type ExecutiveLearningRecord, type ExecutiveMemoryStore } from "./executive-memory.js";
+import { MemoryAwareStrategyEngine, type MemoryAwareStrategyDecision } from "./memory-aware-strategy.js";
+import { ExecutiveAdaptiveInterventionPolicy, type AdaptiveInterventionDecision } from "./adaptive-intervention-policy.js";
+import { ExecutiveWorkArbitrator, type ExecutiveWorkArbitrationDecision, type ExecutiveWorkCandidate } from "./executive-work-arbitrator.js";
 
 export interface ObjectiveDrivenCycleResult {
     readonly objective: ExecutiveObjectiveRecord;
@@ -56,17 +36,13 @@ export interface ObjectiveDrivenExecutiveCycleOptions {
     readonly maxSelections?: number;
 }
 
-/**
- * Connects objective assessment, urgency, progress trend, intervention,
- * historical learning, adaptive strategy, intent, and planning.
- * Execution remains below this boundary.
- */
+/** Connects objective assessment, V8-C arbitration, planning, and V8-B execution preparation. */
 export class ObjectiveDrivenExecutiveCycle {
     private readonly objectiveEngine: ExecutiveObjectiveEngine;
     private readonly intentBridge = new ExecutiveObjectiveIntentBridge();
     private readonly interventionEngine = new ExecutiveObjectiveInterventionEngine();
     private readonly planBuilder: ExecutiveIntentPlanBuilder;
-    private readonly selector: ExecutiveObjectivePrioritySelector;
+    private readonly arbitrator: ExecutiveWorkArbitrator;
     private readonly urgencyScorer = new ExecutiveObjectiveUrgencyScorer();
     private readonly progressTrendScorer = new ExecutiveObjectiveProgressTrendScorer();
     private readonly learningEngine: ExecutiveLearningEngine;
@@ -81,7 +57,7 @@ export class ObjectiveDrivenExecutiveCycle {
     ) {
         this.objectiveEngine = new ExecutiveObjectiveEngine(objectiveStore);
         this.planBuilder = new ExecutiveIntentPlanBuilder(capabilityResolver);
-        this.selector = new ExecutiveObjectivePrioritySelector({ maxSelections: options.maxSelections ?? 1 });
+        this.arbitrator = new ExecutiveWorkArbitrator({ maxSelections: options.maxSelections ?? 1 });
         this.learningEngine = new ExecutiveLearningEngine(memoryStore);
     }
 
@@ -92,12 +68,7 @@ export class ObjectiveDrivenExecutiveCycle {
     ): Promise<readonly ObjectiveDrivenCycleResult[]> {
         const objectives = await this.objectiveEngine.listActive();
         const learning = await this.learningEngine.learn();
-        const candidates: Array<{
-            objective: ExecutiveObjectiveRecord;
-            assessment: ObjectiveAssessment;
-            urgency: ObjectiveUrgencyScore;
-            progressTrend: ObjectiveProgressTrendScore;
-        }> = [];
+        const candidates: ExecutiveWorkCandidate[] = [];
 
         for (const objective of objectives) {
             const assessment = await this.objectiveEngine.assess(objective, state);
@@ -109,7 +80,8 @@ export class ObjectiveDrivenExecutiveCycle {
             });
         }
 
-        const selected = this.selector.select(candidates);
+        const arbitration: ExecutiveWorkArbitrationDecision = this.arbitrator.arbitrate(candidates);
+        const selected = arbitration.selected;
         const results: ObjectiveDrivenCycleResult[] = [];
 
         for (const { objective, assessment, urgency, progressTrend } of selected) {
@@ -123,71 +95,32 @@ export class ObjectiveDrivenExecutiveCycle {
                 dependencyIds: [],
                 conflictIds: [],
             };
-            const strategy = this.strategyEngine.evaluate({
-                objective: strategicObjective,
-                learning,
-            });
-            const adaptiveIntervention = this.adaptivePolicy.evaluate({
-                intervention,
-                strategy,
-            });
-
+            const strategy = this.strategyEngine.evaluate({ objective: strategicObjective, learning });
+            const adaptiveIntervention = this.adaptivePolicy.evaluate({ intervention, strategy });
             const adaptedIntervention: ObjectiveIntervention = {
                 ...intervention,
                 reason: adaptiveIntervention.reason,
                 evidence: adaptiveIntervention.evidence,
             };
-
-            const actionableIntervention = intervention.type !== "NO_INTERVENTION"
-                && intervention.interventionRequired;
-
+            const actionableIntervention = intervention.type !== "NO_INTERVENTION" && intervention.interventionRequired;
             const bridgedIntent = this.intentBridge.build({
                 objective,
                 assessment,
                 intervention: actionableIntervention
                     ? adaptedIntervention
-                    : adaptiveIntervention.mode === "CONTINUE"
-                        ? undefined
-                        : adaptedIntervention,
+                    : adaptiveIntervention.mode === "CONTINUE" ? undefined : adaptedIntervention,
             });
-
             const intent: ExecutiveIntent = actionableIntervention
-                ? {
-                    ...bridgedIntent,
-                    type: intervention.type === "RECOVER_FAILED_WORK"
-                        ? "RECOVER_FAILED_WORK"
-                        : "INTERVENE_OBJECTIVE",
-                }
+                ? { ...bridgedIntent, type: intervention.type === "RECOVER_FAILED_WORK" ? "RECOVER_FAILED_WORK" : "INTERVENE_OBJECTIVE" }
                 : bridgedIntent;
 
             if (!actionableIntervention) {
-                results.push({
-                    objective,
-                    assessment,
-                    urgency,
-                    progressTrend,
-                    intervention,
-                    learning,
-                    strategy,
-                    adaptiveIntervention,
-                    intent,
-                });
+                results.push({ objective, assessment, urgency, progressTrend, intervention, learning, strategy, adaptiveIntervention, intent });
                 continue;
             }
 
             const plan = this.planBuilder.build({ intent, capabilities });
-            results.push({
-                objective,
-                assessment,
-                urgency,
-                progressTrend,
-                intervention,
-                learning,
-                strategy,
-                adaptiveIntervention,
-                intent,
-                plan,
-            });
+            results.push({ objective, assessment, urgency, progressTrend, intervention, learning, strategy, adaptiveIntervention, intent, plan });
         }
 
         return results;
