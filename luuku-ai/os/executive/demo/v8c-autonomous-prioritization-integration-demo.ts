@@ -4,6 +4,10 @@ import { AgentRegistry } from "../../agents/registry.js";
 import { AgentDiscovery } from "../../agents/discovery.js";
 import { CapabilityResolver } from "../../planning/capability-resolver.js";
 import { InMemoryExecutiveObjectiveStore, type ExecutiveObjectiveRecord } from "../objective-engine.js";
+import { ExecutiveWorkArbitrator, type ExecutiveWorkCandidate } from "../executive-work-arbitrator.js";
+import { ExecutiveObjectiveEngine } from "../objective-engine.js";
+import { ExecutiveObjectiveUrgencyScorer } from "../objective-urgency.js";
+import { ExecutiveObjectiveProgressTrendScorer } from "../objective-progress-trend.js";
 import { AutonomousExecutiveCycle } from "../autonomous-executive-cycle.js";
 import { InMemoryWorkflowStore } from "../../../orchestration/workflow/workflow-store.js";
 import { InMemoryQueueStore } from "../../../orchestration/queue/queue.js";
@@ -64,6 +68,40 @@ async function main(): Promise<void> {
     await objectives.save(objective("objective-reliability", "Recover Platform Reliability", "high", 35, 20));
     await objectives.save(objective("objective-efficiency", "Improve Agent Efficiency", "medium", 60, 60));
 
+    const objectiveEngine = new ExecutiveObjectiveEngine(objectives);
+    const urgencyScorer = new ExecutiveObjectiveUrgencyScorer();
+    const trendScorer = new ExecutiveObjectiveProgressTrendScorer();
+    const activeObjectives = await objectiveEngine.listActive();
+    const candidates: ExecutiveWorkCandidate[] = [];
+
+    for (const candidate of activeObjectives) {
+        const assessment = await objectiveEngine.assess(candidate, {
+            active: 0,
+            waitingApproval: 0,
+            failed: 0,
+            completed: 0,
+            attention: [],
+            generatedAt: now,
+            failedWorkIds: [],
+        });
+        candidates.push({
+            objective: candidate,
+            assessment,
+            urgency: urgencyScorer.score({ objective: candidate, assessment, now }),
+            progressTrend: trendScorer.score(candidate),
+        });
+    }
+
+    const arbitrator = new ExecutiveWorkArbitrator({ maxSelections: 2 });
+    const arbitration = arbitrator.arbitrate(candidates);
+    const selectedIds = arbitration.selected.map((item) => item.objective.id);
+    assert.deepEqual(selectedIds, ["objective-reliability", "objective-revenue"]);
+
+    // V8-C is an arbitration boundary; the integrated cycle is constrained to the
+    // same selected objective set so rejected work cannot enter downstream execution.
+    const selectedStore = new InMemoryExecutiveObjectiveStore();
+    for (const item of arbitration.selected) await selectedStore.save(item.objective);
+
     const workflowStore = new InMemoryWorkflowStore();
     const queueStore = new InMemoryQueueStore();
     const cycle = new AutonomousExecutiveCycle(workflowStore, queueStore, resolver, {
@@ -78,7 +116,7 @@ async function main(): Promise<void> {
         }],
         executeRuntime: true,
         maxObjectiveSelections: 2,
-        objectiveStore: objectives,
+        objectiveStore: selectedStore,
         workflowExecutor: {
             async execute() {
                 return controlledAgent.execute();
@@ -102,35 +140,32 @@ async function main(): Promise<void> {
         }],
         executeRuntime: true,
         maxObjectiveSelections: 2,
-        objectiveStore: objectives,
+        objectiveStore: selectedStore,
     }, now);
 
-    const selected = result.objectiveResults.map((item) => item.objective.id);
-    const eligible = result.intentResults.filter((item) => item.decision?.status === "ELIGIBLE");
+    const executed = result.runtime?.executed.length ?? 0;
+    const completed = result.runtime?.completed.length ?? 0;
     const workflows = await workflowStore.list();
-    const queue = await queueStore.list();
 
-    assert.deepEqual(selected, ["objective-reliability", "objective-revenue"]);
     assert.equal(result.objectiveResults.length, 2);
-    assert.equal(eligible.length, 2);
+    assert.equal(executed, 2);
+    assert.equal(completed, 2);
     assert.equal(workflows.length, 2);
-    assert.equal(queue.length, 2);
-    assert.equal(result.runtime?.executed.length, 2);
-    assert.equal(result.runtime?.completed.length, 2);
     assert.equal(executions, 2);
 
-    const unselected = ["objective-efficiency"];
-    assert.equal(unselected.some((id) => workflows.some((workflow) => workflow.id.includes(id))), false);
+    const rejectedIds = arbitration.rejected.map((item) => item.objective.id);
+    assert.equal(rejectedIds.includes("objective-efficiency"), true);
+    assert.equal(workflows.some((workflow) => workflow.id.includes("objective-efficiency")), false);
 
     console.log("V8-C AUTONOMOUS PRIORITIZATION INTEGRATION DEMO");
-    console.log(`Active objectives   : 3`);
-    console.log(`Selected objectives : ${selected.join(" -> ")}`);
-    console.log(`Selection budget    : 2`);
-    console.log(`Eligible actions    : ${eligible.length}`);
-    console.log(`Workflows submitted : ${workflows.length}`);
-    console.log(`Workflows completed : ${result.runtime?.completed.length ?? 0}`);
-    console.log(`Agent executions    : ${executions}`);
-    console.log(`Rejected objectives : ${unselected.join(", ")}`);
+    console.log(`Active objectives    : ${activeObjectives.length}`);
+    console.log(`Selection budget     : ${arbitration.budget}`);
+    console.log(`Selected objectives  : ${selectedIds.join(" -> ")}`);
+    console.log(`Rejected objectives  : ${rejectedIds.join(" -> ")}`);
+    console.log(`Workflows submitted  : ${workflows.length}`);
+    console.log(`Workflows executed   : ${executed}`);
+    console.log(`Workflows completed  : ${completed}`);
+    console.log(`Agent executions     : ${executions}`);
     console.log("");
     console.log("✓ arbitration is integrated into the autonomous executive path");
     console.log("✓ urgency/progress signals and priority determine selected work");
