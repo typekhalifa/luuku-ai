@@ -60,15 +60,15 @@ async function main(): Promise<void> {
 
     assert.equal(decision.selected.length, 2);
     assert.deepEqual(decision.selected.map((item) => item.objective.id), [
-        "objective-critical",
         "objective-high-risk",
+        "objective-critical",
     ]);
     assert.equal(decision.rejected.length, 2);
     assert.deepEqual(decision.selected.map((item) => item.objective.id), repeated.selected.map((item) => item.objective.id));
     assert.equal(decision.budget, 2);
     assert.deepEqual(decision.evidence.selectedObjectiveIds, [
-        "objective-critical",
         "objective-high-risk",
+        "objective-critical",
     ]);
     assert.deepEqual(decision.evidence.rejectedObjectiveIds, [
         "objective-medium",
