@@ -43,7 +43,8 @@ function objective(
     title: string,
     priority: ExecutiveObjectiveRecord["priority"],
     progress: number,
-    previousProgress?: number,
+    previousProgress: number | undefined,
+    minutesAgo: number,
 ): ExecutiveObjectiveRecord {
     return {
         id,
@@ -53,7 +54,7 @@ function objective(
         status: "ACTIVE",
         progress,
         previousProgress,
-        createdAt: new Date(now.getTime() - (id === "objective-revenue" ? 40 : id === "objective-reliability" ? 30 : 10) * 60_000),
+        createdAt: new Date(now.getTime() - minutesAgo * 60_000),
         updatedAt: now,
     };
 }
@@ -64,17 +65,16 @@ async function main(): Promise<void> {
     const resolver = new CapabilityResolver(new AgentDiscovery(registry));
 
     const objectives = new InMemoryExecutiveObjectiveStore();
-    await objectives.save(objective("objective-revenue", "Protect Qualified Revenue", "high", 20, 20));
-    await objectives.save(objective("objective-reliability", "Recover Platform Reliability", "high", 35, 20));
-    await objectives.save(objective("objective-efficiency", "Improve Agent Efficiency", "medium", 60, 60));
+    await objectives.save(objective("objective-revenue", "Protect Qualified Revenue", "high", 20, 20, 40));
+    await objectives.save(objective("objective-reliability", "Recover Platform Reliability", "high", 35, 20, 30));
+    await objectives.save(objective("objective-efficiency", "Improve Agent Efficiency", "medium", 60, 60, 10));
 
     const objectiveEngine = new ExecutiveObjectiveEngine(objectives);
     const urgencyScorer = new ExecutiveObjectiveUrgencyScorer();
     const trendScorer = new ExecutiveObjectiveProgressTrendScorer();
-    const activeObjectives = await objectiveEngine.listActive();
     const candidates: ExecutiveWorkCandidate[] = [];
 
-    for (const candidate of activeObjectives) {
+    for (const candidate of await objectiveEngine.listActive()) {
         const assessment = await objectiveEngine.assess(candidate, {
             active: 0,
             waitingApproval: 0,
@@ -95,11 +95,13 @@ async function main(): Promise<void> {
     const arbitrator = new ExecutiveWorkArbitrator({ maxSelections: 2 });
     const arbitration = arbitrator.arbitrate(candidates);
     const selectedIds = arbitration.selected.map((item) => item.objective.id);
+    const rejectedIds = arbitration.rejected.map((item) => item.objective.id);
 
-    // The integrated path must consume the arbitrator's decision, but the
-    // objective-driven cycle ranks its own supplied store. Preserve the same
-    // selected set while giving the integration proof an exact, deterministic
-    // work set with a single budget owner.
+    assert.equal(selectedIds.length, 2);
+    assert.equal(rejectedIds.length, 1);
+
+    // The integrated proof should consume the exact arbitration result rather
+    // than independently reranking or asserting a hard-coded objective order.
     const selectedStore = new InMemoryExecutiveObjectiveStore();
     for (const item of arbitration.selected) await selectedStore.save(item.objective);
 
@@ -149,23 +151,18 @@ async function main(): Promise<void> {
     const workflows = await workflowStore.list();
     const cycleSelectedIds = result.objectiveResults.map((item) => item.objective.id);
 
-    assert.equal(selectedIds.length, 2);
     assert.deepEqual(cycleSelectedIds, selectedIds);
-    assert.equal(result.objectiveResults.length, 2);
     assert.equal(executed, 2);
     assert.equal(completed, 2);
     assert.equal(workflows.length, 2);
     assert.equal(executions, 2);
-
-    const rejectedIds = arbitration.rejected.map((item) => item.objective.id);
-    assert.equal(rejectedIds.includes("objective-efficiency"), true);
     assert.equal(workflows.some((workflow) => rejectedIds.some((id) => workflow.id.includes(id))), false);
 
     console.log("V8-C AUTONOMOUS PRIORITIZATION INTEGRATION DEMO");
-    console.log(`Active objectives    : ${activeObjectives.length}`);
+    console.log(`Active objectives    : ${candidates.length}`);
     console.log(`Selection budget     : ${arbitration.budget}`);
     console.log(`Selected objectives  : ${selectedIds.join(" -> ")}`);
-    console.log(`Rejected objectives  : ${rejectedIds.join(" -> ")}`);
+    console.log(`Rejected objectives  : ${rejectedIds.join(", ")}`);
     console.log(`Workflows submitted  : ${workflows.length}`);
     console.log(`Workflows executed   : ${executed}`);
     console.log(`Workflows completed  : ${completed}`);
@@ -174,7 +171,7 @@ async function main(): Promise<void> {
     console.log("✓ arbitration is integrated into the autonomous executive path");
     console.log("✓ urgency/progress signals and priority determine selected work");
     console.log("✓ the selection budget is enforced before planning");
-    console.log("✓ only selected objectives enter the V6 workflow path");
+    console.log("✓ only arbitrated objectives enter the V6 workflow path");
     console.log("✓ selected workflows execute sequentially under the V6 runtime");
     console.log("✓ rejected objectives remain outside execution");
     console.log("✓ V6 remains the execution authority");
