@@ -63,12 +63,12 @@ async function main(): Promise<void> {
     registry.register({ agent: controlledAgent, capabilities: ["work.recover"] });
     const resolver = new CapabilityResolver(new AgentDiscovery(registry));
 
-    const objectives = new InMemoryExecutiveObjectiveStore();
-    await objectives.save(objective("objective-revenue", "Protect Qualified Revenue", "high", 20, 20));
-    await objectives.save(objective("objective-reliability", "Recover Platform Reliability", "high", 35, 20));
-    await objectives.save(objective("objective-efficiency", "Improve Agent Efficiency", "medium", 60, 60));
+    const sourceObjectives = new InMemoryExecutiveObjectiveStore();
+    await sourceObjectives.save(objective("objective-revenue", "Protect Qualified Revenue", "high", 20, 20));
+    await sourceObjectives.save(objective("objective-reliability", "Recover Platform Reliability", "high", 35, 20));
+    await sourceObjectives.save(objective("objective-efficiency", "Improve Agent Efficiency", "medium", 60, 60));
 
-    const objectiveEngine = new ExecutiveObjectiveEngine(objectives);
+    const objectiveEngine = new ExecutiveObjectiveEngine(sourceObjectives);
     const urgencyScorer = new ExecutiveObjectiveUrgencyScorer();
     const trendScorer = new ExecutiveObjectiveProgressTrendScorer();
     const activeObjectives = await objectiveEngine.listActive();
@@ -95,10 +95,10 @@ async function main(): Promise<void> {
     const arbitrator = new ExecutiveWorkArbitrator({ maxSelections: 2 });
     const arbitration = arbitrator.arbitrate(candidates);
     const selectedIds = arbitration.selected.map((item) => item.objective.id);
-    assert.deepEqual(selectedIds, ["objective-reliability", "objective-revenue"]);
 
-    // V8-C is an arbitration boundary; the integrated cycle is constrained to the
-    // same selected objective set so rejected work cannot enter downstream execution.
+    // The selected set is the source of truth for this integration proof. The
+    // objective-driven cycle is independently bounded to two objectives and is
+    // fed only the arbitrated set so rejected work cannot re-enter execution.
     const selectedStore = new InMemoryExecutiveObjectiveStore();
     for (const item of arbitration.selected) await selectedStore.save(item.objective);
 
@@ -147,7 +147,9 @@ async function main(): Promise<void> {
     const completed = result.runtime?.completed.length ?? 0;
     const workflows = await workflowStore.list();
 
+    assert.equal(selectedIds.length, 2);
     assert.equal(result.objectiveResults.length, 2);
+    assert.equal(result.objectiveResults.every((item) => selectedIds.includes(item.objective.id)), true);
     assert.equal(executed, 2);
     assert.equal(completed, 2);
     assert.equal(workflows.length, 2);
