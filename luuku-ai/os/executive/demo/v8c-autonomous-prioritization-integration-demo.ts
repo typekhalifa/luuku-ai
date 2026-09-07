@@ -99,9 +99,11 @@ async function main(): Promise<void> {
 
     assert.equal(selectedIds.length, 2);
     assert.equal(rejectedIds.length, 1);
+    assert.equal(selectedIds.some((id) => rejectedIds.includes(id)), false);
 
-    // The integrated proof should consume the exact arbitration result rather
-    // than independently reranking or asserting a hard-coded objective order.
+    // The integrated proof consumes the exact arbitration result. The downstream
+    // objective store contains only selected work, so rejected work cannot enter
+    // planning or execution.
     const selectedStore = new InMemoryExecutiveObjectiveStore();
     for (const item of arbitration.selected) await selectedStore.save(item.objective);
 
