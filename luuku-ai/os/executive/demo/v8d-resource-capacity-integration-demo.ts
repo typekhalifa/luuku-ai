@@ -123,19 +123,18 @@ async function main(): Promise<void> {
     const rejectedIds = capacity?.evidence.rejectedObjectiveIds as string[] | undefined;
 
     assert.equal(objectiveResults.length, 1);
-    assert.equal(selectedIds?.length, 1);
-    assert.equal(rejectedIds?.length, 1);
+    assert.deepEqual(selectedIds, ["objective-revenue"]);
+    assert.deepEqual(rejectedIds, ["objective-efficiency"]);
     assert.equal(executed, 1);
     assert.equal(completed, 1);
     assert.equal(workflows.length, 1);
     assert.equal(executions, 1);
     assert.equal(capacity?.capacity["agent:v8d-capacity-agent"].remaining, 0);
     assert.equal(capacity?.capacity["concurrency:executive"].remaining, 0);
-    assert.equal(rejectedIds?.includes("objective-reliability"), true);
     assert.equal(workflows.some((workflow) => rejectedIds?.some((id) => workflow.id.includes(id))), false);
 
     console.log("V8-D RESOURCE & CAPACITY INTEGRATION DEMO");
-    console.log(`V8-C selected       : 2 bounded candidates`);
+    console.log("V8-C selected       : objective-revenue -> objective-efficiency");
     console.log(`V8-D admitted       : ${selectedIds?.join(" -> ")}`);
     console.log(`V8-D rejected       : ${rejectedIds?.join(", ")}`);
     console.log(`Workflows submitted : ${workflows.length}`);
