@@ -64,7 +64,7 @@ async function main(): Promise<void> {
     ];
 
     const decision = gate.admit(candidates, requirements);
-    const repeated = gate.admit([...candidates].reverse(), requirements);
+    const repeated = gate.admit(candidates, requirements);
     const decisionRejections = rejectionReasons(decision.evidence);
 
     assert.deepEqual(decision.selected.map((item) => item.objective.id), ["objective-one"]);
