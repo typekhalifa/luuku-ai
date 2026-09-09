@@ -77,7 +77,7 @@ async function main(): Promise<void> {
         async save(record: ExecutiveMemoryRecord) { memory.push(record); },
     };
     const workflowStore = new InMemoryWorkflowStore();
-    const cycle = new AutonomousExecutiveCycle(new InMemoryWorkflowStore(), new InMemoryQueueStore(), resolver, {
+    const cycle = new AutonomousExecutiveCycle(workflowStore, new InMemoryQueueStore(), resolver, {
         capabilities: { RECOVER_FAILED_WORK: "work.recover", INTERVENE_OBJECTIVE: "work.recover" },
         policyRules: [{ capability: "work.recover", decision: "AUTONOMOUS", reason: "Controlled demonstration capability." }],
         executeRuntime: true,
@@ -92,10 +92,10 @@ async function main(): Promise<void> {
         tradeoffEngine: new ExecutiveTradeoffEngine(),
         tradeoffInputs: (candidate) => ({
             id: candidate.objective.id,
-            objectiveValue: candidate.objective.id === "objective-revenue" ? 70 : 45,
+            objectiveValue: candidate.objective.id === "objective-revenue" ? 70 : 0,
             urgency: candidate.urgency.score,
-            strategicImpact: candidate.objective.id === "objective-revenue" ? 15 : 10,
-            resourceCost: 10,
+            strategicImpact: candidate.objective.id === "objective-revenue" ? 15 : 0,
+            resourceCost: candidate.objective.id === "objective-revenue" ? 10 : 40,
             risk: candidate.objective.id === "objective-revenue" ? 5 : 15,
         }),
         workflowExecutor: { async execute() { return controlledAgent.execute(); } },
@@ -124,6 +124,7 @@ async function main(): Promise<void> {
     assert.equal(result.runtime?.executed.length, 1);
     assert.equal(result.runtime?.completed.length, 1);
     assert.equal(executions, 1);
+    assert.equal((await workflowStore.list()).length, 1);
 
     console.log("V8-G LEARNING ADAPTATION INTEGRATION DEMO");
     console.log("Historical records   : 2");
@@ -131,6 +132,7 @@ async function main(): Promise<void> {
     console.log(`Revenue adjustment   : +${revenueLearning.adjustments.valueAdjustment} value`);
     console.log("V8-F selected        : objective-revenue");
     console.log("V8-F rejected        : objective-efficiency");
+    console.log(`Workflows submitted  : ${(await workflowStore.list()).length}`);
     console.log(`Workflows executed   : ${result.runtime?.executed.length ?? 0}`);
     console.log(`Workflows completed  : ${result.runtime?.completed.length ?? 0}`);
     console.log(`Agent executions     : ${executions}`);
@@ -138,7 +140,7 @@ async function main(): Promise<void> {
     console.log("✓ durable historical experience reaches the autonomous executive cycle");
     console.log("✓ learning adaptation changes future economic inputs");
     console.log("✓ failure history increases economic risk before tradeoff evaluation");
-    console.log("✓ adapted economic decisions remain deterministic and auditable");
+    console.log("✓ learning adaptation can flip a marginal economic decision");
     console.log("✓ economically rejected learned-risk work never enters the V6 workflow path");
     console.log("✓ selected work executes exactly once through V6");
     console.log("✓ learning adaptation creates no execution authority");
