@@ -12,7 +12,7 @@ import {
 import { ExecutiveObjectiveIntentBridge } from "./objective-intent-bridge.js";
 import { ExecutiveObjectiveInterventionEngine, type ObjectiveIntervention } from "./objective-intervention.js";
 import { ExecutiveObjectiveProgressTrendScorer, type ObjectiveProgressTrendScore } from "./objective-progress-trend.js";
-import { ExecutiveObjectiveUrgencyScorer, type ExecutiveObjectiveUrgencyScore } from "./objective-urgency.js";
+import { ExecutiveObjectiveUrgencyScorer, type ObjectiveUrgencyScore } from "./objective-urgency.js";
 import type { ExecutiveState } from "./executive-state.js";
 import { ExecutiveLearningEngine, InMemoryExecutiveMemoryStore, type ExecutiveLearningRecord, type ExecutiveMemoryStore } from "./executive-memory.js";
 import { MemoryAwareStrategyEngine, type MemoryAwareStrategyDecision } from "./memory-aware-strategy.js";
@@ -25,7 +25,7 @@ import { ExecutiveTradeoffEngine, type ExecutiveTradeoffCandidate, type Executiv
 export interface ObjectiveDrivenCycleResult {
     readonly objective: ExecutiveObjectiveRecord;
     readonly assessment: ObjectiveAssessment;
-    readonly urgency: ExecutiveObjectiveUrgencyScore;
+    readonly urgency: ObjectiveUrgencyScore;
     readonly progressTrend: ObjectiveProgressTrendScore;
     readonly intervention: ObjectiveIntervention;
     readonly learning: readonly ExecutiveLearningRecord[];
