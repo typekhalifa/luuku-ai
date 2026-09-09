@@ -22,6 +22,7 @@ import type { ExecutiveCapacityGate, ExecutiveCapacityRequirement } from "./exec
 import type { ExecutiveWorkCandidate } from "./executive-work-arbitrator.js";
 import type { ExecutiveResourceBudget, ExecutiveBudgetRequirement } from "./executive-resource-budget.js";
 import type { ExecutiveTradeoffEngine, ExecutiveTradeoffCandidate } from "./executive-tradeoff-engine.js";
+import type { ExecutiveLearningAdaptationEngine } from "./executive-learning-adaptation.js";
 
 export interface AutonomousExecutiveCycleOptions {
     readonly capabilities: IntentPlanCapabilityMap;
@@ -38,6 +39,7 @@ export interface AutonomousExecutiveCycleOptions {
     readonly budgetRequirements?: (candidate: ExecutiveWorkCandidate) => readonly ExecutiveBudgetRequirement[];
     readonly tradeoffEngine?: ExecutiveTradeoffEngine;
     readonly tradeoffInputs?: (candidate: ExecutiveWorkCandidate) => ExecutiveTradeoffCandidate;
+    readonly learningAdaptation?: ExecutiveLearningAdaptationEngine;
 }
 
 export interface AutonomousExecutiveIntentResult {
@@ -108,6 +110,7 @@ export class AutonomousExecutiveCycle {
                     budgetRequirements: options.budgetRequirements,
                     tradeoffEngine: options.tradeoffEngine,
                     tradeoffInputs: options.tradeoffInputs,
+                    learningAdaptation: options.learningAdaptation,
                 },
             )
             : undefined;
@@ -123,7 +126,7 @@ export class AutonomousExecutiveCycle {
         const initialObservation = this.observer.observe(stateWithFeedback);
         const observedIntents = this.intentProjector.derive(initialObservation);
         const objectiveResults = this.objectiveCycle
-            ? await this.objectiveCycle.run(stateWithFeedback, options.capabilities)
+            ? await this.objectiveCycle.run(stateWithFeedback, options.capabilities, now)
             : [];
 
         const objectiveIntents = objectiveResults
@@ -170,16 +173,7 @@ export class AutonomousExecutiveCycle {
         let runtimeResult: AutonomousRuntimeCycleResult | undefined;
         if (options.executeRuntime && executableWorkflowIds.length > 0) {
             runtimeResult = {
-                scheduled: [],
-                recovered: [],
-                claimed: [],
-                executed: [],
-                completed: [],
-                retried: [],
-                failed: [],
-                blocked: [],
-                reconciled: [],
-                escalated: [],
+                scheduled: [], recovered: [], claimed: [], executed: [], completed: [], retried: [], failed: [], blocked: [], reconciled: [], escalated: [],
             };
 
             for (const workflowId of executableWorkflowIds) {
@@ -205,17 +199,7 @@ export class AutonomousExecutiveCycle {
         const finalState = this.feedbackProjector.apply(await this.stateSource.snapshot(), feedback);
         const finalObservation = this.observer.observe(finalState);
 
-        return {
-            initialState: stateWithFeedback,
-            initialObservation,
-            intents,
-            objectiveResults,
-            intentResults,
-            runtime: runtimeResult,
-            feedback,
-            finalState,
-            finalObservation,
-        };
+        return { initialState: stateWithFeedback, initialObservation, intents, objectiveResults, intentResults, runtime: runtimeResult, feedback, finalState, finalObservation };
     }
 
     private async recordRuntimeOutcome(
