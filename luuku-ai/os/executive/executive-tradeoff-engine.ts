@@ -41,13 +41,19 @@ export class ExecutiveTradeoffEngine {
   }
 
   evaluate(candidates: readonly ExecutiveTradeoffCandidate[]): ExecutiveTradeoffResult {
-    const allocations = candidates.map((candidate) => {
+    const allocations: ExecutiveTradeoffAllocation[] = candidates.map((candidate) => {
       this.validate(candidate);
       const valueScore = candidate.objectiveValue + candidate.urgency + candidate.strategicImpact;
       const costScore = candidate.resourceCost;
       const riskPenalty = candidate.risk;
       const netScore = valueScore - costScore - riskPenalty;
-      const score = { candidateId: candidate.id, valueScore, costScore, riskPenalty, netScore };
+      const score: ExecutiveTradeoffScore = {
+        candidateId: candidate.id,
+        valueScore,
+        costScore,
+        riskPenalty,
+        netScore,
+      };
 
       if (netScore < this.minimumNetScore) {
         return { candidateId: candidate.id, decision: "REJECT", score, reason: "NEGATIVE_EXPECTED_VALUE" };
