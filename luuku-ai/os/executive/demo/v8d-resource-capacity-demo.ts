@@ -4,6 +4,8 @@ import type { ExecutiveWorkCandidate } from "../executive-work-arbitrator.js";
 
 const now = new Date("2026-09-09T06:30:00.000Z");
 
+type RejectionReasons = Record<string, string>;
+
 function candidate(id: string): ExecutiveWorkCandidate {
     return {
         objective: {
@@ -40,6 +42,13 @@ function candidate(id: string): ExecutiveWorkCandidate {
     };
 }
 
+function rejectionReasons(evidence: Readonly<Record<string, unknown>>): RejectionReasons {
+    const value = evidence.rejectionReasons;
+    assert.equal(typeof value, "object");
+    assert.notEqual(value, null);
+    return value as RejectionReasons;
+}
+
 async function main(): Promise<void> {
     const candidates = [candidate("objective-one"), candidate("objective-two"), candidate("objective-three")];
     const gate = new ExecutiveCapacityGate([
@@ -56,6 +65,7 @@ async function main(): Promise<void> {
 
     const decision = gate.admit(candidates, requirements);
     const repeated = gate.admit([...candidates].reverse(), requirements);
+    const decisionRejections = rejectionReasons(decision.evidence);
 
     assert.deepEqual(decision.selected.map((item) => item.objective.id), ["objective-one"]);
     assert.deepEqual(decision.rejected.map((item) => item.objective.id), ["objective-two", "objective-three"]);
@@ -63,15 +73,16 @@ async function main(): Promise<void> {
     assert.equal(decision.capacity["agent:research"].remaining, 0);
     assert.equal(decision.capacity["tool:web"].remaining, 1);
     assert.equal(decision.capacity["concurrency:executive"].remaining, 0);
-    assert.equal(decision.evidence.rejectionReasons["objective-two"], "CAPACITY_LIMIT:agent:research");
+    assert.equal(decisionRejections["objective-two"], "CAPACITY_LIMIT:agent:research");
 
     const unavailable = new ExecutiveCapacityGate([{ id: "agent:research", limit: 1, inUse: 1 }]);
     const unavailableDecision = unavailable.admit([candidate("objective-blocked")], () => [
         { resourceId: "agent:research" },
         { resourceId: "tool:missing" },
     ]);
+    const unavailableRejections = rejectionReasons(unavailableDecision.evidence);
     assert.deepEqual(unavailableDecision.selected, []);
-    assert.equal(unavailableDecision.evidence.rejectionReasons["objective-blocked"], "CAPACITY_LIMIT:agent:research");
+    assert.equal(unavailableRejections["objective-blocked"], "CAPACITY_LIMIT:agent:research");
 
     console.log("V8-D RESOURCE & CAPACITY DEMO");
     console.log(`Candidates          : ${candidates.length}`);
