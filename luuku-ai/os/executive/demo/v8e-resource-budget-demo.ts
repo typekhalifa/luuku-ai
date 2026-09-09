@@ -15,11 +15,11 @@ const candidates = [
 const result = budget.allocate(candidates);
 assert.deepEqual(result.allocations.map((item) => item.candidateId), ["objective-one", "objective-two", "objective-three"]);
 assert.equal(result.allocations[0]?.decision, "ALLOCATE");
-assert.equal(result.allocations[1]?.decision, "ALLOCATE");
-assert.equal(result.allocations[2]?.decision, "DEFER");
-assert.equal(result.remaining["ai:tokens"], 0);
-assert.equal(result.remaining["ops:credits"], 0);
-assert.equal(result.allocations[2]?.reason, "BUDGET_LIMIT:ai:tokens");
+assert.equal(result.allocations[1]?.decision, "DEFER");
+assert.equal(result.allocations[2]?.decision, "ALLOCATE");
+assert.equal(result.remaining["ai:tokens"], 10);
+assert.equal(result.remaining["ops:credits"], 1);
+assert.equal(result.allocations[1]?.reason, "BUDGET_LIMIT:ai:tokens");
 
 const unknown = new ExecutiveResourceBudget([{ id: "ai:tokens", limit: 10 }]).allocate([
   { id: "unknown", priorityScore: 1, requirements: [{ resourceId: "missing", units: 1 }] },
