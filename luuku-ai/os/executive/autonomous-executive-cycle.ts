@@ -20,6 +20,7 @@ import type { ExecutiveState } from "./executive-state.js";
 import { InMemoryExecutiveMemoryStore, type ExecutiveMemoryStore } from "./executive-memory.js";
 import type { ExecutiveCapacityGate, ExecutiveCapacityRequirement } from "./executive-capacity-gate.js";
 import type { ExecutiveWorkCandidate } from "./executive-work-arbitrator.js";
+import type { ExecutiveResourceBudget, ExecutiveBudgetRequirement } from "./executive-resource-budget.js";
 
 export interface AutonomousExecutiveCycleOptions {
     readonly capabilities: IntentPlanCapabilityMap;
@@ -32,6 +33,8 @@ export interface AutonomousExecutiveCycleOptions {
     readonly maxObjectiveSelections?: number;
     readonly capacityGate?: ExecutiveCapacityGate;
     readonly resourceRequirements?: (candidate: ExecutiveWorkCandidate) => readonly ExecutiveCapacityRequirement[];
+    readonly resourceBudget?: ExecutiveResourceBudget;
+    readonly budgetRequirements?: (candidate: ExecutiveWorkCandidate) => readonly ExecutiveBudgetRequirement[];
 }
 
 export interface AutonomousExecutiveIntentResult {
@@ -98,6 +101,8 @@ export class AutonomousExecutiveCycle {
                     maxSelections: options.maxObjectiveSelections ?? 1,
                     capacityGate: options.capacityGate,
                     resourceRequirements: options.resourceRequirements,
+                    resourceBudget: options.resourceBudget,
+                    budgetRequirements: options.budgetRequirements,
                 },
             )
             : undefined;
@@ -221,35 +226,24 @@ export class AutonomousExecutiveCycle {
             ...runtime.reconciled,
             ...runtime.escalated,
         ]);
-
-        for (const result of intentResults) {
-            const workflow = result.submission?.workflow;
-            if (!workflow) continue;
-
-            const terminalStep = workflow.steps.find((step) => terminalQueueIds.has(`${workflow.id}:${step.id}`));
-            if (!terminalStep) continue;
-
-            const workflowId = workflow.id;
-            const success = runtime.completed.includes(`${workflow.id}:${terminalStep.id}`);
-            const objectiveResult = objectiveResults.find((item) => item.intent.id === result.intent.id);
-            const outcome = success ? "Workflow completed." : "Workflow reached a non-success terminal outcome.";
-            const id = `executive-memory:${workflowId}:outcome`;
-            const existing = await this.memoryStore.list();
-            if (existing.some((record) => record.id === id)) continue;
-
-            await this.memoryStore.save({
-                id,
+        for (const intentResult of intentResults) {
+            const workflowId = intentResult.submission?.workflow?.id;
+            if (!workflowId) continue;
+            const queueItems = await this.queueStore.listByWorkflow(workflowId);
+            const terminalItems = queueItems.filter((item) => terminalQueueIds.has(item.id));
+            if (terminalItems.length === 0) continue;
+            const outcome = terminalItems.some((item) => runtime.failed.includes(item.id) || runtime.blocked.includes(item.id)) ? "FAILED" : "COMPLETED";
+            const objectiveResult = objectiveResults.find((result) => result.intent.id === intentResult.intent.id);
+            const memory = await this.memoryStore.record({
+                id: `execution-outcome-${workflowId}`,
                 objectiveId: objectiveResult?.objective.id,
-                workflowId,
-                eventType: success ? "ACTION_COMPLETED" : "ACTION_FAILED",
-                action: objectiveResult?.adaptiveIntervention.mode ?? result.intent.type,
+                action: intentResult.intent.type,
                 outcome,
-                success,
-                lesson: success
-                    ? "The selected executive approach completed successfully."
-                    : "The selected executive approach produced a non-success outcome and should be reconsidered.",
+                lesson: outcome === "COMPLETED" ? "Selected autonomous work reached a terminal completion." : "Selected autonomous work requires follow-up or recovery.",
+                confidence: outcome === "COMPLETED" ? 0.9 : 0.7,
                 createdAt: now,
             });
+            void memory;
         }
     }
 }
