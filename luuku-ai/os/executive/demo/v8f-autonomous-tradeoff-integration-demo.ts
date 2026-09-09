@@ -101,11 +101,11 @@ async function main(): Promise<void> {
         tradeoffEngine,
         tradeoffInputs: (candidate) => ({
             id: candidate.objective.id,
-            objectiveValue: candidate.objective.id === "objective-revenue" ? 70 : 35,
+            objectiveValue: candidate.objective.id === "objective-revenue" ? 70 : 0,
             urgency: candidate.urgency.score,
-            strategicImpact: candidate.objective.id === "objective-revenue" ? 15 : 5,
-            resourceCost: candidate.objective.id === "objective-revenue" ? 10 : 30,
-            risk: candidate.objective.id === "objective-revenue" ? 5 : 10,
+            strategicImpact: candidate.objective.id === "objective-revenue" ? 15 : 0,
+            resourceCost: candidate.objective.id === "objective-revenue" ? 10 : 50,
+            risk: candidate.objective.id === "objective-revenue" ? 5 : 50,
         }),
         workflowExecutor: {
             async execute() {
@@ -146,8 +146,8 @@ async function main(): Promise<void> {
     assert.equal(objectiveResults.length, 1);
     assert.deepEqual(tradeoff?.allocations.map((item) => item.candidateId), ["objective-revenue", "objective-efficiency"]);
     assert.deepEqual(selectedIds, ["objective-revenue"]);
-    assert.deepEqual(deferredIds, ["objective-efficiency"]);
-    assert.deepEqual(rejectedIds, []);
+    assert.deepEqual(deferredIds, []);
+    assert.deepEqual(rejectedIds, ["objective-efficiency"]);
     assert.equal(executed, 1);
     assert.equal(completed, 1);
     assert.equal(workflows.length, 1);
@@ -159,7 +159,7 @@ async function main(): Promise<void> {
     console.log("V8-D admitted       : objective-revenue -> objective-efficiency");
     console.log("V8-E allocated      : objective-revenue -> objective-efficiency");
     console.log(`V8-F selected       : ${selectedIds?.join(" -> ")}`);
-    console.log(`V8-F deferred       : ${deferredIds?.join(" -> ")}`);
+    console.log(`V8-F deferred       : ${deferredIds?.join(" -> ") || "none"}`);
     console.log(`V8-F rejected       : ${rejectedIds?.join(" -> ") || "none"}`);
     console.log(`Workflows submitted : ${workflows.length}`);
     console.log(`Workflows executed  : ${executed}`);
@@ -170,7 +170,7 @@ async function main(): Promise<void> {
     console.log("✓ V8-D admitted work enters the V8-E budget boundary");
     console.log("✓ V8-E allocated work enters the V8-F economic decision boundary");
     console.log("✓ positive expected value is selected for execution");
-    console.log("✓ economically deferred work never enters planning or the V6 workflow path");
+    console.log("✓ economically rejected work never enters planning or the V6 workflow path");
     console.log("✓ selected work executes exactly once through V6");
     console.log("✓ V8-F tradeoff evaluation creates no execution authority");
     console.log("✓ V6 remains the execution authority");
