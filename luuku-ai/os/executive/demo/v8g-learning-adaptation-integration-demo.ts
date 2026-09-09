@@ -119,7 +119,8 @@ async function main(): Promise<void> {
     assert.ok(revenueLearning);
     assert.equal(revenueLearning.adjustments.valueAdjustment, 0);
     assert.equal(efficiencyAllocation?.decision, "REJECT");
-    assert.equal(efficiencyAllocation?.score.riskPenalty, 25);
+    assert.equal(efficiencyAllocation?.score.riskPenalty, 35);
+    assert.equal(efficiencyAllocation?.score.netScore < 0, true);
     assert.equal(revenueAllocation?.decision, "SELECT");
     assert.equal(result.runtime?.executed.length, 1);
     assert.equal(result.runtime?.completed.length, 1);
@@ -139,8 +140,8 @@ async function main(): Promise<void> {
     console.log("");
     console.log("✓ durable historical experience reaches the autonomous executive cycle");
     console.log("✓ learning adaptation changes future economic inputs");
-    console.log("✓ failure history increases economic risk before tradeoff evaluation");
-    console.log("✓ learning adaptation can flip a marginal economic decision");
+    console.log("✓ repeated failure history applies the stronger risk adjustment before tradeoff evaluation");
+    console.log("✓ adapted economic decisions remain deterministic and auditable");
     console.log("✓ economically rejected learned-risk work never enters the V6 workflow path");
     console.log("✓ selected work executes exactly once through V6");
     console.log("✓ learning adaptation creates no execution authority");
