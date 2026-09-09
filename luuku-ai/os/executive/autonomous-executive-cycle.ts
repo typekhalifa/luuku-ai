@@ -226,24 +226,35 @@ export class AutonomousExecutiveCycle {
             ...runtime.reconciled,
             ...runtime.escalated,
         ]);
-        for (const intentResult of intentResults) {
-            const workflowId = intentResult.submission?.workflow?.id;
-            if (!workflowId) continue;
-            const queueItems = await this.queueStore.listByWorkflow(workflowId);
-            const terminalItems = queueItems.filter((item) => terminalQueueIds.has(item.id));
-            if (terminalItems.length === 0) continue;
-            const outcome = terminalItems.some((item) => runtime.failed.includes(item.id) || runtime.blocked.includes(item.id)) ? "FAILED" : "COMPLETED";
-            const objectiveResult = objectiveResults.find((result) => result.intent.id === intentResult.intent.id);
-            const memory = await this.memoryStore.record({
-                id: `execution-outcome-${workflowId}`,
+
+        for (const result of intentResults) {
+            const workflow = result.submission?.workflow;
+            if (!workflow) continue;
+
+            const terminalStep = workflow.steps.find((step) => terminalQueueIds.has(`${workflow.id}:${step.id}`));
+            if (!terminalStep) continue;
+
+            const workflowId = workflow.id;
+            const success = runtime.completed.includes(`${workflow.id}:${terminalStep.id}`);
+            const objectiveResult = objectiveResults.find((item) => item.intent.id === result.intent.id);
+            const outcome = success ? "Workflow completed." : "Workflow reached a non-success terminal outcome.";
+            const id = `executive-memory:${workflowId}:outcome`;
+            const existing = await this.memoryStore.list();
+            if (existing.some((record) => record.id === id)) continue;
+
+            await this.memoryStore.save({
+                id,
                 objectiveId: objectiveResult?.objective.id,
-                action: intentResult.intent.type,
+                workflowId,
+                eventType: success ? "ACTION_COMPLETED" : "ACTION_FAILED",
+                action: objectiveResult?.adaptiveIntervention.mode ?? result.intent.type,
                 outcome,
-                lesson: outcome === "COMPLETED" ? "Selected autonomous work reached a terminal completion." : "Selected autonomous work requires follow-up or recovery.",
-                confidence: outcome === "COMPLETED" ? 0.9 : 0.7,
+                success,
+                lesson: success
+                    ? "The selected executive approach completed successfully."
+                    : "The selected executive approach produced a non-success outcome and should be reconsidered.",
                 createdAt: now,
             });
-            void memory;
         }
     }
 }
