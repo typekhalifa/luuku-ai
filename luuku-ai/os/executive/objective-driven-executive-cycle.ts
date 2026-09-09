@@ -18,6 +18,11 @@ import { ExecutiveLearningEngine, InMemoryExecutiveMemoryStore, type ExecutiveLe
 import { MemoryAwareStrategyEngine, type MemoryAwareStrategyDecision } from "./memory-aware-strategy.js";
 import { ExecutiveAdaptiveInterventionPolicy, type AdaptiveInterventionDecision } from "./adaptive-intervention-policy.js";
 import { ExecutiveWorkArbitrator, type ExecutiveWorkArbitrationDecision, type ExecutiveWorkCandidate } from "./executive-work-arbitrator.js";
+import {
+    ExecutiveCapacityGate,
+    type ExecutiveCapacityDecision,
+    type ExecutiveCapacityRequirement,
+} from "./executive-capacity-gate.js";
 
 export interface ObjectiveDrivenCycleResult {
     readonly objective: ExecutiveObjectiveRecord;
@@ -30,19 +35,24 @@ export interface ObjectiveDrivenCycleResult {
     readonly adaptiveIntervention: AdaptiveInterventionDecision;
     readonly intent: ExecutiveIntent;
     readonly plan?: ExecutionPlan;
+    readonly capacity?: ExecutiveCapacityDecision;
 }
 
 export interface ObjectiveDrivenExecutiveCycleOptions {
     readonly maxSelections?: number;
+    readonly capacityGate?: ExecutiveCapacityGate;
+    readonly resourceRequirements?: (candidate: ExecutiveWorkCandidate) => readonly ExecutiveCapacityRequirement[];
 }
 
-/** Connects objective assessment, V8-C arbitration, planning, and V8-B execution preparation. */
+/** Connects objective assessment, V8-C arbitration, V8-D capacity gating, planning, and V8-B execution preparation. */
 export class ObjectiveDrivenExecutiveCycle {
     private readonly objectiveEngine: ExecutiveObjectiveEngine;
     private readonly intentBridge = new ExecutiveObjectiveIntentBridge();
     private readonly interventionEngine = new ExecutiveObjectiveInterventionEngine();
     private readonly planBuilder: ExecutiveIntentPlanBuilder;
     private readonly arbitrator: ExecutiveWorkArbitrator;
+    private readonly capacityGate?: ExecutiveCapacityGate;
+    private readonly resourceRequirements: (candidate: ExecutiveWorkCandidate) => readonly ExecutiveCapacityRequirement[];
     private readonly urgencyScorer = new ExecutiveObjectiveUrgencyScorer();
     private readonly progressTrendScorer = new ExecutiveObjectiveProgressTrendScorer();
     private readonly learningEngine: ExecutiveLearningEngine;
@@ -58,6 +68,8 @@ export class ObjectiveDrivenExecutiveCycle {
         this.objectiveEngine = new ExecutiveObjectiveEngine(objectiveStore);
         this.planBuilder = new ExecutiveIntentPlanBuilder(capabilityResolver);
         this.arbitrator = new ExecutiveWorkArbitrator({ maxSelections: options.maxSelections ?? 1 });
+        this.capacityGate = options.capacityGate;
+        this.resourceRequirements = options.resourceRequirements ?? (() => []);
         this.learningEngine = new ExecutiveLearningEngine(memoryStore);
     }
 
@@ -81,7 +93,8 @@ export class ObjectiveDrivenExecutiveCycle {
         }
 
         const arbitration: ExecutiveWorkArbitrationDecision = this.arbitrator.arbitrate(candidates);
-        const selected = arbitration.selected;
+        const capacity = this.capacityGate?.admit(arbitration.selected, this.resourceRequirements);
+        const selected = capacity?.selected ?? arbitration.selected;
         const results: ObjectiveDrivenCycleResult[] = [];
 
         for (const { objective, assessment, urgency, progressTrend } of selected) {
@@ -115,12 +128,12 @@ export class ObjectiveDrivenExecutiveCycle {
                 : bridgedIntent;
 
             if (!actionableIntervention) {
-                results.push({ objective, assessment, urgency, progressTrend, intervention, learning, strategy, adaptiveIntervention, intent });
+                results.push({ objective, assessment, urgency, progressTrend, intervention, learning, strategy, adaptiveIntervention, intent, capacity });
                 continue;
             }
 
             const plan = this.planBuilder.build({ intent, capabilities });
-            results.push({ objective, assessment, urgency, progressTrend, intervention, learning, strategy, adaptiveIntervention, intent, plan });
+            results.push({ objective, assessment, urgency, progressTrend, intervention, learning, strategy, adaptiveIntervention, intent, plan, capacity });
         }
 
         return results;
