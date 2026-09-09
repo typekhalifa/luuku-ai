@@ -21,6 +21,7 @@ import { InMemoryExecutiveMemoryStore, type ExecutiveMemoryStore } from "./execu
 import type { ExecutiveCapacityGate, ExecutiveCapacityRequirement } from "./executive-capacity-gate.js";
 import type { ExecutiveWorkCandidate } from "./executive-work-arbitrator.js";
 import type { ExecutiveResourceBudget, ExecutiveBudgetRequirement } from "./executive-resource-budget.js";
+import type { ExecutiveTradeoffEngine, ExecutiveTradeoffCandidate } from "./executive-tradeoff-engine.js";
 
 export interface AutonomousExecutiveCycleOptions {
     readonly capabilities: IntentPlanCapabilityMap;
@@ -35,6 +36,8 @@ export interface AutonomousExecutiveCycleOptions {
     readonly resourceRequirements?: (candidate: ExecutiveWorkCandidate) => readonly ExecutiveCapacityRequirement[];
     readonly resourceBudget?: ExecutiveResourceBudget;
     readonly budgetRequirements?: (candidate: ExecutiveWorkCandidate) => readonly ExecutiveBudgetRequirement[];
+    readonly tradeoffEngine?: ExecutiveTradeoffEngine;
+    readonly tradeoffInputs?: (candidate: ExecutiveWorkCandidate) => ExecutiveTradeoffCandidate;
 }
 
 export interface AutonomousExecutiveIntentResult {
@@ -103,6 +106,8 @@ export class AutonomousExecutiveCycle {
                     resourceRequirements: options.resourceRequirements,
                     resourceBudget: options.resourceBudget,
                     budgetRequirements: options.budgetRequirements,
+                    tradeoffEngine: options.tradeoffEngine,
+                    tradeoffInputs: options.tradeoffInputs,
                 },
             )
             : undefined;
