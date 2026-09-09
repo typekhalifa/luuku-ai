@@ -18,11 +18,8 @@ import { ExecutiveLearningEngine, InMemoryExecutiveMemoryStore, type ExecutiveLe
 import { MemoryAwareStrategyEngine, type MemoryAwareStrategyDecision } from "./memory-aware-strategy.js";
 import { ExecutiveAdaptiveInterventionPolicy, type AdaptiveInterventionDecision } from "./adaptive-intervention-policy.js";
 import { ExecutiveWorkArbitrator, type ExecutiveWorkArbitrationDecision, type ExecutiveWorkCandidate } from "./executive-work-arbitrator.js";
-import {
-    ExecutiveCapacityGate,
-    type ExecutiveCapacityDecision,
-    type ExecutiveCapacityRequirement,
-} from "./executive-capacity-gate.js";
+import { ExecutiveCapacityGate, type ExecutiveCapacityDecision, type ExecutiveCapacityRequirement } from "./executive-capacity-gate.js";
+import { ExecutiveResourceBudget, type ExecutiveBudgetCandidate, type ExecutiveBudgetRequirement, type ExecutiveBudgetResult } from "./executive-resource-budget.js";
 
 export interface ObjectiveDrivenCycleResult {
     readonly objective: ExecutiveObjectiveRecord;
@@ -36,15 +33,18 @@ export interface ObjectiveDrivenCycleResult {
     readonly intent: ExecutiveIntent;
     readonly plan?: ExecutionPlan;
     readonly capacity?: ExecutiveCapacityDecision;
+    readonly budget?: ExecutiveBudgetResult;
 }
 
 export interface ObjectiveDrivenExecutiveCycleOptions {
     readonly maxSelections?: number;
     readonly capacityGate?: ExecutiveCapacityGate;
     readonly resourceRequirements?: (candidate: ExecutiveWorkCandidate) => readonly ExecutiveCapacityRequirement[];
+    readonly resourceBudget?: ExecutiveResourceBudget;
+    readonly budgetRequirements?: (candidate: ExecutiveWorkCandidate) => readonly ExecutiveBudgetRequirement[];
 }
 
-/** Connects objective assessment, V8-C arbitration, V8-D capacity gating, planning, and V8-B execution preparation. */
+/** Connects objective assessment, V8-C arbitration, V8-D capacity gating, V8-E budget allocation, planning, and V8-B execution preparation. */
 export class ObjectiveDrivenExecutiveCycle {
     private readonly objectiveEngine: ExecutiveObjectiveEngine;
     private readonly intentBridge = new ExecutiveObjectiveIntentBridge();
@@ -53,6 +53,8 @@ export class ObjectiveDrivenExecutiveCycle {
     private readonly arbitrator: ExecutiveWorkArbitrator;
     private readonly capacityGate?: ExecutiveCapacityGate;
     private readonly resourceRequirements: (candidate: ExecutiveWorkCandidate) => readonly ExecutiveCapacityRequirement[];
+    private readonly resourceBudget?: ExecutiveResourceBudget;
+    private readonly budgetRequirements: (candidate: ExecutiveWorkCandidate) => readonly ExecutiveBudgetRequirement[];
     private readonly urgencyScorer = new ExecutiveObjectiveUrgencyScorer();
     private readonly progressTrendScorer = new ExecutiveObjectiveProgressTrendScorer();
     private readonly learningEngine: ExecutiveLearningEngine;
@@ -70,6 +72,8 @@ export class ObjectiveDrivenExecutiveCycle {
         this.arbitrator = new ExecutiveWorkArbitrator({ maxSelections: options.maxSelections ?? 1 });
         this.capacityGate = options.capacityGate;
         this.resourceRequirements = options.resourceRequirements ?? (() => []);
+        this.resourceBudget = options.resourceBudget;
+        this.budgetRequirements = options.budgetRequirements ?? (() => []);
         this.learningEngine = new ExecutiveLearningEngine(memoryStore);
     }
 
@@ -94,7 +98,19 @@ export class ObjectiveDrivenExecutiveCycle {
 
         const arbitration: ExecutiveWorkArbitrationDecision = this.arbitrator.arbitrate(candidates);
         const capacity = this.capacityGate?.admit(arbitration.selected, this.resourceRequirements);
-        const selected = capacity?.selected ?? arbitration.selected;
+        const capacitySelected = capacity?.selected ?? arbitration.selected;
+        const budgetCandidates: ExecutiveBudgetCandidate[] = capacitySelected.map((candidate) => ({
+            id: candidate.objective.id,
+            priorityScore: candidate.urgency.score + candidate.progressTrend.interventionScore,
+            requirements: this.budgetRequirements(candidate),
+        }));
+        const budget = this.resourceBudget?.allocate(budgetCandidates);
+        const budgetAllowedIds = budget
+            ? new Set(budget.allocations.filter((item) => item.decision === "ALLOCATE").map((item) => item.candidateId))
+            : undefined;
+        const selected = budgetAllowedIds
+            ? capacitySelected.filter((candidate) => budgetAllowedIds.has(candidate.objective.id))
+            : capacitySelected;
         const results: ObjectiveDrivenCycleResult[] = [];
 
         for (const { objective, assessment, urgency, progressTrend } of selected) {
@@ -128,12 +144,12 @@ export class ObjectiveDrivenExecutiveCycle {
                 : bridgedIntent;
 
             if (!actionableIntervention) {
-                results.push({ objective, assessment, urgency, progressTrend, intervention, learning, strategy, adaptiveIntervention, intent, capacity });
+                results.push({ objective, assessment, urgency, progressTrend, intervention, learning, strategy, adaptiveIntervention, intent, capacity, budget });
                 continue;
             }
 
             const plan = this.planBuilder.build({ intent, capabilities });
-            results.push({ objective, assessment, urgency, progressTrend, intervention, learning, strategy, adaptiveIntervention, intent, plan, capacity });
+            results.push({ objective, assessment, urgency, progressTrend, intervention, learning, strategy, adaptiveIntervention, intent, plan, capacity, budget });
         }
 
         return results;
