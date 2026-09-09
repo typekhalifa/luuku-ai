@@ -21,6 +21,7 @@ import { ExecutiveWorkArbitrator, type ExecutiveWorkArbitrationDecision, type Ex
 import { ExecutiveCapacityGate, type ExecutiveCapacityDecision, type ExecutiveCapacityRequirement } from "./executive-capacity-gate.js";
 import { ExecutiveResourceBudget, type ExecutiveBudgetCandidate, type ExecutiveBudgetRequirement, type ExecutiveBudgetResult } from "./executive-resource-budget.js";
 import { ExecutiveTradeoffEngine, type ExecutiveTradeoffCandidate, type ExecutiveTradeoffResult } from "./executive-tradeoff-engine.js";
+import { ExecutiveLearningAdaptationEngine, type ExecutiveLearningAdaptationDecision } from "./executive-learning-adaptation.js";
 
 export interface ObjectiveDrivenCycleResult {
     readonly objective: ExecutiveObjectiveRecord;
@@ -36,6 +37,7 @@ export interface ObjectiveDrivenCycleResult {
     readonly capacity?: ExecutiveCapacityDecision;
     readonly budget?: ExecutiveBudgetResult;
     readonly tradeoff?: ExecutiveTradeoffResult;
+    readonly learningAdaptation?: readonly ExecutiveLearningAdaptationDecision[];
 }
 
 export interface ObjectiveDrivenExecutiveCycleOptions {
@@ -46,9 +48,10 @@ export interface ObjectiveDrivenExecutiveCycleOptions {
     readonly budgetRequirements?: (candidate: ExecutiveWorkCandidate) => readonly ExecutiveBudgetRequirement[];
     readonly tradeoffEngine?: ExecutiveTradeoffEngine;
     readonly tradeoffInputs?: (candidate: ExecutiveWorkCandidate) => ExecutiveTradeoffCandidate;
+    readonly learningAdaptation?: ExecutiveLearningAdaptationEngine;
 }
 
-/** Connects objective assessment, V8-C arbitration, V8-D capacity gating, V8-E budget allocation, V8-F tradeoff economics, planning, and V8-B execution preparation. */
+/** Connects objective assessment, V8-C arbitration, V8-D capacity gating, V8-E budget allocation, V8-F tradeoff economics, V8-G learning adaptation, planning, and V8-B execution preparation. */
 export class ObjectiveDrivenExecutiveCycle {
     private readonly objectiveEngine: ExecutiveObjectiveEngine;
     private readonly intentBridge = new ExecutiveObjectiveIntentBridge();
@@ -61,6 +64,7 @@ export class ObjectiveDrivenExecutiveCycle {
     private readonly budgetRequirements: (candidate: ExecutiveWorkCandidate) => readonly ExecutiveBudgetRequirement[];
     private readonly tradeoffEngine?: ExecutiveTradeoffEngine;
     private readonly tradeoffInputs: (candidate: ExecutiveWorkCandidate) => ExecutiveTradeoffCandidate;
+    private readonly learningAdaptation?: ExecutiveLearningAdaptationEngine;
     private readonly urgencyScorer = new ExecutiveObjectiveUrgencyScorer();
     private readonly progressTrendScorer = new ExecutiveObjectiveProgressTrendScorer();
     private readonly learningEngine: ExecutiveLearningEngine;
@@ -89,6 +93,7 @@ export class ObjectiveDrivenExecutiveCycle {
             resourceCost: 0,
             risk: 0,
         }));
+        this.learningAdaptation = options.learningAdaptation;
         this.learningEngine = new ExecutiveLearningEngine(memoryStore);
     }
 
@@ -126,7 +131,12 @@ export class ObjectiveDrivenExecutiveCycle {
         const budgetSelected = budgetAllowedIds
             ? capacitySelected.filter((candidate) => budgetAllowedIds.has(candidate.objective.id))
             : capacitySelected;
-        const tradeoff = this.tradeoffEngine?.evaluate(budgetSelected.map(this.tradeoffInputs));
+        const rawTradeoffCandidates = budgetSelected.map(this.tradeoffInputs);
+        const learningAdaptation = this.learningAdaptation
+            ? rawTradeoffCandidates.map((candidate) => this.learningAdaptation!.adapt(candidate, learning))
+            : undefined;
+        const tradeoffCandidates = learningAdaptation?.map((decision) => decision.adjustedCandidate) ?? rawTradeoffCandidates;
+        const tradeoff = this.tradeoffEngine?.evaluate(tradeoffCandidates);
         const tradeoffAllowedIds = tradeoff
             ? new Set(tradeoff.allocations.filter((item) => item.decision === "SELECT").map((item) => item.candidateId))
             : undefined;
@@ -166,12 +176,12 @@ export class ObjectiveDrivenExecutiveCycle {
                 : bridgedIntent;
 
             if (!actionableIntervention) {
-                results.push({ objective, assessment, urgency, progressTrend, intervention, learning, strategy, adaptiveIntervention, intent, capacity, budget, tradeoff });
+                results.push({ objective, assessment, urgency, progressTrend, intervention, learning, strategy, adaptiveIntervention, intent, capacity, budget, tradeoff, learningAdaptation });
                 continue;
             }
 
             const plan = this.planBuilder.build({ intent, capabilities });
-            results.push({ objective, assessment, urgency, progressTrend, intervention, learning, strategy, adaptiveIntervention, intent, plan, capacity, budget, tradeoff });
+            results.push({ objective, assessment, urgency, progressTrend, intervention, learning, strategy, adaptiveIntervention, intent, plan, capacity, budget, tradeoff, learningAdaptation });
         }
 
         return results;
