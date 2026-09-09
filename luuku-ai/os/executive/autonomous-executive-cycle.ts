@@ -18,6 +18,8 @@ import { ObjectiveDrivenExecutiveCycle, type ObjectiveDrivenCycleResult } from "
 import type { ExecutiveObjectiveStore } from "./objective-engine.js";
 import type { ExecutiveState } from "./executive-state.js";
 import { InMemoryExecutiveMemoryStore, type ExecutiveMemoryStore } from "./executive-memory.js";
+import type { ExecutiveCapacityGate, ExecutiveCapacityRequirement } from "./executive-capacity-gate.js";
+import type { ExecutiveWorkCandidate } from "./executive-work-arbitrator.js";
 
 export interface AutonomousExecutiveCycleOptions {
     readonly capabilities: IntentPlanCapabilityMap;
@@ -28,6 +30,8 @@ export interface AutonomousExecutiveCycleOptions {
     readonly memoryStore?: ExecutiveMemoryStore;
     readonly shouldProcessIntent?: (intent: ExecutiveIntent) => boolean | Promise<boolean>;
     readonly maxObjectiveSelections?: number;
+    readonly capacityGate?: ExecutiveCapacityGate;
+    readonly resourceRequirements?: (candidate: ExecutiveWorkCandidate) => readonly ExecutiveCapacityRequirement[];
 }
 
 export interface AutonomousExecutiveIntentResult {
@@ -90,7 +94,11 @@ export class AutonomousExecutiveCycle {
                 options.objectiveStore,
                 capabilityResolver,
                 this.memoryStore,
-                { maxSelections: options.maxObjectiveSelections ?? 1 },
+                {
+                    maxSelections: options.maxObjectiveSelections ?? 1,
+                    capacityGate: options.capacityGate,
+                    resourceRequirements: options.resourceRequirements,
+                },
             )
             : undefined;
     }
