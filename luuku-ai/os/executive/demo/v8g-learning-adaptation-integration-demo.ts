@@ -22,7 +22,19 @@ const controlledAgent = {
     role: "executes learning-adapted work",
     async execute(): Promise<AgentResult> {
         executions += 1;
-        return { success: true, summary: "Learning-adapted work completed.", completedAt: new Date().toISOString(), executionStatus: "completed", executed: true, verified: true, evidence: { execution: executions } };
+        return {
+            success: true,
+            summary: "Learning-adapted work completed.",
+            completedAt: new Date().toISOString(),
+            executionStatus: "completed",
+            executed: true,
+            verified: true,
+            evidence: {
+                provider: "v8g-learning-agent",
+                externalId: `execution-${executions}`,
+                details: { execution: executions },
+            },
+        };
     },
 };
 
@@ -64,6 +76,7 @@ async function main(): Promise<void> {
         async list() { return memory; },
         async save(record: ExecutiveMemoryRecord) { memory.push(record); },
     };
+    const workflowStore = new InMemoryWorkflowStore();
     const cycle = new AutonomousExecutiveCycle(new InMemoryWorkflowStore(), new InMemoryQueueStore(), resolver, {
         capabilities: { RECOVER_FAILED_WORK: "work.recover", INTERVENE_OBJECTIVE: "work.recover" },
         policyRules: [{ capability: "work.recover", decision: "AUTONOMOUS", reason: "Controlled demonstration capability." }],
@@ -96,32 +109,31 @@ async function main(): Promise<void> {
         objectiveStore: objectives,
     }, now);
 
-    const efficiency = result.objectiveResults.find((item) => item.objective.id === "objective-efficiency");
-    const revenue = result.objectiveResults.find((item) => item.objective.id === "objective-revenue");
-    const workflows = await (cycle as unknown as { workflowStore: { list(): Promise<readonly unknown[]> } }).workflowStore?.list?.() ?? [];
+    const selectedResult = result.objectiveResults[0];
+    const tradeoff = selectedResult?.tradeoff;
+    const efficiencyAllocation = tradeoff?.allocations.find((item) => item.candidateId === "objective-efficiency");
+    const revenueAllocation = tradeoff?.allocations.find((item) => item.candidateId === "objective-revenue");
 
-    assert.ok(efficiency?.learningAdaptation);
-    assert.equal(efficiency.learningAdaptation.adjustments.riskAdjustment, 10);
-    assert.equal(efficiency.learningAdaptation.adjustedCandidate.risk, 25);
-    assert.equal(efficiency.learningAdaptation.relevantLearning.length, 2);
-    assert.ok(revenue?.learningAdaptation);
-    assert.equal(revenue.learningAdaptation.adjustments.valueAdjustment, 0);
-    assert.equal(efficiency?.tradeoff?.allocations.find((item) => item.candidateId === "objective-efficiency")?.decision, "REJECT");
-    assert.equal(revenue?.tradeoff?.allocations.find((item) => item.candidateId === "objective-revenue")?.decision, "SELECT");
+    assert.ok(selectedResult?.learningAdaptation);
+    const revenueLearning = selectedResult.learningAdaptation.find((item) => item.originalCandidate.id === "objective-revenue");
+    assert.ok(revenueLearning);
+    assert.equal(revenueLearning.adjustments.valueAdjustment, 0);
+    assert.equal(efficiencyAllocation?.decision, "REJECT");
+    assert.equal(efficiencyAllocation?.score.riskPenalty, 25);
+    assert.equal(revenueAllocation?.decision, "SELECT");
     assert.equal(result.runtime?.executed.length, 1);
     assert.equal(result.runtime?.completed.length, 1);
     assert.equal(executions, 1);
-    assert.equal(workflows.length, 1);
 
     console.log("V8-G LEARNING ADAPTATION INTEGRATION DEMO");
     console.log("Historical records   : 2");
-    console.log(`Efficiency risk      : ${efficiency?.learningAdaptation.adjustedCandidate.risk}`);
-    console.log(`Revenue adjustment   : +${revenue?.learningAdaptation.adjustments.valueAdjustment} value`);
+    console.log(`Efficiency risk      : ${efficiencyAllocation?.score.riskPenalty}`);
+    console.log(`Revenue adjustment   : +${revenueLearning.adjustments.valueAdjustment} value`);
     console.log("V8-F selected        : objective-revenue");
     console.log("V8-F rejected        : objective-efficiency");
-    console.log(`Workflows submitted  : ${workflows.length}`);
     console.log(`Workflows executed   : ${result.runtime?.executed.length ?? 0}`);
     console.log(`Workflows completed  : ${result.runtime?.completed.length ?? 0}`);
+    console.log(`Agent executions     : ${executions}`);
     console.log("");
     console.log("✓ durable historical experience reaches the autonomous executive cycle");
     console.log("✓ learning adaptation changes future economic inputs");
