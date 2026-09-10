@@ -43,10 +43,7 @@ export interface ExecutiveStrategyEvolutionOptions {
     readonly applyChanges?: boolean;
 }
 
-/**
- * V8-H turns durable learning and current objective state into bounded strategic
- * objective evolution. It changes executive state only; it never executes work.
- */
+/** V8-H turns durable learning and current objective state into bounded strategic objective evolution. It changes executive state only; it never executes work. */
 export class ExecutiveStrategyEvolutionEngine {
     private readonly maxProposals: number;
     private readonly minConfidence: number;
@@ -71,20 +68,20 @@ export class ExecutiveStrategyEvolutionEngine {
 
         for (const record of learning) {
             if (proposals.length >= this.maxProposals) break;
-            if (record.confidence < this.minConfidence) continue;
-            if (record.pattern === "REPEATED_FAILURE") {
-                const id = this.stableObjectiveId(`improve-${record.action}`);
-                if (existingIds.has(id)) continue;
-                const item = this.proposeFailureRecovery(record, id);
-                proposals.push(item);
-                evidence.push(...item.evidence);
-            } else if (record.pattern === "SUCCESS_PATTERN") {
-                const id = this.stableObjectiveId(`scale-${record.action}`);
-                if (existingIds.has(id)) continue;
-                const item = this.proposeSuccessScaling(record, id);
-                proposals.push(item);
-                evidence.push(...item.evidence);
-            }
+
+            const actionableFailure = record.pattern === "REPEATED_FAILURE" && record.failedOccurrences >= 2;
+            const actionableSuccess = record.pattern === "SUCCESS_PATTERN" && record.confidence >= this.minConfidence;
+            if (!actionableFailure && !actionableSuccess) continue;
+
+            const objectiveSeed = record.objectiveIds.join("-");
+            const id = this.stableObjectiveId(`${actionableFailure ? "improve" : "scale"}-${record.action}-${objectiveSeed}`);
+            if (existingIds.has(id)) continue;
+
+            const item = actionableFailure
+                ? this.proposeFailureRecovery(record, id)
+                : this.proposeSuccessScaling(record, id);
+            proposals.push(item);
+            evidence.push(...item.evidence);
         }
 
         for (const objective of objectives) {
@@ -144,13 +141,7 @@ export class ExecutiveStrategyEvolutionEngine {
             }
         }
 
-        return {
-            proposals,
-            createdObjectiveIds,
-            modifiedObjectiveIds,
-            deferredObjectiveIds,
-            evidence,
-        };
+        return { proposals, createdObjectiveIds, modifiedObjectiveIds, deferredObjectiveIds, evidence };
     }
 
     private proposeFailureRecovery(record: ExecutiveLearningRecord, id: string): ExecutiveObjectiveProposal {
