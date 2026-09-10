@@ -11,8 +11,8 @@ import {
 } from "./objective-engine.js";
 import { ExecutiveObjectiveIntentBridge } from "./objective-intent-bridge.js";
 import { ExecutiveObjectiveInterventionEngine, type ObjectiveIntervention } from "./objective-intervention.js";
-import { ExecutiveObjectiveProgressTrendScorer, type ObjectiveProgressTrendScore } from "./objective-progress-trend.js";
-import { ExecutiveObjectiveUrgencyScorer, type ObjectiveUrgencyScore } from "./objective-urgency.js";
+import { ExecutiveObjectiveProgressTrendScorer, type ExecutiveObjectiveProgressTrendScore } from "./objective-progress-trend.js";
+import { ExecutiveObjectiveUrgencyScorer, type ExecutiveObjectiveUrgencyScore } from "./objective-urgency.js";
 import type { ExecutiveState } from "./executive-state.js";
 import { ExecutiveLearningEngine, InMemoryExecutiveMemoryStore, type ExecutiveLearningRecord, type ExecutiveMemoryStore } from "./executive-memory.js";
 import { MemoryAwareStrategyEngine, type MemoryAwareStrategyDecision } from "./memory-aware-strategy.js";
@@ -22,14 +22,16 @@ import { ExecutiveCapacityGate, type ExecutiveCapacityDecision, type ExecutiveCa
 import { ExecutiveResourceBudget, type ExecutiveBudgetCandidate, type ExecutiveBudgetRequirement, type ExecutiveBudgetResult } from "./executive-resource-budget.js";
 import { ExecutiveTradeoffEngine, type ExecutiveTradeoffCandidate, type ExecutiveTradeoffResult } from "./executive-tradeoff-engine.js";
 import { ExecutiveLearningAdaptationEngine, type ExecutiveLearningAdaptationDecision } from "./executive-learning-adaptation.js";
+import { ExecutiveStrategyEvolutionEngine, type ExecutiveStrategyEvolutionDecision } from "./executive-strategy-evolution.js";
 
 export interface ObjectiveDrivenCycleResult {
     readonly objective: ExecutiveObjectiveRecord;
     readonly assessment: ObjectiveAssessment;
-    readonly urgency: ObjectiveUrgencyScore;
-    readonly progressTrend: ObjectiveProgressTrendScore;
+    readonly urgency: ExecutiveObjectiveUrgencyScore;
+    readonly progressTrend: ExecutiveObjectiveProgressTrendScore;
     readonly intervention: ObjectiveIntervention;
     readonly learning: readonly ExecutiveLearningRecord[];
+    readonly strategyEvolution: ExecutiveStrategyEvolutionDecision;
     readonly strategy: MemoryAwareStrategyDecision;
     readonly adaptiveIntervention: AdaptiveInterventionDecision;
     readonly intent: ExecutiveIntent;
@@ -49,9 +51,10 @@ export interface ObjectiveDrivenExecutiveCycleOptions {
     readonly tradeoffEngine?: ExecutiveTradeoffEngine;
     readonly tradeoffInputs?: (candidate: ExecutiveWorkCandidate) => ExecutiveTradeoffCandidate;
     readonly learningAdaptation?: ExecutiveLearningAdaptationEngine;
+    readonly strategyEvolution?: ExecutiveStrategyEvolutionEngine;
 }
 
-/** Connects objective assessment, V8-C arbitration, V8-D capacity gating, V8-E budget allocation, V8-F tradeoff economics, V8-G learning adaptation, planning, and V8-B execution preparation. */
+/** Connects objective assessment, V8-C arbitration, V8-D capacity gating, V8-E budget allocation, V8-F tradeoff economics, V8-G learning adaptation, V8-H strategy evolution, planning, and V8-B execution preparation. */
 export class ObjectiveDrivenExecutiveCycle {
     private readonly objectiveEngine: ExecutiveObjectiveEngine;
     private readonly intentBridge = new ExecutiveObjectiveIntentBridge();
@@ -65,6 +68,7 @@ export class ObjectiveDrivenExecutiveCycle {
     private readonly tradeoffEngine?: ExecutiveTradeoffEngine;
     private readonly tradeoffInputs: (candidate: ExecutiveWorkCandidate) => ExecutiveTradeoffCandidate;
     private readonly learningAdaptation?: ExecutiveLearningAdaptationEngine;
+    private readonly strategyEvolution: ExecutiveStrategyEvolutionEngine;
     private readonly urgencyScorer = new ExecutiveObjectiveUrgencyScorer();
     private readonly progressTrendScorer = new ExecutiveObjectiveProgressTrendScorer();
     private readonly learningEngine: ExecutiveLearningEngine;
@@ -94,6 +98,7 @@ export class ObjectiveDrivenExecutiveCycle {
             risk: 0,
         }));
         this.learningAdaptation = options.learningAdaptation;
+        this.strategyEvolution = options.strategyEvolution ?? new ExecutiveStrategyEvolutionEngine(objectiveStore);
         this.learningEngine = new ExecutiveLearningEngine(memoryStore);
     }
 
@@ -104,6 +109,11 @@ export class ObjectiveDrivenExecutiveCycle {
     ): Promise<readonly ObjectiveDrivenCycleResult[]> {
         const objectives = await this.objectiveEngine.listActive();
         const learning = await this.learningEngine.learn();
+
+        // V8-H evolves the agenda from evidence before the current cycle is arbitrated.
+        // Newly created objectives intentionally become eligible on the next cycle,
+        // preventing same-cycle recursive objective generation and execution.
+        const strategyEvolution = await this.strategyEvolution.evolve(objectives, learning);
         const candidates: ExecutiveWorkCandidate[] = [];
 
         for (const objective of objectives) {
@@ -176,12 +186,12 @@ export class ObjectiveDrivenExecutiveCycle {
                 : bridgedIntent;
 
             if (!actionableIntervention) {
-                results.push({ objective, assessment, urgency, progressTrend, intervention, learning, strategy, adaptiveIntervention, intent, capacity, budget, tradeoff, learningAdaptation });
+                results.push({ objective, assessment, urgency, progressTrend, intervention, learning, strategyEvolution, strategy, adaptiveIntervention, intent, capacity, budget, tradeoff, learningAdaptation });
                 continue;
             }
 
             const plan = this.planBuilder.build({ intent, capabilities });
-            results.push({ objective, assessment, urgency, progressTrend, intervention, learning, strategy, adaptiveIntervention, intent, plan, capacity, budget, tradeoff, learningAdaptation });
+            results.push({ objective, assessment, urgency, progressTrend, intervention, learning, strategyEvolution, strategy, adaptiveIntervention, intent, plan, capacity, budget, tradeoff, learningAdaptation });
         }
 
         return results;
