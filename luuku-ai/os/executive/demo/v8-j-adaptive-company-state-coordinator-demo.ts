@@ -45,6 +45,9 @@ async function main(): Promise<void> {
     const urgency: ObjectiveUrgencyScore = {
         objectiveId: objective.id,
         score: 60,
+        overdue: false,
+        dueSoon: false,
+        stale: false,
     };
 
     const progressTrend: ObjectiveProgressTrendScore = {
