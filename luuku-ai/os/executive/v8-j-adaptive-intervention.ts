@@ -1,4 +1,4 @@
-import type { ExecutiveAdaptiveInterventionPolicy, AdaptiveInterventionDecision } from "./adaptive-intervention-policy.js";
+import { ExecutiveAdaptiveInterventionPolicy, type AdaptiveInterventionDecision } from "./adaptive-intervention-policy.js";
 import type { MemoryAwareStrategyDecision } from "./memory-aware-strategy.js";
 import type { ObjectiveIntervention } from "./objective-intervention.js";
 import type { ExecutiveInterventionSignal } from "./v8-j-intervention-adapter.js";
