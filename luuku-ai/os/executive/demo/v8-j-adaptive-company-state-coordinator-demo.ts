@@ -1,8 +1,7 @@
 import { ExecutiveAdaptiveCompanyStateCoordinator } from "../v8-j-adaptive-company-state-coordinator.js";
 import type { ExecutiveInterventionSignal } from "../v8-j-intervention-adapter.js";
-import type { ExecutiveObjectiveRecord } from "../objective-engine.js";
+import type { ExecutiveObjectiveRecord, ObjectiveAssessment } from "../objective-engine.js";
 import type { ObjectiveDrivenCycleResult } from "../objective-driven-executive-cycle.js";
-import type { ObjectiveAssessment } from "../objective-engine.js";
 import type { ObjectiveProgressTrendScore } from "../objective-progress-trend.js";
 import type { ObjectiveUrgencyScore } from "../objective-urgency.js";
 import type { ExecutiveLearningRecord } from "../executive-memory.js";
@@ -46,7 +45,6 @@ async function main(): Promise<void> {
     const urgency: ObjectiveUrgencyScore = {
         objectiveId: objective.id,
         score: 60,
-        reason: "Objective requires attention.",
     };
 
     const progressTrend: ObjectiveProgressTrendScore = {
