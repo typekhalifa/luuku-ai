@@ -78,8 +78,8 @@ const plan = new ExecutiveLongHorizonPlanningEngine().build(inputs, now);
 
 if (plan.horizon !== "LONG_TERM") throw new Error("Expected LONG_TERM horizon.");
 if (plan.milestones.length !== 2) throw new Error("Expected one milestone per objective.");
-if (plan.dependencyOrder.join(",") !== "market-expansion,operational-scale") {
-    throw new Error(`Unexpected dependency order: ${plan.dependencyOrder.join(",")}`);
+if (plan.strategicPlan.dependencyOrder.join(",") !== "market-expansion,operational-scale") {
+    throw new Error(`Unexpected dependency order: ${plan.strategicPlan.dependencyOrder.join(",")}`);
 }
 if (plan.milestones[1].dependencyObjectiveIds[0] !== "market-expansion") {
     throw new Error("Expected operational-scale to depend on market-expansion.");
@@ -90,7 +90,7 @@ if (plan.replanTriggers.length !== 5) throw new Error("Expected bounded re-plann
 console.log("V8-K — Long-Horizon Planning Validation");
 console.log(`Strategic objectives         : ${plan.strategicPlan.objectives.length}`);
 console.log(`Milestones                  : ${plan.milestones.length}`);
-console.log(`Dependency order            : ${plan.dependencyOrder.join(" → ")}`);
+console.log(`Dependency order            : ${plan.strategicPlan.dependencyOrder.join(" → ")}`);
 console.log(`Re-plan triggers            : ${plan.replanTriggers.length}`);
 console.log(`Execution boundary          : ${plan.executionBoundary}`);
 console.log("✓ Explicit future-state targets are required");
