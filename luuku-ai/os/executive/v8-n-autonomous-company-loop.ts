@@ -30,13 +30,15 @@ export interface AutonomousCompanyLoopCycle {
     readonly completedAt: string;
     readonly actions: readonly AutonomousCompanyLoopAction[];
     readonly exceptions: readonly ExecutiveException[];
+    readonly executionPermitted: boolean;
+    readonly executionBlockReason?: string;
     readonly executionBoundary: AutonomousCompanyLoopBoundary;
 }
 
 /**
- * V8-N is the orchestration boundary that composes the already-authorized
- * executive capabilities into one bounded company loop. It describes the
- * next lifecycle actions; it does not itself execute work or bypass V6.
+ * V8-N is the orchestration boundary that composes already-authorized
+ * executive capabilities into one bounded company loop. It does not execute
+ * work, grant approval, or bypass V6.
  */
 export class AutonomousCompanyLoopEngine {
     private readonly exceptionManager = new ExecutiveExceptionManagementEngine();
@@ -46,50 +48,47 @@ export class AutonomousCompanyLoopEngine {
 
         const actions: AutonomousCompanyLoopAction[] = ["OBSERVE"];
         const exceptions = this.exceptionManager.classifyMany(observation.exceptionSignals ?? []);
+        const criticalException = exceptions.find((exception) => exception.severity === "CRITICAL");
+        const executionPermitted = Boolean(observation.executionApproved) && !criticalException;
 
-        if (exceptions.length > 0) {
-            actions.push("MANAGE_EXCEPTION");
-        }
-
-        if (observation.hasRunnableWork) {
-            actions.push("SELECT_WORK", "PRIORITIZE");
-        }
-
-        if (observation.hasStrategicPlan) {
-            actions.push("PLAN");
-        }
-
-        if (observation.interventionRequired) {
-            actions.push("INTERVENE");
-        }
-
-        if (observation.executionApproved) {
-            actions.push("EXECUTE_THROUGH_V6");
-        }
-
+        if (exceptions.length > 0) actions.push("MANAGE_EXCEPTION");
+        if (observation.hasRunnableWork) actions.push("SELECT_WORK", "PRIORITIZE");
+        if (observation.hasStrategicPlan) actions.push("PLAN");
+        if (observation.interventionRequired) actions.push("INTERVENE");
+        if (executionPermitted) actions.push("EXECUTE_THROUGH_V6");
         actions.push("LEARN", "REMEMBER", "EVOLVE_STRATEGY");
 
         const startedAt = observation.observedAt;
         const completedAt = new Date(Date.parse(startedAt) + 1).toISOString();
+        const executionBlockReason = criticalException
+            ? `${criticalException.type} requires ${criticalException.recommendedResponse}.`
+            : observation.executionApproved
+                ? undefined
+                : "Execution approval was not granted by the upstream execution boundary.";
 
         return {
-            cycleId: this.createCycleId(observation),
+            cycleId: this.createCycleId(observation, exceptions),
             startedAt,
             completedAt,
             actions,
             exceptions,
+            executionPermitted,
+            executionBlockReason,
             executionBoundary: "ORCHESTRATION_ONLY",
         };
     }
 
-    private createCycleId(observation: AutonomousCompanyLoopObservation): string {
+    private createCycleId(
+        observation: AutonomousCompanyLoopObservation,
+        exceptions: readonly ExecutiveException[],
+    ): string {
         const key = [
             observation.observedAt,
             String(observation.hasRunnableWork ?? false),
             String(observation.hasStrategicPlan ?? false),
             String(observation.interventionRequired ?? false),
             String(observation.executionApproved ?? false),
-            String(observation.exceptionSignals?.length ?? 0),
+            exceptions.map((exception) => `${exception.exceptionId}:${exception.severity}`).join(","),
         ].join("|");
 
         let hash = 2166136261;
