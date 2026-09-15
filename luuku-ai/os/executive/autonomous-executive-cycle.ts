@@ -111,6 +111,9 @@ export class AutonomousExecutiveCycle {
         const objectiveIntentTypes = new Set(objectiveIntents.map((intent) => intent.type));
         const intents: ExecutiveIntentSnapshot = { ...observedIntents, intents: [...objectiveIntents, ...observedIntents.intents.filter((intent) => !objectiveIntentTypes.has(intent.type))] };
         const intentResults: AutonomousExecutiveIntentResult[] = [];
+        const preExecutionSignals: ExecutiveExceptionSignal[] = [];
+        if (stateWithFeedback.failed > 0) preExecutionSignals.push({ type: "REPEATED_FAILURE", description: "Executive work remains failed before the cycle execution boundary.", detectedAt: now.toISOString(), evidence: { failed: stateWithFeedback.failed, failedWorkIds: [...(stateWithFeedback.failedWorkIds ?? [])] }, repeatedFailureCount: stateWithFeedback.failed });
+        if (stateWithFeedback.waitingApproval > 0) preExecutionSignals.push({ type: "APPROVAL_REQUIRED", description: "Executive work is waiting for founder approval before execution.", detectedAt: now.toISOString(), evidence: { waitingApproval: stateWithFeedback.waitingApproval, attention: [...stateWithFeedback.attention] } });
 
         for (const intent of intents.intents) {
             if (options.shouldProcessIntent && !(await options.shouldProcessIntent(intent))) continue;
@@ -119,6 +122,11 @@ export class AutonomousExecutiveCycle {
             const plan = objectivePlan ?? this.planBuilder.build({ intent, capabilities: options.capabilities });
             const policy = this.policy.evaluate({ intent, plan });
             const decision = this.decisionProjector.decide(intent, plan, policy);
+            const gate = this.companyLoop.evaluateExecutionGate({ observedAt: now.toISOString(), exceptionSignals: preExecutionSignals, hasRunnableWork: true, hasStrategicPlan: objectiveResults.length > 0, interventionRequired: objectiveResults.some((result) => result.intervention.interventionRequired), executionApproved: decision.status === "ELIGIBLE" });
+            if (!gate.permitted) {
+                intentResults.push({ intent, planId: plan.id, policy, decision: { ...decision, status: "BLOCKED", reason: gate.reason ?? decision.reason, evidence: { ...decision.evidence, autonomousCompanyLoop: gate.reason ?? "Execution blocked by autonomous company loop." } } });
+                continue;
+            }
             const submission = await this.submission.submit(decision, plan);
             const continuation = submission.status === "SUBMITTED" || submission.status === "ALREADY_SUBMITTED" ? await this.continuation.continue(plan.id, now) : undefined;
             intentResults.push({ intent, planId: plan.id, policy, decision, submission, continuation });
