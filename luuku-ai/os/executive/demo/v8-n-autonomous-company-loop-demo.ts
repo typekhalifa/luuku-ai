@@ -6,18 +6,8 @@ const observedAt = "2026-09-15T20:00:00.000Z";
 const blockedCycle = engine.runCycle({
     observedAt,
     exceptionSignals: [
-        {
-            type: "OBJECTIVE_STALLED",
-            objectiveIds: ["growth"],
-            description: "Growth objective has stopped progressing.",
-            detectedAt: observedAt,
-        },
-        {
-            type: "SAFETY_BOUNDARY",
-            objectiveIds: ["growth"],
-            description: "A proposed action crossed a safety boundary.",
-            detectedAt: observedAt,
-        },
+        { type: "OBJECTIVE_STALLED", objectiveIds: ["growth"], description: "Growth objective has stopped progressing.", detectedAt: observedAt },
+        { type: "SAFETY_BOUNDARY", objectiveIds: ["growth"], description: "A proposed action crossed a safety boundary.", detectedAt: observedAt },
     ],
     hasRunnableWork: true,
     hasStrategicPlan: true,
@@ -25,14 +15,7 @@ const blockedCycle = engine.runCycle({
     executionApproved: true,
 });
 
-const permittedCycle = engine.runCycle({
-    observedAt,
-    hasRunnableWork: true,
-    hasStrategicPlan: true,
-    interventionRequired: true,
-    executionApproved: true,
-});
-
+const permittedCycle = engine.runCycle({ observedAt, hasRunnableWork: true, hasStrategicPlan: true, interventionRequired: true, executionApproved: true });
 const expectedPrefix = ["OBSERVE", "MANAGE_EXCEPTION", "SELECT_WORK", "PRIORITIZE", "PLAN", "INTERVENE"];
 const prefixMatches = expectedPrefix.every((action, index) => blockedCycle.actions[index] === action);
 const safetyException = blockedCycle.exceptions.find((exception) => exception.type === "SAFETY_BOUNDARY");
@@ -55,9 +38,7 @@ if (!safetyHalt) throw new Error("V8-N validation failed: safety exception did n
 if (!blockedBySafety) throw new Error("V8-N validation failed: critical exception did not block execution.");
 if (!permittedThroughV6) throw new Error("V8-N validation failed: clean execution did not remain explicitly bounded to V6.");
 if (!orchestrationOnly) throw new Error("V8-N validation failed: orchestration boundary is not ORCHESTRATION_ONLY.");
-if (!blockedCycle.actions.includes("LEARN") || !blockedCycle.actions.includes("REMEMBER") || !blockedCycle.actions.includes("EVOLVE_STRATEGY")) {
-    throw new Error("V8-N validation failed: learning, memory, and strategy evolution are missing.");
-}
+if (!blockedCycle.actions.includes("LEARN") || !blockedCycle.actions.includes("REMEMBER") || !blockedCycle.actions.includes("EVOLVE_STRATEGY")) throw new Error("V8-N validation failed: learning, memory, and strategy evolution are missing.");
 
 console.log("✓ Observation begins every autonomous cycle");
 console.log("✓ Exceptions are managed before downstream execution decisions");
