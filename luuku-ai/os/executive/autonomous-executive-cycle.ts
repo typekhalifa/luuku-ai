@@ -23,6 +23,8 @@ import type { ExecutiveWorkCandidate } from "./executive-work-arbitrator.js";
 import type { ExecutiveResourceBudget, ExecutiveBudgetRequirement } from "./executive-resource-budget.js";
 import type { ExecutiveTradeoffEngine, ExecutiveTradeoffCandidate } from "./executive-tradeoff-engine.js";
 import type { ExecutiveLearningAdaptationEngine } from "./executive-learning-adaptation.js";
+import { ExecutiveInstitutionalMemory, type InstitutionalMemoryStore } from "./v8-l-institutional-memory.js";
+import { ExecutiveMemoryInstitutionalProjector, type InstitutionalMemoryProjectionResult } from "./v8-l-institutional-memory-projector.js";
 
 export interface AutonomousExecutiveCycleOptions {
     readonly capabilities: IntentPlanCapabilityMap;
@@ -31,6 +33,7 @@ export interface AutonomousExecutiveCycleOptions {
     readonly workflowExecutor?: WorkflowStepExecutor;
     readonly objectiveStore?: ExecutiveObjectiveStore;
     readonly memoryStore?: ExecutiveMemoryStore;
+    readonly institutionalMemoryStore?: InstitutionalMemoryStore;
     readonly shouldProcessIntent?: (intent: ExecutiveIntent) => boolean | Promise<boolean>;
     readonly maxObjectiveSelections?: number;
     readonly capacityGate?: ExecutiveCapacityGate;
@@ -59,6 +62,7 @@ export interface AutonomousExecutiveCycleResult {
     readonly intentResults: readonly AutonomousExecutiveIntentResult[];
     readonly runtime?: AutonomousRuntimeCycleResult;
     readonly feedback: ExecutionFeedbackSnapshot;
+    readonly institutionalMemoryProjection?: InstitutionalMemoryProjectionResult;
     readonly finalState: ExecutiveState;
     readonly finalObservation: ExecutiveObservationSnapshot;
 }
@@ -77,6 +81,7 @@ export class AutonomousExecutiveCycle {
     private readonly runtime: AutonomousRuntime;
     private readonly objectiveCycle?: ObjectiveDrivenExecutiveCycle;
     private readonly memoryStore: ExecutiveMemoryStore;
+    private readonly institutionalMemoryProjector?: ExecutiveMemoryInstitutionalProjector;
 
     constructor(
         private readonly workflowStore: WorkflowStore,
@@ -97,6 +102,12 @@ export class AutonomousExecutiveCycle {
             workflowStore,
         );
         this.memoryStore = options.memoryStore ?? new InMemoryExecutiveMemoryStore();
+        this.institutionalMemoryProjector = options.institutionalMemoryStore
+            ? new ExecutiveMemoryInstitutionalProjector(
+                this.memoryStore,
+                new ExecutiveInstitutionalMemory(options.institutionalMemoryStore),
+            )
+            : undefined;
         this.objectiveCycle = options.objectiveStore
             ? new ObjectiveDrivenExecutiveCycle(
                 options.objectiveStore,
@@ -196,10 +207,13 @@ export class AutonomousExecutiveCycle {
         }
 
         const feedback = await this.feedbackSource.snapshot();
+        const institutionalMemoryProjection = this.institutionalMemoryProjector
+            ? await this.institutionalMemoryProjector.project()
+            : undefined;
         const finalState = this.feedbackProjector.apply(await this.stateSource.snapshot(), feedback);
         const finalObservation = this.observer.observe(finalState);
 
-        return { initialState: stateWithFeedback, initialObservation, intents, objectiveResults, intentResults, runtime: runtimeResult, feedback, finalState, finalObservation };
+        return { initialState: stateWithFeedback, initialObservation, intents, objectiveResults, intentResults, runtime: runtimeResult, feedback, institutionalMemoryProjection, finalState, finalObservation };
     }
 
     private async recordRuntimeOutcome(
