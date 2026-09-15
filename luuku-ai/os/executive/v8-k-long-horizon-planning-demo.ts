@@ -3,7 +3,7 @@ import type { ExecutiveObjectiveRecord, ObjectiveAssessment } from "./objective-
 import type { ObjectiveProgressTrendScore } from "./objective-progress-trend.js";
 import type { ObjectiveUrgencyScore } from "./objective-urgency.js";
 
-const now = new Date("2026-09-13T16:00:00.000Z");
+const now = new Date("2026-09-15T00:00:00.000Z");
 
 const objectives: ExecutiveObjectiveRecord[] = [
     {
@@ -60,17 +60,35 @@ const inputs: LongHorizonObjectiveInput[] = [
         assessment: assessment(objectives[0]),
         urgency: urgency(objectives[0]),
         progressTrend: trend(objectives[0]),
+        horizon: "LONG_TERM",
         targetState: "A repeatable customer acquisition system with durable qualified pipeline growth.",
-        milestoneIds: ["milestone-market-expansion"],
+        milestones: [
+            {
+                id: "milestone-market-expansion",
+                objectiveId: "market-expansion",
+                title: "Establish repeatable qualified acquisition",
+                horizon: "LONG_TERM",
+                targetProgress: 60,
+            },
+        ],
     },
     {
         objective: objectives[1],
         assessment: assessment(objectives[1]),
         urgency: urgency(objectives[1]),
         progressTrend: trend(objectives[1]),
+        horizon: "LONG_TERM",
         dependsOnObjectiveIds: ["market-expansion"],
         targetState: "Reliable operating capacity that can support growth without compromising executive safety boundaries.",
-        milestoneIds: ["milestone-operational-scale"],
+        milestones: [
+            {
+                id: "milestone-operational-scale",
+                objectiveId: "operational-scale",
+                title: "Establish reliable scalable operations",
+                horizon: "LONG_TERM",
+                targetProgress: 80,
+            },
+        ],
     },
 ];
 
@@ -81,8 +99,10 @@ if (plan.milestones.length !== 2) throw new Error("Expected one milestone per ob
 if (plan.strategicPlan.dependencyOrder.join(",") !== "market-expansion,operational-scale") {
     throw new Error(`Unexpected dependency order: ${plan.strategicPlan.dependencyOrder.join(",")}`);
 }
-if (plan.milestones[1].dependencyObjectiveIds[0] !== "market-expansion") {
-    throw new Error("Expected operational-scale to depend on market-expansion.");
+const operationalMilestone = plan.milestones.find((milestone) => milestone.id === "milestone-operational-scale");
+if (!operationalMilestone) throw new Error("Operational-scale milestone was not planned.");
+if (operationalMilestone.dependencyObjectiveIds?.[0] !== "market-expansion") {
+    throw new Error("Expected operational-scale milestone to depend on market-expansion.");
 }
 if (plan.executionBoundary !== "PLAN_ONLY") throw new Error("V8-K must remain plan-only.");
 if (plan.replanTriggers.length !== 5) throw new Error("Expected bounded re-planning triggers.");
