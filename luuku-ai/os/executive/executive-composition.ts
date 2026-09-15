@@ -10,6 +10,7 @@ import type { ExecutiveLoopCheckpointStore } from "./executive-loop-checkpoint.j
 import type { ExecutiveObjectiveStore } from "./objective-engine.js";
 import { PersistentExecutiveLoop, type PersistentExecutiveLoopOptions } from "./persistent-executive-loop.js";
 import { PersistentExecutiveService, type PersistentExecutiveServiceOptions } from "./persistent-executive-service.js";
+import type { InstitutionalMemoryStore } from "./v8-l-institutional-memory.js";
 
 /**
  * Explicit dependency boundary for the production executive.
@@ -23,6 +24,7 @@ export interface ExecutiveCompositionDependencies {
     readonly capabilityResolver: CapabilityResolver;
     readonly objectiveStore: ExecutiveObjectiveStore;
     readonly memoryStore: ExecutiveMemoryStore;
+    readonly institutionalMemoryStore?: InstitutionalMemoryStore;
     readonly checkpointStore: ExecutiveLoopCheckpointStore;
     readonly capabilities: IntentPlanCapabilityMap;
     readonly policyRules: readonly AutonomyPolicyRule[];
@@ -52,6 +54,7 @@ export function createExecutiveComposition(
         workflowExecutor: dependencies.workflowExecutor,
         objectiveStore: dependencies.objectiveStore,
         memoryStore: dependencies.memoryStore,
+        institutionalMemoryStore: dependencies.institutionalMemoryStore,
         maxObjectiveSelections: dependencies.maxObjectiveSelections,
     };
 
