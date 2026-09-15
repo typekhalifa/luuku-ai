@@ -1,0 +1,43 @@
+name: V8 Validation
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - feat/v8
+
+jobs:
+  backend-validation:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Backend typecheck
+        run: npm run typecheck:backend
+
+      - name: V8-K validation
+        run: npx tsx luuku-ai/os/executive/demo/v8-k-long-horizon-planning-demo.ts
+
+      - name: V8-L validation
+        run: npx tsx luuku-ai/os/executive/demo/v8-l-institutional-memory-demo.ts
+
+      - name: V8-L projection validation
+        run: npx tsx luuku-ai/os/executive/demo/v8-l-memory-projection-demo.ts
+
+      - name: V8-M validation
+        run: npx tsx luuku-ai/os/executive/demo/v8-m-exception-management-demo.ts
+
+      - name: V8-N validation
+        run: npx tsx luuku-ai/os/executive/demo/v8-n-autonomous-company-loop-demo.ts
