@@ -143,7 +143,6 @@ export class AutonomousExecutiveCycle {
         if (finalState.failed > 0) exceptionSignals.push({ type: "REPEATED_FAILURE", description: "Executive work remains failed after the cycle.", detectedAt: now.toISOString(), evidence: { failed: finalState.failed, failedWorkIds: [...(finalState.failedWorkIds ?? [])] }, repeatedFailureCount: finalState.failed });
         if (finalState.waitingApproval > 0) exceptionSignals.push({ type: "APPROVAL_REQUIRED", description: "Executive work is waiting for founder approval.", detectedAt: now.toISOString(), evidence: { waitingApproval: finalState.waitingApproval, attention: [...finalState.attention] } });
         const companyLoop = this.companyLoop.runCycle({ observedAt: now.toISOString(), exceptionSignals, hasRunnableWork: finalState.active > 0 || intents.intents.some((intent) => intent.type !== "NO_ACTION" && intent.type !== "MONITOR_ACTIVE_WORK" && intent.type !== "WAIT_FOR_FOUNDER_DECISION"), hasStrategicPlan: objectiveResults.length > 0, interventionRequired: objectiveResults.some((result) => result.intervention.interventionRequired), executionApproved: intentResults.some((result) => result.decision?.status === "ELIGIBLE") });
-
         return { initialState: stateWithFeedback, initialObservation, intents, objectiveResults, intentResults, runtime: runtimeResult, feedback, institutionalMemoryProjection, companyLoop, finalState, finalObservation };
     }
 
