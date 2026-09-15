@@ -159,8 +159,8 @@ model CommunicationExecution {
   externalId        String?
   evidence          Json?
   error             String?
-  createdAt          DateTime                   @default(now())
-  updatedAt          DateTime                   @updatedAt
+  createdAt         DateTime                   @default(now())
+  updatedAt         DateTime                   @updatedAt
   conversation      CommunicationConversation? @relation(fields: [conversationId], references: [id], onDelete: SetNull)
   @@index([conversationId])
   @@index([taskId])
@@ -277,6 +277,23 @@ model ExecutiveMemory {
   @@index([workflowId, createdAt])
   @@index([eventType, createdAt])
   @@index([action, createdAt])
+}
+
+model ExecutiveInstitutionalMemory {
+  id              String   @id
+  kind            String
+  subject         String
+  statement       String
+  confidence      Float
+  evidenceIds     String[]
+  objectiveIds    String[]
+  active          Boolean
+  firstObservedAt DateTime
+  lastConfirmedAt DateTime
+  @@index([kind, active])
+  @@index([subject])
+  @@index([confidence])
+  @@index([lastConfirmedAt])
 }
 
 enum CompanyStatus {
