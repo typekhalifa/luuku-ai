@@ -77,7 +77,10 @@ if (plan.strategicPlan.dependencyOrder.join(",") !== "market-expansion,operation
     throw new Error(`Unexpected dependency order: ${plan.strategicPlan.dependencyOrder.join(",")}`);
 }
 if (plan.milestones.length !== 4) throw new Error("Expected four long-horizon milestones.");
-if (plan.milestones[1]?.dependencyObjectiveIds?.[0] !== "market-expansion") {
+const operationalCompletionMilestone = plan.milestones.find(
+    (milestone) => milestone.id === "operational-scale:100",
+);
+if (operationalCompletionMilestone?.dependencyObjectiveIds?.[0] !== "market-expansion") {
     throw new Error("Milestone dependency propagation failed.");
 }
 if (plan.executionBoundary !== "PLAN_ONLY") throw new Error("V8-K must remain plan-only.");
