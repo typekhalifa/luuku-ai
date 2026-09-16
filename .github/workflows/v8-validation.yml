@@ -41,3 +41,6 @@ jobs:
 
       - name: V8-N validation
         run: npx tsx luuku-ai/os/executive/demo/v8-n-autonomous-company-loop-demo.ts
+
+      - name: V8-O validation
+        run: npx tsx luuku-ai/os/executive/demo/v8-o-durable-execution-demo.ts
