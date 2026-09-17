@@ -1,0 +1,66 @@
+# Luuku AI Development & Validation Guide
+
+## Repository model
+
+- Backend / AI Operating System: luuku-ai/
+- Internal dashboard: apps/mission-control/
+- Public website: apps/web-new/
+
+Work on the backend must preserve V6 execution authority and V8 governance boundaries.
+
+## Local baseline
+
+From the repository root:
+
+~~~powershell
+npm ci
+npx prisma generate
+npm run typecheck:backend
+~~~
+
+## V8 validation
+
+~~~powershell
+npx tsx luuku-ai/os/executive/demo/v8-k-long-horizon-planning-demo.ts
+npx tsx luuku-ai/os/executive/demo/v8-l-institutional-memory-demo.ts
+npx tsx luuku-ai/os/executive/demo/v8-l-memory-projection-demo.ts
+npx tsx luuku-ai/os/executive/demo/v8-m-exception-management-demo.ts
+npx tsx luuku-ai/os/executive/demo/v8-n-autonomous-company-loop-demo.ts
+npx tsx luuku-ai/os/executive/demo/v8-o-durable-execution-demo.ts
+~~~
+
+The GitHub Actions workflow .github/workflows/v8-validation.yml runs the backend typecheck and these V8 validation gates.
+
+## Rules for safe changes
+
+1. Do not create a second execution authority.
+2. Do not let an actuator bypass policy, approval, capacity, budget, economic or safety boundaries.
+3. Do not treat drafts or simulations as real-world execution.
+4. External execution must return verifiable evidence where the provider supports it.
+5. Preserve idempotency for externally observable actions.
+6. Prefer existing shared services/contracts over agent-specific integrations.
+7. Update documentation when a canonical architecture or boundary changes.
+8. Do not reset unrelated working-tree changes while debugging.
+
+## Debugging order
+
+1. Read the failing demo assertion.
+2. Inspect the implementation contract it tests.
+3. Determine whether the failure is implementation, test expectation, environment or generated-client state.
+4. Run the narrowest local reproduction.
+5. Typecheck the backend.
+6. Re-run the affected demo.
+7. Run the complete V8 validation sequence.
+8. Only then update architecture/status documentation.
+
+## Reality integrity
+
+~~~text
+prepared ≠ queued ≠ attempted ≠ executed ≠ verified
+~~~
+
+A successful internal function call is not automatically proof that the external world changed.
+
+## Production readiness gate
+
+Before calling Luuku's autonomous loop production-ready, verify durable stores, secrets, authentication, authorization, tenant boundaries, explicit actuator permissions, idempotency, provider evidence, bounded retries/recovery, monitoring, alerts, reliable founder approval/escalation, environment-driven frontend/backend configuration and representative end-to-end workflows.
