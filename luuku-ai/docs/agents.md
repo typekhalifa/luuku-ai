@@ -1,81 +1,81 @@
-# Luuku AI Agents
+# Luuku AI Agent Architecture
 
-This document defines the internal AI workforce of Luuku AI.
+This document distinguishes implemented agent surfaces from future departments. Agent count is not the objective; coordinated capability execution is.
 
----
+## Implemented agent areas
 
-# 1. Executive Assistant Agent
-## Purpose
-Help the founder manage tasks, priorities, schedules, reminders, and daily execution.
+### Executive AI
+Executive coordination, intent projection, decision support and autonomous executive cycling.
 
-## Responsibilities
-- prioritize daily work
-- structure schedules
-- summarize priorities
-- remind on important follow-ups
-- help with planning
+### Executive Assistant
+Founder planning, prioritization and execution-support workflows.
 
----
+### Research Agent
+Business/company research and opportunity discovery.
 
-# 2. Research Agent
-## Purpose
-Research companies, markets, opportunities, competitors, and AI use cases.
+### Sales Agent
+Sales pipeline, outreach and business workflow foundations.
 
-## Responsibilities
-- company research
-- lead research
-- market analysis
-- trend monitoring
-- opportunity discovery
+### Business workflows
+Business research and sales workflow agents provide specialized execution surfaces.
 
----
+### Communication / Voice
+Voice agent and execution architecture for communication workflows.
 
-# 3. Sales Agent
-## Purpose
-Support lead generation, prospect tracking, and outreach preparation.
+### Dashboard / Executive Dashboard
+Operational and executive visibility surfaces.
 
-## Responsibilities
-- identify prospects
-- organize lead information
-- draft outreach messages
-- track follow-ups
+### Test agents
+Database, contact, deal, activity, workflow and email-sales agents support development and validation.
 
----
+## Shared agent contract
 
-# 4. Proposal Agent
-## Purpose
-Draft proposals, scopes of work, quotations, and project outlines.
+Agents should rely on shared platform services for:
+- capabilities
+- communication
+- CRM
+- knowledge
+- memory
+- events
+- orchestration
+- execution
+- persistence
 
----
+Agents must not create their own competing execution authority.
 
-# 5. Finance Agent
-## Purpose
-Track revenue, expenses, invoices, and financial summaries.
+## Future departments
 
----
+Potential departments include:
+- Marketing
+- Support / Customer Success
+- Finance
+- Development
+- Operations
+- Legal
+- Proposal / Delivery
 
-# 6. Project Manager Agent
-## Purpose
-Track project progress, tasks, delivery timelines, and execution risks.
+These should be added when real workflows require them.
 
----
+## Autonomous organization model
 
-# 7. Chief of Staff Agent
-## Purpose
-Coordinate other agents, summarize operations, and escalate important matters to the founder.
+~~~text
+Executive Brain
+      ↓
+Objective / Company State
+      ↓
+Plan
+      ↓
+Agent / Capability Registry
+      ↓
+Specialized Agent
+      ↓
+V6 Execution
+      ↓
+Result / Evidence
+      ↓
+Memory / Learning
+      ↓
+Executive Brain
+~~~
 
----
-
-# Agent Development Order
-## Version 1
-- Executive Assistant Agent
-
-## Version 2
-- Research Agent
-- Sales Agent
-
-## Version 3
-- Proposal Agent
-- Finance Agent
-- Project Manager Agent
-- Chief of Staff Agent
+The target is not a fixed list of agents. The target is a system where the executive layer can select and coordinate whatever capabilities a business objective requires.
