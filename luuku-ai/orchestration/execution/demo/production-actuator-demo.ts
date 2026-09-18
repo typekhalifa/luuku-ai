@@ -1,5 +1,6 @@
 import type { AgentResult } from "../../../shared/agents/interface.js";
 import type { WorkflowStep } from "../../workflow/workflow-step.js";
+import { Priority } from "../../task/priority.js";
 import {
     InMemoryProductionActuatorRegistry,
     ProductionActuatorComposition,
@@ -24,7 +25,7 @@ const step: WorkflowStep = {
     capability: "email.send",
     status: "READY",
     requiresApproval: false,
-    priority: 1,
+    priority: Priority.MEDIUM,
 };
 
 const emailActuator: ProductionActuator = {
