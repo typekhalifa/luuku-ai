@@ -44,3 +44,6 @@ jobs:
 
       - name: V8-O validation
         run: npx tsx luuku-ai/os/executive/demo/v8-o-durable-execution-demo.ts
+
+      - name: V6 actuation boundary validation
+        run: npx tsx luuku-ai/orchestration/execution/demo/v6-actuation-boundary-demo.ts
