@@ -44,15 +44,15 @@ export class SharedAgentWorkflowExecutor implements WorkflowStepExecutor {
         if (claim.status === "completed" && claim.result) return claim.result;
 
         const result = await runAgent(step.agentId, {
-            id: authorizedStep.id,
-            title: authorizedStep.title,
-            description: authorizedStep.description,
-            priority: toAgentPriority(authorizedStep.priority),
+            id: step.id,
+            title: step.title,
+            description: step.description,
+            priority: toAgentPriority(step.priority),
             metadata: {
-                workflowStepId: authorizedStep.id,
-                workflowId: authorizedStep.workflowId,
-                capability: authorizedStep.capability,
-                input: authorizedStep.input,
+                workflowStepId: step.id,
+                workflowId,
+                capability: step.capability,
+                input: step.input,
                 idempotencyKey,
             },
         });
