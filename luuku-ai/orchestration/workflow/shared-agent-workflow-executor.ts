@@ -1,18 +1,8 @@
 import { AgentResult } from "../../shared/agents/interface";
-import { Priority } from "../task/priority";
 import { WorkflowStep } from "./workflow-step";
 import { WorkflowStepExecutor } from "./workflow-orchestrator";
 import { ExecutionLedger, workflowStepIdempotencyKey } from "../execution/execution-ledger";
 import { createDefaultProductionActuatorComposition } from "../execution/default-production-actuators.js";
-
-function toAgentPriority(priority: Priority): "low" | "medium" | "high" {
-    switch (priority) {
-        case Priority.LOW: return "low";
-        case Priority.MEDIUM: return "medium";
-        case Priority.HIGH:
-        case Priority.CRITICAL: return "high";
-    }
-}
 
 export class SharedAgentWorkflowExecutor implements WorkflowStepExecutor {
     constructor(
