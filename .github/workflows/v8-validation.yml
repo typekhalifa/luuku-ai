@@ -47,3 +47,6 @@ jobs:
 
       - name: V6 actuation boundary validation
         run: npx tsx luuku-ai/orchestration/execution/demo/v6-actuation-boundary-demo.ts
+
+      - name: Production actuator composition validation
+        run: npx tsx luuku-ai/orchestration/execution/demo/production-actuator-demo.ts
