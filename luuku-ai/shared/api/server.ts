@@ -11,7 +11,43 @@ import { resendWebhookRouter } from "./routes/resend-webhook.route";
 
 const app = express();
 
-app.use(cors());
+const port = Number(process.env.PORT || 3000);
+const environment = process.env.NODE_ENV || "development";
+const configuredOrigins = (process.env.CORS_ORIGINS || "")
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+
+const apiKey = process.env.LUUKU_API_KEY?.trim();
+
+if (environment === "production" && !apiKey) {
+    throw new Error("LUUKU_API_KEY must be configured in production.");
+}
+
+app.disable("x-powered-by");
+
+app.use(cors({
+    origin: configuredOrigins.length > 0
+        ? configuredOrigins
+        : environment === "production"
+            ? false
+            : true,
+}));
+
+app.use((request, response, next) => {
+    if (!apiKey || request.path.startsWith("/api/v1/webhooks/resend")) {
+        return next();
+    }
+
+    const suppliedKey = request.header("x-luuku-api-key");
+    if (!suppliedKey || suppliedKey !== apiKey) {
+        return response.status(401).json({
+            error: "UNAUTHORIZED",
+        });
+    }
+
+    return next();
+});
 
 // Resend requires the exact raw request body for Svix signature verification.
 app.use(
@@ -23,9 +59,8 @@ app.use(
     resendWebhookRouter
 );
 
-app.use(express.json());
+app.use(express.json({ limit: "1mb" }));
 
-// API v1
 app.use("/api/v1/dashboard", dashboardRouter);
 app.use("/api/v1/events", eventsRouter);
 app.use("/api/v1/agents", agentsRouter);
@@ -33,13 +68,12 @@ app.use("/api/v1/workflow", workflowRouter);
 app.use("/api/v1/crm", crmRouter);
 app.use("/api/v1/runtime", runtimeRouter);
 
-const PORT = 3000;
-
-app.listen(PORT, () => {
+app.listen(port, () => {
     console.log("");
     console.log("==================================");
     console.log(" LUUKU API");
     console.log("==================================");
     console.log("");
-    console.log(`Running on http://localhost:${PORT}`);
+    console.log(`Environment: ${environment}`);
+    console.log(`Running on port ${port}`);
 });
