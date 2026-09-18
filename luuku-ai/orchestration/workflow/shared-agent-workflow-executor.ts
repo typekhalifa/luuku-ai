@@ -1,9 +1,9 @@
 import { AgentResult } from "../../shared/agents/interface";
-import { runAgent } from "../../shared/agents/runner";
 import { Priority } from "../task/priority";
 import { WorkflowStep } from "./workflow-step";
 import { WorkflowStepExecutor } from "./workflow-orchestrator";
 import { ExecutionLedger, workflowStepIdempotencyKey } from "../execution/execution-ledger";
+import { createDefaultProductionActuatorComposition } from "../execution/default-production-actuators.js";
 
 function toAgentPriority(priority: Priority): "low" | "medium" | "high" {
     switch (priority) {
@@ -15,7 +15,10 @@ function toAgentPriority(priority: Priority): "low" | "medium" | "high" {
 }
 
 export class SharedAgentWorkflowExecutor implements WorkflowStepExecutor {
-    constructor(private readonly ledger = new ExecutionLedger()) {}
+    constructor(
+        private readonly ledger = new ExecutionLedger(),
+        private readonly actuators = createDefaultProductionActuatorComposition(),
+    ) {}
 
     async execute(step: WorkflowStep): Promise<AgentResult> {
         const workflowId = step.workflowId;
@@ -43,21 +46,22 @@ export class SharedAgentWorkflowExecutor implements WorkflowStepExecutor {
 
         if (claim.status === "completed" && claim.result) return claim.result;
 
-        const result = await runAgent(step.agentId, {
-            id: step.id,
-            title: step.title,
-            description: step.description,
-            priority: toAgentPriority(step.priority),
-            metadata: {
-                workflowStepId: step.id,
-                workflowId,
-                capability: step.capability,
-                input: step.input,
-                idempotencyKey,
-            },
+        const result = await this.actuators.dispatch({
+            ...step,
+            workflowId,
         });
 
-        await this.ledger.complete(idempotencyKey, result);
-        return result;
+        const agentResult = result.result ?? {
+            success: false,
+            summary: result.reason ?? "Production actuator blocked execution.",
+            completedAt: new Date().toISOString(),
+            executionStatus: "blocked",
+            executed: false,
+            verified: false,
+            blockers: [result.reason ?? "PRODUCTION_ACTUATOR_BLOCKED"],
+        };
+
+        await this.ledger.complete(idempotencyKey, agentResult);
+        return agentResult;
     }
 }
