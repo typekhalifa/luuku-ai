@@ -6,6 +6,7 @@ import {
 } from "../production-actuator.js";
 import { WorkflowOrchestrator } from "../../workflow/workflow-orchestrator.js";
 import type { Workflow } from "../../workflow/workflow.js";
+import { WorkflowStatus } from "../../workflow/workflow-status.js";
 import type { WorkflowStep } from "../../workflow/workflow-step.js";
 import type { WorkflowStepExecutor } from "../../workflow/workflow-orchestrator.js";
 
@@ -76,11 +77,13 @@ const orchestrator = new WorkflowOrchestrator(undefined, executor);
 function workflow(id: string, step: WorkflowStep): Workflow {
     return {
         id,
-        name: "V8 production actuator E2E",
-        description: "End-to-end validation of workflow orchestration through V6 and production actuator composition.",
+        goal: "V8 production actuator E2E",
+        status: WorkflowStatus.READY,
         steps: [step],
+        requiresFounderApproval: false,
         createdAt: new Date(),
         updatedAt: new Date(),
+        metadata: { source: "v8-e2e-demo" },
     };
 }
 
