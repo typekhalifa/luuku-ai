@@ -45,6 +45,8 @@ if (!recipient) {
     );
 }
 
+const configuredRecipient = recipient;
+
 if (
     process.env.LUUKU_LIVE_EMAIL_CONFIRMATION !==
     "SEND_TO_CONTROLLED_TEST_CONTACT"
@@ -75,9 +77,12 @@ async function main(): Promise<void> {
         );
     }
 
-    if (!contact.email || contact.email.toLowerCase() !== recipient.toLowerCase()) {
+    if (
+        !contact.email ||
+        contact.email.toLowerCase() !== configuredRecipient.toLowerCase()
+    ) {
         throw new Error(
-            `Controlled CRM contact ${controlledContactId} email does not match the configured recipient ${recipient}. Refusing real-email execution.`,
+            `Controlled CRM contact ${controlledContactId} email does not match the configured recipient ${configuredRecipient}. Refusing real-email execution.`,
         );
     }
 
@@ -120,7 +125,7 @@ async function main(): Promise<void> {
             const result = await communicationRouter.execute({
                 capability: "email.send",
                 channel: "email",
-                recipientExternalId: recipient,
+                recipientExternalId: configuredRecipient,
                 subject,
                 body,
                 metadata: {
@@ -196,7 +201,7 @@ async function main(): Promise<void> {
 
     console.log("");
     console.log("V8 — CONTROLLED REAL EMAIL ACTUATION");
-    console.log("Recipient                :", recipient);
+    console.log("Recipient                :", configuredRecipient);
     console.log("CRM contact              :", contact.name ?? contact.id);
     console.log("Actuator                 :", result.actuatorId);
     console.log("V6 boundary             :", result.boundary);
