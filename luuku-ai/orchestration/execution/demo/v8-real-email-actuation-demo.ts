@@ -52,28 +52,29 @@ if (
     );
 }
 
-const contacts = await prisma.contact.findMany({
-    where: {
-        email: {
-            equals: recipient,
-            mode: "insensitive",
+async function main(): Promise<void> {
+    const contacts = await prisma.contact.findMany({
+        where: {
+            email: {
+                equals: recipient,
+                mode: "insensitive",
+            },
         },
-    },
-    select: {
-        id: true,
-        email: true,
-    },
-});
-
-if (contacts.length !== 1) {
-    throw new Error(
-        contacts.length === 0
-            ? `Controlled recipient ${recipient} is not present as a unique CRM contact. Create/verify the test contact first.`
-            : `Controlled recipient ${recipient} matches ${contacts.length} CRM contacts; refusing ambiguous execution.`,
-    );
-}
-
-const crmContactId = contacts[0].id;
+        select: {
+            id: true,
+            email: true,
+        },
+    });
+    
+    if (contacts.length !== 1) {
+        throw new Error(
+            contacts.length === 0
+                ? `Controlled recipient ${recipient} is not present as a unique CRM contact. Create/verify the test contact first.`
+                : `Controlled recipient ${recipient} matches ${contacts.length} CRM contacts; refusing ambiguous execution.`,
+        );
+    }
+    
+    const crmContactId = contacts[0].id;
 
 registerCommunicationProviders();
 
@@ -195,6 +196,12 @@ async function main(): Promise<void> {
 }
 
 void main().catch((error) => {
+    console.error(error);
+    process.exitCode = 1;
+});
+
+
+main().catch((error) => {
     console.error(error);
     process.exitCode = 1;
 });
