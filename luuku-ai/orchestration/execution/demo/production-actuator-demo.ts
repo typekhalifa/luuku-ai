@@ -23,6 +23,7 @@ const step: WorkflowStep = {
     description: "Dispatch email.send through the production actuator.",
     agentId: "sales",
     capability: "email.send",
+    dependsOn: [],
     status: "READY",
     requiresApproval: false,
     priority: Priority.MEDIUM,
