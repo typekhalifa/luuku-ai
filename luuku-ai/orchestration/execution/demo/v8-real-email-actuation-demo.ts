@@ -94,6 +94,7 @@ const emailActuator: ProductionActuator = {
             executionStatus: result.status,
             executed: result.executed,
             verified: result.verified,
+            evidence: result.evidence,
             blockers: result.error ? [result.error] : undefined,
         };
     },
@@ -154,7 +155,8 @@ async function main(): Promise<void> {
     console.log("Execution status        :", result.result.executionStatus);
     console.log("Executed                :", result.result.executed ? "YES" : "NO");
     console.log("Verified                :", result.result.verified ? "YES" : "NO");
-    console.log("Provider evidence       :", result.result.summary);
+    console.log("Provider evidence       :", result.result.evidence ?? "none");
+    console.log("Execution summary      :", result.result.summary);
     console.log("");
     console.log("✓ External email was explicitly restricted to the configured test contact");
     console.log("✓ Explicit live confirmation was required");
