@@ -50,3 +50,5 @@ jobs:
 
       - name: Production actuator composition validation
         run: npx tsx luuku-ai/orchestration/execution/demo/production-actuator-demo.ts
+      - name: V8 production actuation E2E validation
+        run: npx tsx luuku-ai/orchestration/execution/demo/v8-production-actuation-e2e-demo.ts
