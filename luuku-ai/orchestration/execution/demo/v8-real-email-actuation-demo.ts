@@ -3,11 +3,11 @@ import "dotenv/config";
 import { prisma } from "../../../shared/database/client.js";
 
 import {
-    communicationRouter
+    communicationRouter,
 } from "../../../shared/communication/router.js";
 
 import {
-    registerCommunicationProviders
+    registerCommunicationProviders,
 } from "../../../shared/communication/providers.js";
 
 import type { AgentResult } from "../../../shared/agents/interface.js";
@@ -65,7 +65,7 @@ async function main(): Promise<void> {
             email: true,
         },
     });
-    
+
     if (contacts.length !== 1) {
         throw new Error(
             contacts.length === 0
@@ -73,83 +73,82 @@ async function main(): Promise<void> {
                 : `Controlled recipient ${recipient} matches ${contacts.length} CRM contacts; refusing ambiguous execution.`,
         );
     }
-    
+
     const crmContactId = contacts[0].id;
 
-registerCommunicationProviders();
+    registerCommunicationProviders();
 
-const emailActuator: ProductionActuator = {
-    id: "resend-controlled-email",
-    capabilities: ["email.send"],
-    async execute(authorizedStep): Promise<AgentResult> {
-        const input =
-            typeof authorizedStep.input === "object" &&
-            authorizedStep.input !== null
-                ? authorizedStep.input as Record<string, unknown>
-                : {};
+    const emailActuator: ProductionActuator = {
+        id: "resend-controlled-email",
+        capabilities: ["email.send"],
+        async execute(authorizedStep): Promise<AgentResult> {
+            const input =
+                typeof authorizedStep.input === "object" &&
+                authorizedStep.input !== null
+                    ? authorizedStep.input as Record<string, unknown>
+                    : {};
 
-        const subject =
-            typeof input.subject === "string"
-                ? input.subject
-                : "Luuku AI — Controlled V6 Actuation Test";
+            const subject =
+                typeof input.subject === "string"
+                    ? input.subject
+                    : "Luuku AI — Controlled V6 Actuation Test";
 
-        const body =
-            typeof input.body === "string"
-                ? input.body
-                : "This is a controlled real-email actuation test from Luuku AI.";
+            const body =
+                typeof input.body === "string"
+                    ? input.body
+                    : "This is a controlled real-email actuation test from Luuku AI.";
 
-        const result = await communicationRouter.execute({
-            capability: "email.send",
-            channel: "email",
-            recipientExternalId: recipient,
-            subject,
-            body,
-            metadata: {
-                audience: "external",
-                executionMode: "live",
-                source: "v8-real-email-actuation-demo",
-                taskId: authorizedStep.id,
-                crmContactId,
-                requesterAgentId: "sales",
-                target: "external",
-                idempotencyKey: `v8-real-email/${authorizedStep.workflowId}/${authorizedStep.id}`,
-            },
-        });
+            const result = await communicationRouter.execute({
+                capability: "email.send",
+                channel: "email",
+                recipientExternalId: recipient,
+                subject,
+                body,
+                metadata: {
+                    audience: "external",
+                    executionMode: "live",
+                    source: "v8-real-email-actuation-demo",
+                    taskId: authorizedStep.id,
+                    crmContactId,
+                    requesterAgentId: "sales",
+                    target: "external",
+                    idempotencyKey: `v8-real-email/${authorizedStep.workflowId}/${authorizedStep.id}`,
+                },
+            });
 
-        return {
-            success: result.verified,
-            summary: result.summary,
-            completedAt: new Date().toISOString(),
-            executionStatus: result.status,
-            executed: result.executed,
-            verified: result.verified,
-            evidence: result.evidence,
-            blockers: result.error ? [result.error] : undefined,
-        };
-    },
-};
+            return {
+                success: result.verified,
+                summary: result.summary,
+                completedAt: new Date().toISOString(),
+                executionStatus: result.status,
+                executed: result.executed,
+                verified: result.verified,
+                evidence: result.evidence,
+                blockers: result.error ? [result.error] : undefined,
+            };
+        },
+    };
 
-const step: WorkflowStep = {
-    id: "v8-real-email-test",
-    workflowId: "v8-real-email-actuation-workflow",
-    title: "Send controlled real email",
-    description:
-        "Send one controlled test email through the V8 production actuator and V6 execution boundary.",
-    agentId: "sales",
-    capability: "email.send",
-    dependsOn: [],
-    priority: Priority.MEDIUM,
-    requiresApproval: false,
-    status: "READY",
-    input: {
-        subject: "Luuku AI — Controlled V6 Actuation Test",
-        body:
-            "This is a controlled real-email actuation test from Luuku AI. " +
-            "It verifies the production actuator → V6 boundary → communication router → Resend path.",
-    },
-};
+    const step: WorkflowStep = {
+        id: "v8-real-email-test",
+        workflowId: "v8-real-email-actuation-workflow",
+        title: "Send controlled real email",
+        description:
+            "Send one controlled test email through the V8 production actuator and V6 execution boundary.",
+        agentId: "sales",
+        capability: "email.send",
+        dependsOn: [],
+        priority: Priority.MEDIUM,
+        requiresApproval: false,
+        status: "READY",
+        input: {
+            subject: "Luuku AI — Controlled V6 Actuation Test",
+            body:
+                "This is a controlled real-email actuation test from Luuku AI. " +
+                "It verifies the production actuator → V6 execution boundary → communication router → Resend path.",
+        },
+    };
 
-async function main(): Promise<void> {
     const registry = new InMemoryProductionActuatorRegistry();
     registry.register(emailActuator);
 
@@ -194,12 +193,6 @@ async function main(): Promise<void> {
     console.log("✓ Resend provider returned verified execution evidence");
     console.log("V8 REAL EMAIL ACTUATION: PASS");
 }
-
-void main().catch((error) => {
-    console.error(error);
-    process.exitCode = 1;
-});
-
 
 main().catch((error) => {
     console.error(error);
