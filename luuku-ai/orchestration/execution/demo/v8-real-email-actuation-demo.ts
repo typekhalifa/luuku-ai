@@ -23,6 +23,8 @@ const recipient =
     process.env.LUUKU_TEST_CONTACT_EMAIL ||
     process.env.EMAIL_TEST_RECIPIENT;
 
+const controlledContactId = "5cf97e46-2eec-4d92-985f-df8a69827367";
+
 const requiredEnvironment = [
     "RESEND_API_KEY",
     "RESEND_FROM_EMAIL",
@@ -53,28 +55,45 @@ if (
 }
 
 async function main(): Promise<void> {
-    const contacts = await prisma.contact.findMany({
+    const contact = await prisma.contact.findUnique({
         where: {
-            email: {
-                equals: recipient,
-                mode: "insensitive",
-            },
+            id: controlledContactId,
         },
         select: {
             id: true,
             email: true,
+            name: true,
+            verified: true,
+            confidence: true,
+            source: true,
         },
     });
 
-    if (contacts.length !== 1) {
+    if (!contact) {
         throw new Error(
-            contacts.length === 0
-                ? `Controlled recipient ${recipient} is not present as a unique CRM contact. Create/verify the test contact first.`
-                : `Controlled recipient ${recipient} matches ${contacts.length} CRM contacts; refusing ambiguous execution.`,
+            `Controlled CRM contact ${controlledContactId} does not exist. Refusing real-email execution.`,
         );
     }
 
-    const crmContactId = contacts[0].id;
+    if (!contact.email || contact.email.toLowerCase() !== recipient.toLowerCase()) {
+        throw new Error(
+            `Controlled CRM contact ${controlledContactId} email does not match the configured recipient ${recipient}. Refusing real-email execution.`,
+        );
+    }
+
+    if (!contact.verified || contact.confidence !== 100) {
+        throw new Error(
+            `Controlled CRM contact ${controlledContactId} is not fully verified. Refusing real-email execution.`,
+        );
+    }
+
+    if (contact.source !== "Luuku AI Controlled Test Fixture") {
+        throw new Error(
+            `Controlled CRM contact ${controlledContactId} is not the expected Luuku AI test fixture. Refusing real-email execution.`,
+        );
+    }
+
+    const crmContactId = contact.id;
 
     registerCommunicationProviders();
 
@@ -145,7 +164,7 @@ async function main(): Promise<void> {
             subject: "Luuku AI — Controlled V6 Actuation Test",
             body:
                 "This is a controlled real-email actuation test from Luuku AI. " +
-                "It verifies the production actuator → V6 execution boundary → communication router → Resend path.",
+                "It verifies the V8 production actuator → V6 execution boundary → communication router → Resend path.",
         },
     };
 
@@ -178,14 +197,18 @@ async function main(): Promise<void> {
     console.log("");
     console.log("V8 — CONTROLLED REAL EMAIL ACTUATION");
     console.log("Recipient                :", recipient);
+    console.log("CRM contact              :", contact.name ?? contact.id);
     console.log("Actuator                 :", result.actuatorId);
     console.log("V6 boundary             :", result.boundary);
-    console.log("Execution status        :", result.result.executionStatus);
-    console.log("Executed                :", result.result.executed ? "YES" : "NO");
-    console.log("Verified                :", result.result.verified ? "YES" : "NO");
-    console.log("Provider evidence       :", result.result.evidence ?? "none");
-    console.log("Execution summary      :", result.result.summary);
+    console.log("Execution status         :", result.result.executionStatus);
+    console.log("Executed                 :", result.result.executed ? "YES" : "NO");
+    console.log("Verified                 :", result.result.verified ? "YES" : "NO");
+    console.log("Provider evidence        :", result.result.evidence ?? "none");
+    console.log("Execution summary        :", result.result.summary);
     console.log("");
+    console.log("✓ Explicit CRM test fixture was selected");
+    console.log("✓ CRM identity matched the configured recipient");
+    console.log("✓ CRM identity was verified at confidence 100");
     console.log("✓ External email was explicitly restricted to the configured test contact");
     console.log("✓ Explicit live confirmation was required");
     console.log("✓ Production actuator crossed the V6 execution boundary");
