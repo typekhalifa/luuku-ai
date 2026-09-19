@@ -1,5 +1,7 @@
 import "dotenv/config";
 
+import { prisma } from "../../../shared/database/client.js";
+
 import {
     communicationRouter
 } from "../../../shared/communication/router.js";
@@ -50,6 +52,29 @@ if (
     );
 }
 
+const contacts = await prisma.contact.findMany({
+    where: {
+        email: {
+            equals: recipient,
+            mode: "insensitive",
+        },
+    },
+    select: {
+        id: true,
+        email: true,
+    },
+});
+
+if (contacts.length !== 1) {
+    throw new Error(
+        contacts.length === 0
+            ? `Controlled recipient ${recipient} is not present as a unique CRM contact. Create/verify the test contact first.`
+            : `Controlled recipient ${recipient} matches ${contacts.length} CRM contacts; refusing ambiguous execution.`,
+    );
+}
+
+const crmContactId = contacts[0].id;
+
 registerCommunicationProviders();
 
 const emailActuator: ProductionActuator = {
@@ -83,6 +108,9 @@ const emailActuator: ProductionActuator = {
                 executionMode: "live",
                 source: "v8-real-email-actuation-demo",
                 taskId: authorizedStep.id,
+                crmContactId,
+                requesterAgentId: "sales",
+                target: "external",
                 idempotencyKey: `v8-real-email/${authorizedStep.workflowId}/${authorizedStep.id}`,
             },
         });
