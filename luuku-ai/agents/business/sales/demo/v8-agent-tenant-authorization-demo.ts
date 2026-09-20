@@ -1,4 +1,4 @@
-import { executeSalesWorkflow } from "../../../agents/business/sales/workflow";
+import { executeSalesWorkflow } from "../workflow";
 
 async function main(): Promise<void> {
     const result = await executeSalesWorkflow({
