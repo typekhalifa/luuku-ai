@@ -84,8 +84,16 @@ export class CommunicationExecutionService {
                     where: { idempotencyKey },
                 });
 
-            if (existing && existing.companyId && companyId && existing.companyId !== companyId) {
-                throw new Error("COMMUNICATION_IDEMPOTENCY_TENANT_MISMATCH");
+            if (
+                existing &&
+                (
+                    existing.ownershipScope !== (companyId ? "COMPANY" : "SYSTEM") ||
+                    (companyId
+                        ? existing.companyId !== companyId
+                        : Boolean(existing.companyId || existing.spaceId))
+                )
+            ) {
+                throw new Error("COMMUNICATION_IDEMPOTENCY_OWNERSHIP_MISMATCH");
             }
 
             if (existing && !isSafeToRetry(existing)) {
@@ -122,7 +130,9 @@ export class CommunicationExecutionService {
                 await this.db.communicationExecution.update({
                     where: { id: existing.id },
                     data: {
+                        ownershipScope: "COMPANY",
                         companyId,
+                        spaceId: null,
                         policyDecision: policy.decision,
                         policyReason: policy.reason,
                         executionMode:
@@ -151,7 +161,9 @@ export class CommunicationExecutionService {
         const record =
             await this.db.communicationExecution.create({
                 data: {
-                    companyId,
+                    ownershipScope: companyId ? "COMPANY" : "SYSTEM",
+                    companyId: companyId ?? null,
+                    spaceId: null,
                     conversationId:
                         metadataString(request, "conversationId"),
                     taskId:
