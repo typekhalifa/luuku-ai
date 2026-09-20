@@ -61,6 +61,26 @@ prepared ≠ queued ≠ attempted ≠ executed ≠ verified
 
 A successful internal function call is not automatically proof that the external world changed.
 
+## Latest V8 validation evidence
+
+The latest local validation completed without failures:
+
+- Backend typecheck — PASS
+- V8-K Long-Horizon Planning — PASS
+- V8-L Institutional Company Memory — PASS
+- V8-L Executive-to-Institutional Memory Projection — PASS
+- V8-M Exception Management — PASS
+- V8-N Autonomous Company Loop — PASS
+- V8-O Durable Execution & Recovery — PASS
+- V6 Actuation Boundary — PASS
+- Production Actuator Composition — PASS
+- V8 End-to-End Actuation / exactly-once — PASS
+- Controlled real-email actuation — PASS in Resend test mode
+
+The controlled real-email validation used an explicit CRM test fixture, verified recipient identity, confidence 100, explicit live confirmation, the production actuator composition, the V6 execution boundary, the Communication Router and Resend provider evidence. The provider returned verified execution evidence and the controlled message was received. This does not represent unrestricted production email sending.
+
+The current architectural rule remains: V8 orchestrates and governs; V6 remains the sole execution authority.
+
 ## Production readiness gate
 
 Before calling Luuku's autonomous loop production-ready, verify durable stores, secrets, authentication, authorization, tenant boundaries, explicit actuator permissions, idempotency, provider evidence, bounded retries/recovery, monitoring, alerts, reliable founder approval/escalation, environment-driven frontend/backend configuration and representative end-to-end workflows.
