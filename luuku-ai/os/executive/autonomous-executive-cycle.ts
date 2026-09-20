@@ -1,5 +1,5 @@
 import type { QueueStore } from "../../orchestration/queue/queue.js";
-import type { ExecutionOwnership } from "../../orchestration/ownership.js";
+import { normalizeExecutionOwnership, type ExecutionOwnership } from "../../orchestration/ownership.js";
 import { AutonomousRuntime, type AutonomousRuntimeCycleResult } from "../../orchestration/workflow/autonomous-runtime.js";
 import type { WorkflowStore } from "../../orchestration/workflow/workflow-store.js";
 import { SharedAgentWorkflowExecutor } from "../../orchestration/workflow/shared-agent-workflow-executor.js";
@@ -30,7 +30,7 @@ import { AutonomousCompanyLoopEngine, type AutonomousCompanyLoopCycle } from "./
 import type { ExecutiveExceptionSignal } from "./v8-m-exception-management.js";
 
 export interface AutonomousExecutiveCycleOptions {
-    readonly ownership: ExecutionOwnership;
+    readonly ownership?: ExecutionOwnership;
     readonly capabilities: IntentPlanCapabilityMap;
     readonly policyRules: readonly AutonomyPolicyRule[];
     readonly executeRuntime?: boolean;
@@ -91,7 +91,7 @@ export class AutonomousExecutiveCycle {
     private readonly companyLoop = new AutonomousCompanyLoopEngine();
 
     constructor(private readonly workflowStore: WorkflowStore, private readonly queueStore: QueueStore, capabilityResolver: CapabilityResolver, options: AutonomousExecutiveCycleOptions) {
-        this.ownership = options.ownership;
+        this.ownership = normalizeExecutionOwnership(options.ownership);
         this.stateSource = new DurableExecutiveStateSource(workflowStore, queueStore);
         this.feedbackSource = new DurableExecutionFeedbackSource(workflowStore, queueStore);
         this.planBuilder = new ExecutiveIntentPlanBuilder(capabilityResolver);
