@@ -60,6 +60,7 @@ model Company {
   activities Activity[]
   contacts   Contact[]
   deals      Deal[]
+  workflows  Workflow[]
   communicationConversations CommunicationConversation[]
   communicationExecutions CommunicationExecution[]
   communicationEvents CommunicationEvent[]
@@ -233,15 +234,21 @@ model CommunicationExecution {
 
 model Workflow {
   id                    String         @id
+  ownershipScope        String?
+  companyId             String?
   goal                  String
   status                String
   requiresFounderApproval Boolean      @default(false)
   approvedAt            DateTime?
   metadata              Json
-  createdAt             DateTime       @default(now())
-  updatedAt             DateTime       @updatedAt
+  createdAt              DateTime       @default(now())
+  updatedAt              DateTime       @updatedAt
   steps                 WorkflowStep[]
+  queueItems            QueueItem[]
+  company               Company?       @relation(fields: [companyId], references: [id], onDelete: SetNull)
   @@index([status])
+  @@index([companyId])
+  @@index([ownershipScope])
 }
 
 model WorkflowStep {
@@ -267,17 +274,18 @@ model WorkflowStep {
 }
 
 model QueueItem {
-  id         String   @id
-  workflowId String
-  stepId     String
-  agentId    String
-  priority   String
+  id          String   @id
+  workflowId  String
+  stepId      String
+  agentId     String
+  priority    String
   availableAt DateTime
-  status     String
-  attempts   Int      @default(0)
-  metadata   Json
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  status      String
+  attempts    Int      @default(0)
+  metadata    Json
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  workflow    Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
   @@index([status, availableAt])
   @@index([priority, availableAt])
   @@index([workflowId])
