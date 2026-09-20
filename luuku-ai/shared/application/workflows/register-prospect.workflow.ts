@@ -43,7 +43,8 @@ export class RegisterProspectWorkflow {
 
     async execute(
 
-        request: RegisterProspectRequest
+        request: RegisterProspectRequest,
+        companyId?: string
 
     ): Promise<RegisterProspectResult> {
 
@@ -53,7 +54,8 @@ export class RegisterProspectWorkflow {
         const companyCreated =
             await this.ensureCompany(
                 context,
-                request.company
+                request.company,
+                companyId
             );
 
         await this.ensurePrimaryContact(
@@ -145,9 +147,21 @@ export class RegisterProspectWorkflow {
 
         context: WorkflowContext,
 
-        company: RegisterProspectRequest["company"]
+        company: RegisterProspectRequest["company"],
+        companyId?: string
 
     ): Promise<boolean> {
+
+        if (companyId) {
+            const existing = await companyService.getCompany(companyId);
+
+            if (!existing) {
+                throw new Error("COMPANY_NOT_FOUND_OR_UNAUTHORIZED");
+            }
+
+            context.company = existing;
+            return false;
+        }
 
         const existing =
             await companyService.findCompany(
@@ -179,7 +193,7 @@ export class RegisterProspectWorkflow {
                 updatedAt:
                     now
 
-            });
+            }, context.company!.id);
 
         return true;
 
@@ -262,7 +276,7 @@ export class RegisterProspectWorkflow {
                     updatedAt:
                         now
 
-                });
+                }, context.company!.id);
 
             return;
 
@@ -420,7 +434,7 @@ export class RegisterProspectWorkflow {
                 createdAt:
                     new Date().toISOString()
 
-            });
+            }, context.company!.id);
 
     }
 
