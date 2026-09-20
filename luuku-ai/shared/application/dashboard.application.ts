@@ -4,17 +4,18 @@ import { communicationObservability } from "../communication";
 
 export class DashboardApplication {
     async getOverview(context: ApiRequestContext) {
-        const [companies, communication] = await Promise.all([\n            companyService.getCompanies(context.companyId),\n            communicationObservability.getSnapshot(10, context.companyId),\n        ]);
+        const [companies, communication] = await Promise.all([
+            companyService.getCompanies(context.companyId),
+            communicationObservability.getSnapshot(10, context.companyId),
+        ]);
 
-        // Global communication/event stores are not durably tenant-scoped yet.
-        // Fail closed rather than exposing another tenant's telemetry.
+        // Communication telemetry currently fails closed to an empty tenant-scoped snapshot.
         return {
             companies: companies.length,
             agents: 3,
             workflows: 0,
             events: 0,
-            communication: null,
-            tenantScopeStatus: "CRM_SCOPED_COMMUNICATION_TELEMETRY_PENDING",
+            communication,
         };
     }
 }
