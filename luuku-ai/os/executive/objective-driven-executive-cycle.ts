@@ -9,6 +9,7 @@ import { ExecutiveObjectiveInterventionEngine, type ObjectiveIntervention } from
 import { ExecutiveObjectiveProgressTrendScorer, type ObjectiveProgressTrendScore } from "./objective-progress-trend.js";
 import { ExecutiveObjectiveUrgencyScorer, type ObjectiveUrgencyScore } from "./objective-urgency.js";
 import type { ExecutiveState } from "./executive-state.js";
+import type { ExecutionOwnership } from "../../orchestration/ownership.js";
 import { ExecutiveLearningEngine, InMemoryExecutiveMemoryStore, type ExecutiveLearningRecord, type ExecutiveMemoryStore } from "./executive-memory.js";
 import { MemoryAwareStrategyEngine, type MemoryAwareStrategyDecision } from "./memory-aware-strategy.js";
 import { ExecutiveAdaptiveInterventionPolicy, type AdaptiveInterventionDecision } from "./adaptive-intervention-policy.js";
@@ -121,7 +122,7 @@ export class ObjectiveDrivenExecutiveCycle {
                 results.push({ objective, assessment, urgency, progressTrend, intervention, learning, strategyEvolution, strategy, adaptiveIntervention, intent, capacity, budget, tradeoff, learningAdaptation });
                 continue;
             }
-            const plan = this.planBuilder.build({ intent, capabilities });
+            const plan = this.planBuilder.build({ intent, capabilities, ownership: options.ownership });
             results.push({ objective, assessment, urgency, progressTrend, intervention, learning, strategyEvolution, strategy, adaptiveIntervention, intent, plan, capacity, budget, tradeoff, learningAdaptation });
         }
         return results;
