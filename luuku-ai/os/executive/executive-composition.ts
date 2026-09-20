@@ -1,5 +1,5 @@
 import type { QueueStore } from "../../orchestration/queue/queue.js";
-import type { ExecutionOwnership } from "../../orchestration/ownership.js";
+import { normalizeExecutionOwnership, type ExecutionOwnership } from "../../orchestration/ownership.js";
 import type { WorkflowStepExecutor } from "../../orchestration/workflow/workflow-orchestrator.js";
 import type { WorkflowStore } from "../../orchestration/workflow/workflow-store.js";
 import type { CapabilityResolver } from "../planning/capability-resolver.js";
@@ -20,7 +20,7 @@ import type { InstitutionalMemoryStore } from "./v8-l-institutional-memory.js";
  * domain behavior. Durable implementations should be supplied by the caller.
  */
 export interface ExecutiveCompositionDependencies {
-    readonly ownership: ExecutionOwnership;
+    readonly ownership?: ExecutionOwnership;
     readonly workflowStore: WorkflowStore;
     readonly queueStore: QueueStore;
     readonly capabilityResolver: CapabilityResolver;
@@ -50,7 +50,7 @@ export function createExecutiveComposition(
     dependencies: ExecutiveCompositionDependencies,
 ): ExecutiveComposition {
     const cycleOptions: AutonomousExecutiveCycleOptions = {
-        ownership: dependencies.ownership,
+        ownership: normalizeExecutionOwnership(dependencies.ownership),
         capabilities: dependencies.capabilities,
         policyRules: dependencies.policyRules,
         executeRuntime: dependencies.executeRuntime,
