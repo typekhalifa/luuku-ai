@@ -10,10 +10,11 @@ export function assertValidExecutionOwnership(ownership: ExecutionOwnership): vo
 
 export function ownershipMatches(
     left: ExecutionOwnership,
-    right: ExecutionOwnership,
+    right?: ExecutionOwnership,
 ): boolean {
-    if (left.scope !== right.scope) return false;
-    return left.scope === "SYSTEM" || left.companyId === right.companyId;
+    const normalizedRight = normalizeExecutionOwnership(right);
+    if (left.scope !== normalizedRight.scope) return false;
+    return left.scope === "SYSTEM" || left.companyId === normalizedRight.companyId;
 }
 
 export function normalizeExecutionOwnership(ownership?: ExecutionOwnership): ExecutionOwnership {
