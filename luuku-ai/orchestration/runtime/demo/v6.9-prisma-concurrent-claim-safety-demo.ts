@@ -6,7 +6,7 @@ import { PrismaQueueStore } from "../../queue/prisma-queue-store.js";
 import { QueueItemStatus } from "../../queue/queue.js";
 
 async function main() {
-    const queue = new PrismaQueueStore();
+    const queue = new PrismaQueueStore({ scope: "SYSTEM" });
     const workflowId = `v6.9-prisma-concurrent-claim-${Date.now()}`;
     const queueId = `${workflowId}:marketing`;
     const now = new Date();
