@@ -3,64 +3,30 @@ import { Activity } from "../../domain/activity";
 import { activityRepository } from "../repositories/activity.repository";
 
 export class ActivityService {
-
-    async getActivities(): Promise<Activity[]> {
-
-        return activityRepository.findAll();
-
+    async getActivities(companyId?: string): Promise<Activity[]> {
+        return activityRepository.findAll(companyId);
     }
 
-    async getCompanyActivities(
-
-        companyId: string
-
-    ): Promise<Activity[]> {
-
-        return activityRepository.findByCompany(
-
-            companyId
-
-        );
-
+    async getCompanyActivities(companyId: string): Promise<Activity[]> {
+        return activityRepository.findByCompany(companyId);
     }
 
-    async getIncompleteActivities(
-
-        limit?: number
-
-    ): Promise<Activity[]> {
-
+    async getIncompleteActivities(limit?: number): Promise<Activity[]> {
         return activityRepository.findIncomplete(limit);
-
     }
 
-    async getOverdueActivities(
-
-        limit?: number
-
-    ): Promise<Activity[]> {
-
+    async getOverdueActivities(limit?: number): Promise<Activity[]> {
         return activityRepository.findOverdue(limit);
-
     }
 
-    async getActivitiesByIds(
-
-        ids: string[]
-
-    ): Promise<Activity[]> {
-
+    async getActivitiesByIds(ids: string[]): Promise<Activity[]> {
         return activityRepository.findByIds(ids);
-
     }
 
     async markPrioritized(
-
         activity: Activity,
         actor = "Lex Executive AI"
-
     ): Promise<Activity> {
-
         const marker = `[LEX PRIORITY: HIGH] ${actor}`;
         const description = activity.description.startsWith(marker)
             ? activity.description
@@ -71,24 +37,11 @@ export class ActivityService {
             "Prioritized for follow-up by Lex Executive AI",
             description
         );
-
     }
 
-    async createActivity(
-
-        activity: Activity
-
-    ): Promise<Activity> {
-
-        return activityRepository.create(
-
-            activity
-
-        );
-
+    async createActivity(activity: Activity): Promise<Activity> {
+        return activityRepository.create(activity);
     }
-
 }
 
-export const activityService =
-    new ActivityService();
+export const activityService = new ActivityService();
