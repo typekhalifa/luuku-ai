@@ -1,7 +1,9 @@
 import { QueueItem, QueueStore } from "../queue/queue";
+import type { ExecutionOwnership } from "../ownership";
 
 export interface ScheduleItemInput {
     id: string;
+    ownership: ExecutionOwnership;
     workflowId: string;
     stepId: string;
     agentId: string;
