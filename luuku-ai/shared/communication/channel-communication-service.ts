@@ -2,6 +2,7 @@ import {
     CommunicationService,
     ReceiveMessageInput,
     SendMessageInput,
+    CommunicationContext,
 } from "./communication-service";
 import { CommunicationConversation } from "./conversation";
 import { CommunicationMessage } from "./message";
@@ -32,8 +33,6 @@ export class ChannelCommunicationService implements CommunicationService {
             metadata: input.metadata,
         };
 
-        // External delivery is the source of truth. Do not persist an outbound
-        // message as if it was sent before the channel adapter confirms success.
         await adapter.send(outbound);
 
         return this.store.sendMessage({
@@ -52,7 +51,8 @@ export class ChannelCommunicationService implements CommunicationService {
 
     async getConversation(
         conversationId: string,
+        context: CommunicationContext,
     ): Promise<CommunicationConversation | null> {
-        return this.store.getConversation(conversationId);
+        return this.store.getConversation(conversationId, context);
     }
 }
