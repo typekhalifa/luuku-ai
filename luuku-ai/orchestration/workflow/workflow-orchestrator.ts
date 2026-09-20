@@ -48,6 +48,7 @@ export class WorkflowOrchestrator {
             if (!step) continue;
 
             step.workflowId = workflow.id;
+            step.ownership = workflow.ownership;
             step.status = "RUNNING";
             const result = await this.executor.execute(step);
             results[step.id] = result;
