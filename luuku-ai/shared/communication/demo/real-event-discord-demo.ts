@@ -50,6 +50,7 @@ async function runDemo() {
         source: "executive-ai",
         timestamp: new Date().toISOString(),
         payload: {
+                context: { ownership: { scope: "SYSTEM" } },
             conversationId,
             channel: "discord",
             recipient: {
