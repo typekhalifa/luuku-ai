@@ -7,7 +7,10 @@ export class ActivityService {
         return activityRepository.findAll(companyId);
     }
 
-    async getCompanyActivities(companyId: string): Promise<Activity[]> {
+    async getCompanyActivities(companyId: string, requesterCompanyId?: string): Promise<Activity[]> {
+        if (requesterCompanyId && companyId !== requesterCompanyId) {
+            throw new Error("COMPANY_TENANT_MISMATCH");
+        }
         return activityRepository.findByCompany(companyId);
     }
 
