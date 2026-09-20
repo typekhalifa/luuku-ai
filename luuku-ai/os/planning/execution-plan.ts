@@ -11,6 +11,7 @@ export interface ExecutionPlanStep {
 
 export interface ExecutionPlan {
     id: string;
+    ownership: ExecutionOwnership;
     goal: string;
     sourcePlanId: string;
     steps: ExecutionPlanStep[];
@@ -59,6 +60,7 @@ export function createExecutionPlan(plan: Plan, ownership: ExecutionOwnership): 
 
     return {
         id: `execution-${plan.id}`,
+        ownership,
         goal: plan.goal,
         sourcePlanId: plan.id,
         steps,
