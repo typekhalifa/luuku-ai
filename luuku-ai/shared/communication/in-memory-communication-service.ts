@@ -1,11 +1,13 @@
 import { CommunicationService, ReceiveMessageInput, SendMessageInput } from "./communication-service";
 import { CommunicationConversation } from "./conversation";
 import { CommunicationMessage } from "./message";
+import { assertValidOwnership } from "./ownership";
 
 export class InMemoryCommunicationService implements CommunicationService {
     private readonly conversations = new Map<string, CommunicationConversation>();
 
     async sendMessage(input: SendMessageInput): Promise<CommunicationMessage> {
+        assertValidOwnership(input.context.ownership);
         const conversation = this.getOrCreateConversation(
             input.conversationId,
             input.channel,
@@ -36,6 +38,7 @@ export class InMemoryCommunicationService implements CommunicationService {
     }
 
     async receiveMessage(input: ReceiveMessageInput): Promise<CommunicationMessage> {
+        assertValidOwnership(input.context.ownership);
         const conversationId = input.externalConversationId ?? this.createId("conv");
         const conversation = this.getOrCreateConversation(
             conversationId,
@@ -67,6 +70,7 @@ export class InMemoryCommunicationService implements CommunicationService {
         conversationId: string,
         context: import("./communication-service").CommunicationContext,
     ): Promise<CommunicationConversation | null> {
+        assertValidOwnership(context.ownership);
         const conversation = this.conversations.get(conversationId);
         if (!conversation) return null;
         if (!this.sameOwnership(conversation.ownership, context.ownership)) {
@@ -81,6 +85,7 @@ export class InMemoryCommunicationService implements CommunicationService {
         participant: CommunicationConversation["participants"][number],
         context: import("./communication-service").CommunicationContext,
     ): CommunicationConversation {
+        assertValidOwnership(context.ownership);
         const existing = this.conversations.get(conversationId);
 
         if (existing) {
