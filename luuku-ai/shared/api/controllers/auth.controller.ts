@@ -1,5 +1,25 @@
 import type { Request, Response } from "express";
 
+const loginAttempts = new Map<string, { count: number; resetAt: number }>();
+const LOGIN_WINDOW_MS = 15 * 60 * 1000;
+const LOGIN_MAX_ATTEMPTS = 10;
+
+function clientKey(request: Request): string {
+    return request.ip || request.socket.remoteAddress || "unknown";
+}
+
+function rateLimited(request: Request): boolean {
+    const now = Date.now();
+    const key = clientKey(request);
+    const current = loginAttempts.get(key);
+    if (!current || current.resetAt <= now) {
+        loginAttempts.set(key, { count: 1, resetAt: now + LOGIN_WINDOW_MS });
+        return false;
+    }
+    current.count += 1;
+    return current.count > LOGIN_MAX_ATTEMPTS;
+}
+
 import { login, logout, getSession } from "../../auth/auth.service";
 
 function sessionToken(request: Request): string | undefined {
@@ -9,6 +29,11 @@ function sessionToken(request: Request): string | undefined {
 export async function loginController(request: Request, response: Response): Promise<void> {
     const email = typeof request.body?.email === "string" ? request.body.email : "";
     const password = typeof request.body?.password === "string" ? request.body.password : "";
+
+    if (rateLimited(request)) {
+        response.status(429).json({ error: "TOO_MANY_LOGIN_ATTEMPTS" });
+        return;
+    }
 
     if (!email || !password) {
         response.status(400).json({ error: "EMAIL_AND_PASSWORD_REQUIRED" });
