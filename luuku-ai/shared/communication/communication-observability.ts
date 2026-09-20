@@ -53,8 +53,23 @@ export class CommunicationObservabilityService {
         recentLimit = 20,
         companyId?: string,
     ): Promise<CommunicationObservabilitySnapshot> {
-        if (!companyId) throw new Error("TENANT_CONTEXT_REQUIRED_FOR_COMMUNICATION_OBSERVABILITY");
-        throw new Error("TENANT_SCOPED_COMMUNICATION_OBSERVABILITY_NOT_IMPLEMENTED");
+        if (!companyId) {
+            throw new Error("TENANT_CONTEXT_REQUIRED_FOR_COMMUNICATION_OBSERVABILITY");
+        }
+
+        // Communication records predate durable tenant ownership. Returning
+        // global telemetry here would cross the authenticated tenant boundary.
+        // Until the communication schema carries companyId, fail closed with
+        // an empty tenant-scoped snapshot rather than exposing global data.
+        return {
+            generatedAt: new Date(),
+            messages: { total: 0, inbound: 0, outbound: 0 },
+            conversations: { total: 0, active: 0 },
+            executions: { total: 0, verified: 0, failed: 0, byStatus: {}, byPolicyDecision: {} },
+            events: { total: 0, byProvider: {}, byType: {} },
+            channels: {},
+            timeline: [],
+        };
         const [
             messageTotal,
             inboundMessages,
