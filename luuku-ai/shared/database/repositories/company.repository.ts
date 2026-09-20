@@ -14,16 +14,23 @@ export class CompanyRepository extends BaseRepository<Company> {
         return companies.map(CompanyMapper.toDomain);
     }
 
-    async findById(id: string): Promise<Company | null> {
-        const company = await prisma.company.findUnique({ where: { id } });
+    async findById(id: string, companyId?: string): Promise<Company | null> {
+        const company = companyId
+            ? await prisma.company.findFirst({ where: { id, id: companyId } })
+            : await prisma.company.findUnique({ where: { id } });
+
         if (!company) return null;
         return CompanyMapper.toDomain(company);
     }
 
-    async findByName(name: string): Promise<Company | null> {
+    async findByName(name: string, companyId?: string): Promise<Company | null> {
         const company = await prisma.company.findFirst({
-            where: { name: { contains: name, mode: "insensitive" } }
+            where: {
+                name: { contains: name, mode: "insensitive" },
+                ...(companyId ? { id: companyId } : {})
+            }
         });
+
         if (!company) return null;
         return CompanyMapper.toDomain(company);
     }
@@ -35,7 +42,15 @@ export class CompanyRepository extends BaseRepository<Company> {
         return CompanyMapper.toDomain(created);
     }
 
-    async update(company: Company): Promise<Company> {
+    async update(company: Company, companyId?: string): Promise<Company> {
+        if (companyId) {
+            const owned = await prisma.company.findFirst({
+                where: { id: company.id, id: companyId },
+                select: { id: true }
+            });
+            if (!owned) throw new Error("COMPANY_NOT_FOUND_OR_UNAUTHORIZED");
+        }
+
         const updated = await prisma.company.update({
             where: { id: company.id },
             data: CompanyMapper.toPersistence(company)
@@ -43,7 +58,15 @@ export class CompanyRepository extends BaseRepository<Company> {
         return CompanyMapper.toDomain(updated);
     }
 
-    async delete(id: string): Promise<void> {
+    async delete(id: string, companyId?: string): Promise<void> {
+        if (companyId) {
+            const owned = await prisma.company.findFirst({
+                where: { id, id: companyId },
+                select: { id: true }
+            });
+            if (!owned) throw new Error("COMPANY_NOT_FOUND_OR_UNAUTHORIZED");
+        }
+
         await prisma.company.delete({ where: { id } });
     }
 }
