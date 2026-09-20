@@ -15,6 +15,7 @@ export interface IntentPlanCapabilityMap {
 
 export interface IntentPlanRequest {
     intent: ExecutiveIntent;
+    ownership: ExecutionOwnership;
     capabilities: IntentPlanCapabilityMap;
 }
 
