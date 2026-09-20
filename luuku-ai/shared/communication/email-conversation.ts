@@ -17,18 +17,22 @@ export function normalizeEmailSubject(value: string): string {
 export function buildEmailThreadKey(
     participantEmail: string,
     subject: string,
+    companyId?: string,
 ): string {
-    return `email:${normalizeEmail(participantEmail)}:${normalizeEmailSubject(subject) || "no-subject"}`;
+    const tenantPrefix = companyId ? `${companyId}:` : "unscoped:";
+    return `email:${tenantPrefix}${normalizeEmail(participantEmail)}:${normalizeEmailSubject(subject) || "no-subject"}`;
 }
 
 export async function getOrCreateEmailConversation(input: {
     participantEmail: string;
     subject: string;
+    companyId?: string;
     metadata?: Record<string, unknown>;
 }): Promise<{ id: string; threadKey: string }> {
     const threadKey = buildEmailThreadKey(
         input.participantEmail,
         input.subject,
+        input.companyId,
     );
 
     const existing = await prisma.communicationConversation.findUnique({
@@ -45,6 +49,7 @@ export async function getOrCreateEmailConversation(input: {
     try {
         const created = await prisma.communicationConversation.create({
             data: {
+                companyId: input.companyId,
                 channel: "email",
                 threadKey,
                 participants: [
