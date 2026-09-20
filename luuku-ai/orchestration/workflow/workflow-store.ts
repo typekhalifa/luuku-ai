@@ -69,6 +69,7 @@ function cloneWorkflow(workflow: Workflow): Workflow {
         updatedAt: new Date(workflow.updatedAt),
         steps: workflow.steps.map((step) => ({
             ...step,
+            ownership: step.ownership ? { ...step.ownership } : undefined,
             dependsOn: [...step.dependsOn],
         })),
         metadata: { ...workflow.metadata },
