@@ -1,5 +1,8 @@
 import { EventBus, EventHandler } from "../events";
-import { CommunicationMessageRequestedPayload, COMMUNICATION_MESSAGE_REQUESTED_EVENT } from "./events";
+import {
+    CommunicationMessageRequestedPayload,
+    COMMUNICATION_MESSAGE_REQUESTED_EVENT,
+} from "./events";
 import { CommunicationService } from "./communication-service";
 
 export class EventCommunicationBridge {
@@ -23,6 +26,7 @@ export class EventCommunicationBridge {
             channel: payload.channel,
             recipient: payload.recipient,
             content: payload.content,
+            context: payload.context,
             metadata: {
                 ...payload.metadata,
                 eventId: event.id,
