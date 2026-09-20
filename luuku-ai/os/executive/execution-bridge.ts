@@ -38,6 +38,7 @@ export class ExecutiveExecutionBridge {
 
         const workflow: Workflow = {
             id: plan.id,
+            ownership: plan.ownership,
             goal: plan.goal,
             status: WorkflowStatus.READY,
             steps,
