@@ -84,6 +84,10 @@ export class CommunicationExecutionService {
                     where: { idempotencyKey },
                 });
 
+            if (existing && existing.companyId && companyId && existing.companyId !== companyId) {
+                throw new Error("COMMUNICATION_IDEMPOTENCY_TENANT_MISMATCH");
+            }
+
             if (existing && !isSafeToRetry(existing)) {
                 return {
                     id: existing.id,
@@ -112,6 +116,9 @@ export class CommunicationExecutionService {
             }
 
             if (existing && isSafeToRetry(existing)) {
+                if (!companyId) {
+                    throw new Error("TENANT_CONTEXT_REQUIRED");
+                }
                 await this.db.communicationExecution.update({
                     where: { id: existing.id },
                     data: {
