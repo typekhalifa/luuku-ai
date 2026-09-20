@@ -76,7 +76,7 @@ async function cleanup() {
 
 async function main() {
     await cleanup();
-    await new PrismaWorkflowStore().create(workflow);
+    await new PrismaWorkflowStore({ scope: "SYSTEM" }).create(workflow);
 
     const runtime = () => new AutonomousRuntime(
         new QueueScheduler(new PrismaQueueStore()),
@@ -91,7 +91,7 @@ async function main() {
     assert.deepEqual(first.failed, []);
     assert.equal(executions, 1);
 
-    const afterFirst = await new PrismaQueueStore().get(queueId);
+    const afterFirst = await new PrismaQueueStore({ scope: "SYSTEM" }).get(queueId);
     assert.equal(afterFirst?.status, "QUEUED");
     assert.equal(afterFirst?.attempts, 1);
 
@@ -111,7 +111,7 @@ async function main() {
     assert.equal(executions, 3);
 
     const finalQueue = await new PrismaQueueStore().get(queueId);
-    const finalWorkflow = await new PrismaWorkflowStore().get(workflowId);
+    const finalWorkflow = await new PrismaWorkflowStore({ scope: "SYSTEM" }).get(workflowId);
     assert.equal(finalQueue?.status, "COMPLETED");
     assert.equal(finalQueue?.attempts, 3);
     assert.equal(finalWorkflow?.steps.find((step) => step.id === stepId)?.status, "COMPLETED");
