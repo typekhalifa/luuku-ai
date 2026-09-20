@@ -145,13 +145,16 @@ function toJson(value: unknown): Prisma.InputJsonValue {
 }
 
 function fromRecord(record: any): Workflow {
-    const ownership: ExecutionOwnership = record.ownershipScope === "COMPANY"
-        ? { scope: "COMPANY", companyId: record.companyId }
-        : { scope: "SYSTEM" };
-
     if (record.ownershipScope !== "COMPANY" && record.ownershipScope !== "SYSTEM") {
         throw new Error("WORKFLOW_OWNERSHIP_UNRESOLVED");
     }
+    if (record.ownershipScope === "COMPANY" && typeof record.companyId !== "string") {
+        throw new Error("WORKFLOW_OWNERSHIP_UNRESOLVED");
+    }
+
+    const ownership: ExecutionOwnership = record.ownershipScope === "COMPANY"
+        ? { scope: "COMPANY", companyId: record.companyId }
+        : { scope: "SYSTEM" };
 
     return {
         id: record.id,
