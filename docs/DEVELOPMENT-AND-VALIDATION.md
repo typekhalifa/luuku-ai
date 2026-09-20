@@ -81,6 +81,21 @@ The controlled real-email validation used an explicit CRM test fixture, verified
 
 The current architectural rule remains: V8 orchestrates and governs; V6 remains the sole execution authority.
 
+## API security baseline
+
+The API now applies a small fail-closed security baseline without introducing a browser-held secret:
+
+- Production startup requires LUUKU_API_KEY.
+- Protected API routes require the x-luuku-api-key header when the server key is configured.
+- API key comparison uses a length check plus constant-time comparison.
+- Resend's webhook route remains outside the API-key gate because it has its own Svix signature verification.
+- CORS is explicit in production through CORS_ORIGINS; no-origin configuration is fail-closed.
+- Each response receives an x-request-id for correlation; a caller-supplied request ID is preserved when present.
+- Basic browser/security headers are applied centrally.
+- JSON request bodies remain capped at 1 MB.
+
+The API key is intentionally not exposed to Mission Control's browser bundle. A production browser client must use an authenticated session/token boundary or an authenticated same-origin gateway; adding VITE_LUUKU_API_KEY would move a server secret into the browser and is therefore not an acceptable production solution.
+
 ## Production readiness gate
 
 Before calling Luuku's autonomous loop production-ready, verify durable stores, secrets, authentication, authorization, tenant boundaries, explicit actuator permissions, idempotency, provider evidence, bounded retries/recovery, monitoring, alerts, reliable founder approval/escalation, environment-driven frontend/backend configuration and representative end-to-end workflows.
