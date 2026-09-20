@@ -50,6 +50,12 @@ export class DiscordInboundCommunicationBridge {
         const message = await this.communicationService.receiveMessage({
             channel: "discord",
             sender,
+            context: {
+                ownership: {
+                    scope: "SPACE",
+                    spaceId: space.id,
+                },
+            },
             content: input.content,
             externalConversationId: `discord:${input.channelId}`,
             metadata: {
