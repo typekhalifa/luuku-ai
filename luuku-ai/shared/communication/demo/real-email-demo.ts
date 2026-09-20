@@ -10,10 +10,11 @@ import {
 
 async function main() {
     const recipient = process.argv[2];
+    const companyId = process.env.LUUKU_API_COMPANY_ID;
 
-    if (!recipient) {
+    if (!recipient || !companyId) {
         console.error(
-            "Usage: npx tsx luuku-ai/shared/communication/demo/real-email-demo.ts <recipient-email>"
+            "Usage: LUUKU_API_COMPANY_ID=<company-id> npx tsx luuku-ai/shared/communication/demo/real-email-demo.ts <recipient-email>"
         );
         process.exit(1);
     }
@@ -32,6 +33,7 @@ async function main() {
                 audience: "external",
                 executionMode: "test",
                 source: "real-email-demo",
+                companyId,
             },
         });
 
