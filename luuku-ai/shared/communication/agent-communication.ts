@@ -111,6 +111,7 @@ export class AgentCommunicationService {
         const message = await this.communicationService.receiveMessage({
             channel: "internal",
             sender: senderIdentity,
+            context: { ownership: { scope: "SYSTEM" } },
             content: request.content,
             externalConversationId: `agent:${conversationKey}`,
             metadata: {
