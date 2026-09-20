@@ -107,3 +107,16 @@ The authenticated API request context now carries the configured company ID and 
 The prospect-registration workflow is tenant-bound when invoked through the authenticated application context: it must resolve the authenticated company and cannot create a new company for that request. This prevents a browser/API caller from selecting an arbitrary company ID or creating records under another tenant through the prospect workflow.
 
 This is an incremental boundary, not full multi-tenant authorization yet. Internal non-HTTP callers may still use the legacy unscoped service methods, and dashboard communication/event observability remains subject to a separate tenant-scope review. Production browser authentication/session authorization and a complete cross-tenant isolation test remain required before production readiness.
+
+
+### Tenant isolation regression validation
+
+When a database is available, run:
+
+~~~powershell
+npm run dev:tenant-isolation
+~~~
+
+The regression demo provisions two temporary companies and representative CRM records, verifies tenant-scoped list and ID reads, verifies cross-tenant update/delete protection, verifies tenant-bound creates, and cleans up its fixtures in a finally block.
+
+The demo is intentionally separate from the CI V8 suite until the workflow has an explicit disposable database service and migration/bootstrap step. Do not interpret the existence of the demo as CI evidence.
