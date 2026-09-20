@@ -120,3 +120,13 @@ npm run dev:tenant-isolation
 The regression demo provisions two temporary companies and representative CRM records, verifies tenant-scoped list and ID reads, verifies cross-tenant update/delete protection, verifies tenant-bound creates, and cleans up its fixtures in a finally block.
 
 The demo is intentionally separate from the CI V8 suite until the workflow has an explicit disposable database service and migration/bootstrap step. Do not interpret the existence of the demo as CI evidence.
+
+### Agent and runtime tenant authorization
+
+- Sales CRM execution now requires `task.metadata.companyId` and fails closed with `TENANT_CONTEXT_REQUIRED` when absent.
+- Task/company/contact resolution is bound to the authenticated tenant company instead of resolving across the entire CRM.
+- CRM prioritization reads and mutations are tenant-scoped.
+- Internal enrichment carries the tenant context into prospect registration.
+- Mission Control dashboard communication telemetry fails closed to an empty snapshot until communication records have durable company ownership.
+- A CI regression demo verifies the Sales agent cannot execute CRM work without tenant context.
+- Global communication observability must not be re-enabled until the communication schema and persistence path are tenant-scoped end to end.
