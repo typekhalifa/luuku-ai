@@ -121,7 +121,10 @@ export class PrismaCommunicationService implements CommunicationService {
 
         if (idempotencyKey) {
             await prisma.communicationExecution.updateMany({
-                where: { idempotencyKey },
+                where: {
+                    idempotencyKey,
+                    ...this.executionOwnershipWhere(input.context.ownership),
+                },
                 data: {
                     conversationId: conversation.id,
                 },
@@ -398,6 +401,19 @@ export class PrismaCommunicationService implements CommunicationService {
         });
     }
 
+
+    private executionOwnershipWhere(
+        ownership: CommunicationConversation["ownership"],
+    ): Record<string, unknown> {
+        switch (ownership.scope) {
+            case "COMPANY":
+                return { ownershipScope: "COMPANY", companyId: ownership.companyId };
+            case "SPACE":
+                return { ownershipScope: "SPACE", spaceId: ownership.spaceId };
+            case "SYSTEM":
+                return { ownershipScope: "SYSTEM", companyId: null, spaceId: null };
+        }
+    }
 
     private ownershipMatches(
         conversation: {
