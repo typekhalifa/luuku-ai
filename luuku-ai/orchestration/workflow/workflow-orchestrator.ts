@@ -2,6 +2,7 @@ import { AgentResult } from "../../shared/agents/interface";
 import { Workflow } from "./workflow";
 import { WorkflowStep } from "./workflow-step";
 import { WorkflowEngine } from "./workflow-engine";
+import { normalizeExecutionOwnership } from "../ownership.js";
 
 export interface WorkflowStepExecutor {
     execute(step: WorkflowStep): Promise<AgentResult>;
@@ -48,7 +49,7 @@ export class WorkflowOrchestrator {
             if (!step) continue;
 
             step.workflowId = workflow.id;
-            step.ownership = workflow.ownership;
+            step.ownership = normalizeExecutionOwnership(workflow.ownership);
             step.status = "RUNNING";
             const result = await this.executor.execute(step);
             results[step.id] = result;
