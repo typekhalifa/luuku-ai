@@ -90,3 +90,68 @@ UPDATE "CommunicationExecution"
 SET "ownershipScope" = 'COMPANY'
 WHERE "ownershipScope" IS NULL
   AND "companyId" IS NOT NULL;
+
+-- Enforce the ownership invariant at the persistence boundary while allowing
+-- legacy/unresolved rows (NULL ownershipScope) to remain quarantined.
+ALTER TABLE "CommunicationConversation"
+  ADD CONSTRAINT "CommunicationConversation_ownership_ck"
+  CHECK (
+    "ownershipScope" IS NULL
+    OR (
+      "ownershipScope" = 'COMPANY'
+      AND "companyId" IS NOT NULL
+      AND "spaceId" IS NULL
+    )
+    OR (
+      "ownershipScope" = 'SPACE'
+      AND "companyId" IS NULL
+      AND "spaceId" IS NOT NULL
+    )
+    OR (
+      "ownershipScope" = 'SYSTEM'
+      AND "companyId" IS NULL
+      AND "spaceId" IS NULL
+    )
+  );
+
+ALTER TABLE "CommunicationEvent"
+  ADD CONSTRAINT "CommunicationEvent_ownership_ck"
+  CHECK (
+    "ownershipScope" IS NULL
+    OR (
+      "ownershipScope" = 'COMPANY'
+      AND "companyId" IS NOT NULL
+      AND "spaceId" IS NULL
+    )
+    OR (
+      "ownershipScope" = 'SPACE'
+      AND "companyId" IS NULL
+      AND "spaceId" IS NOT NULL
+    )
+    OR (
+      "ownershipScope" = 'SYSTEM'
+      AND "companyId" IS NULL
+      AND "spaceId" IS NULL
+    )
+  );
+
+ALTER TABLE "CommunicationExecution"
+  ADD CONSTRAINT "CommunicationExecution_ownership_ck"
+  CHECK (
+    "ownershipScope" IS NULL
+    OR (
+      "ownershipScope" = 'COMPANY'
+      AND "companyId" IS NOT NULL
+      AND "spaceId" IS NULL
+    )
+    OR (
+      "ownershipScope" = 'SPACE'
+      AND "companyId" IS NULL
+      AND "spaceId" IS NOT NULL
+    )
+    OR (
+      "ownershipScope" = 'SYSTEM'
+      AND "companyId" IS NULL
+      AND "spaceId" IS NULL
+    )
+  );
