@@ -2,6 +2,7 @@ import { PrismaClient } from "@prisma/client";
 
 import { prisma } from "../database/client";
 import { CommunicationChannel, ChannelIdentity } from "./channel";
+import { CommunicationContext } from "./communication-service";
 
 export type IdentityResolutionStatus =
     | "resolved"
@@ -16,6 +17,7 @@ export type IdentityResolutionMethod =
     | "none";
 
 export interface IdentityResolutionInput {
+    context: CommunicationContext;
     channel?: CommunicationChannel;
     externalId?: string;
     email?: string;
@@ -108,6 +110,10 @@ export class CommunicationIdentityResolver {
 
     async resolve(input: IdentityResolutionInput): Promise<IdentityResolutionResult> {
         const channel = input.channel;
+        const companyId =
+            input.context.ownership.scope === "COMPANY"
+                ? input.context.ownership.companyId
+                : undefined;
         const externalId = normalizeExternalId(input.externalId);
 
         const email = normalizeEmail(
@@ -126,8 +132,14 @@ export class CommunicationIdentityResolver {
         // address. The external address is still checked against the CRM record
         // so an agent cannot pair an arbitrary recipient with another contact.
         if (input.crmContactId) {
-            const contact = await this.db.contact.findUnique({
-                where: { id: input.crmContactId },
+            if (!companyId) {
+                return this.unresolved(
+                    "CRM identity resolution requires company ownership context.",
+                );
+            }
+
+            const contact = await this.db.contact.findFirst({
+                where: { id: input.crmContactId, companyId },
                 select: {
                     id: true,
                     companyId: true,
@@ -174,17 +186,19 @@ export class CommunicationIdentityResolver {
         }
 
         if (channel && externalId) {
-            const byChannel = await this.resolveByChannelIdentity(channel, externalId);
+            const byChannel = companyId
+                ? await this.resolveByChannelIdentity(channel, externalId, companyId)
+                : undefined;
             if (byChannel) {
                 return byChannel;
             }
         }
 
-        const emailContactIds = email
-            ? await this.contactIdsByEmail(email)
+        const emailContactIds = companyId && email
+            ? await this.contactIdsByEmail(email, companyId)
             : [];
-        const phoneContactIds = phoneNumber
-            ? await this.contactIdsByPhone(phoneNumber)
+        const phoneContactIds = companyId && phoneNumber
+            ? await this.contactIdsByPhone(phoneNumber, companyId)
             : [];
 
         const emailAndPhoneIds = uniqueIds([
@@ -206,8 +220,8 @@ export class CommunicationIdentityResolver {
 
         if (emailAndPhoneIds.length === 1) {
             const contactId = emailAndPhoneIds[0];
-            const contact = await this.db.contact.findUnique({
-                where: { id: contactId },
+            const contact = await this.db.contact.findFirst({
+                where: { id: contactId, ...(companyId ? { companyId } : {}) },
                 select: { id: true, companyId: true, email: true, phoneNumber: true },
             });
 
@@ -231,9 +245,13 @@ export class CommunicationIdentityResolver {
             };
         }
 
-        if (input.conversationId) {
-            const conversation = await this.db.communicationConversation.findUnique({
-                where: { id: input.conversationId },
+        if (input.conversationId && companyId) {
+            const conversation = await this.db.communicationConversation.findFirst({
+                where: {
+                    id: input.conversationId,
+                    ownershipScope: "COMPANY",
+                    companyId,
+                },
                 select: { id: true, participants: true },
             });
 
@@ -242,8 +260,11 @@ export class CommunicationIdentityResolver {
                 const contactIds = await this.resolveParticipantContacts(identities);
 
                 if (contactIds.length === 1) {
-                    const contact = await this.db.contact.findUnique({
-                        where: { id: contactIds[0] },
+                    const contact = await this.db.contact.findFirst({
+                        where: {
+                            id: contactIds[0],
+                            ...(companyId ? { companyId } : {}),
+                        },
                         select: { id: true, companyId: true, email: true, phoneNumber: true },
                     });
 
@@ -282,9 +303,10 @@ export class CommunicationIdentityResolver {
     private async resolveByChannelIdentity(
         channel: CommunicationChannel,
         externalId: string,
+        companyId: string,
     ): Promise<IdentityResolutionResult | undefined> {
         const conversations = await this.db.communicationConversation.findMany({
-            where: { channel },
+            where: { channel, ownershipScope: "COMPANY", companyId },
             select: { id: true, participants: true },
             orderBy: { updatedAt: "desc" },
             take: 500,
@@ -327,8 +349,8 @@ export class CommunicationIdentityResolver {
         }
 
         if (contactIds.length === 1) {
-            const contact = await this.db.contact.findUnique({
-                where: { id: contactIds[0] },
+            const contact = await this.db.contact.findFirst({
+                where: { id: contactIds[0], companyId },
                 select: { id: true, companyId: true, email: true, phoneNumber: true },
             });
 
@@ -358,18 +380,21 @@ export class CommunicationIdentityResolver {
         };
     }
 
-    private async contactIdsByEmail(email: string): Promise<string[]> {
+    private async contactIdsByEmail(email: string, companyId: string): Promise<string[]> {
         const contacts = await this.db.contact.findMany({
-            where: { email: { equals: email, mode: "insensitive" } },
+            where: {
+                companyId,
+                email: { equals: email, mode: "insensitive" },
+            },
             select: { id: true },
         });
 
         return contacts.map((contact) => contact.id);
     }
 
-    private async contactIdsByPhone(phoneNumber: string): Promise<string[]> {
+    private async contactIdsByPhone(phoneNumber: string, companyId: string): Promise<string[]> {
         const contacts = await this.db.contact.findMany({
-            where: { phoneNumber },
+            where: { companyId, phoneNumber },
             select: { id: true },
         });
 
@@ -385,12 +410,14 @@ export class CommunicationIdentityResolver {
         }
 
         if (identity.channel === "email") {
-            const ids = await this.contactIdsByEmail(externalId);
+            const ids = await this.contactIdsByEmail(externalId, "");
+
             return ids.length === 1 ? ids[0] : undefined;
         }
 
         if (identity.channel === "voice" || identity.channel === "whatsapp") {
-            const ids = await this.contactIdsByPhone(externalId);
+            const ids = await this.contactIdsByPhone(externalId, "");
+
             return ids.length === 1 ? ids[0] : undefined;
         }
 
