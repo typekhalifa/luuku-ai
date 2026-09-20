@@ -5,10 +5,4 @@ import { getEvents } from "../controllers/events.controller";
 
 export const eventsRouter = Router();
 
-eventsRouter.get(
-
-    "/",
-
-    getEvents
-
-);
+eventsRouter.get(\n    "/",\n    requirePermission("read"),\n    getEvents\n);
