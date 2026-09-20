@@ -26,7 +26,6 @@ export class QueueScheduler implements Scheduler {
             createdAt: now,
             updatedAt: now,
         };
-
         await this.queue.enqueue(item);
         return item;
     }
