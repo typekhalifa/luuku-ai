@@ -4,7 +4,7 @@ import type { ExecutionOwnership } from "../ownership";
 
 export interface Workflow {
     id: string;
-    ownership: ExecutionOwnership;
+    ownership?: ExecutionOwnership;
     goal: string;
     status: WorkflowStatus;
     steps: WorkflowStep[];
