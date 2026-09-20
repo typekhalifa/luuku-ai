@@ -12,8 +12,11 @@ export class ContactRepository extends BaseRepository<Contact> {
         return contacts.map(ContactMapper.toDomain);
     }
 
-    async findById(id: string): Promise<Contact | null> {
-        const contact = await prisma.contact.findUnique({ where: { id } });
+    async findById(id: string, companyId?: string): Promise<Contact | null> {
+        const contact = companyId
+            ? await prisma.contact.findFirst({ where: { id, companyId } })
+            : await prisma.contact.findUnique({ where: { id } });
+
         if (!contact) return null;
         return ContactMapper.toDomain(contact);
     }
@@ -26,14 +29,26 @@ export class ContactRepository extends BaseRepository<Contact> {
         return contacts.map(ContactMapper.toDomain);
     }
 
-    async create(contact: Contact): Promise<Contact> {
+    async create(contact: Contact, companyId?: string): Promise<Contact> {
+        if (companyId && contact.companyId !== companyId) {
+            throw new Error("CONTACT_TENANT_MISMATCH");
+        }
+
         const created = await prisma.contact.create({
             data: ContactMapper.toPersistence(contact)
         });
         return ContactMapper.toDomain(created);
     }
 
-    async update(contact: Contact): Promise<Contact> {
+    async update(contact: Contact, companyId?: string): Promise<Contact> {
+        if (companyId) {
+            const owned = await prisma.contact.findFirst({
+                where: { id: contact.id, companyId },
+                select: { id: true }
+            });
+            if (!owned) throw new Error("CONTACT_NOT_FOUND_OR_UNAUTHORIZED");
+        }
+
         const updated = await prisma.contact.update({
             where: { id: contact.id },
             data: ContactMapper.toPersistence(contact)
@@ -41,7 +56,15 @@ export class ContactRepository extends BaseRepository<Contact> {
         return ContactMapper.toDomain(updated);
     }
 
-    async delete(id: string): Promise<void> {
+    async delete(id: string, companyId?: string): Promise<void> {
+        if (companyId) {
+            const owned = await prisma.contact.findFirst({
+                where: { id, companyId },
+                select: { id: true }
+            });
+            if (!owned) throw new Error("CONTACT_NOT_FOUND_OR_UNAUTHORIZED");
+        }
+
         await prisma.contact.delete({ where: { id } });
     }
 }
