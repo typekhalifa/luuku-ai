@@ -16,8 +16,10 @@ export class ExecutionLedger {
         idempotencyKey: string,
         workflowId: string,
         stepId: string,
-        companyId?: string,
+        ownership: ExecutionOwnership,
     ): Promise<ExecutionClaim> {
+        assertValidExecutionOwnership(ownership);
+        const companyId = ownership.scope === "COMPANY" ? ownership.companyId : undefined;
         const existing = await prisma.communicationExecution.findUnique({ where: { idempotencyKey } });
         if (existing) {
             const requestedScope = companyId ? "COMPANY" : "SYSTEM";
