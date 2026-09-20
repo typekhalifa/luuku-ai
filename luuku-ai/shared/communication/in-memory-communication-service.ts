@@ -10,6 +10,7 @@ export class InMemoryCommunicationService implements CommunicationService {
             input.conversationId,
             input.channel,
             input.recipient,
+            input.context,
         );
         const now = new Date().toISOString();
 
@@ -40,6 +41,7 @@ export class InMemoryCommunicationService implements CommunicationService {
             conversationId,
             input.channel,
             input.sender,
+            input.context,
         );
         const now = new Date().toISOString();
 
@@ -61,18 +63,30 @@ export class InMemoryCommunicationService implements CommunicationService {
         return message;
     }
 
-    async getConversation(conversationId: string): Promise<CommunicationConversation | null> {
-        return this.conversations.get(conversationId) ?? null;
+    async getConversation(
+        conversationId: string,
+        context: import("./communication-service").CommunicationContext,
+    ): Promise<CommunicationConversation | null> {
+        const conversation = this.conversations.get(conversationId);
+        if (!conversation) return null;
+        if (!this.sameOwnership(conversation.ownership, context.ownership)) {
+            return null;
+        }
+        return conversation;
     }
 
     private getOrCreateConversation(
         conversationId: string,
         channel: CommunicationConversation["channel"],
         participant: CommunicationConversation["participants"][number],
+        context: import("./communication-service").CommunicationContext,
     ): CommunicationConversation {
         const existing = this.conversations.get(conversationId);
 
         if (existing) {
+            if (!this.sameOwnership(existing.ownership, context.ownership)) {
+                throw new Error("COMMUNICATION_CONVERSATION_OWNERSHIP_MISMATCH");
+            }
             return existing;
         }
 
@@ -80,6 +94,7 @@ export class InMemoryCommunicationService implements CommunicationService {
         const conversation: CommunicationConversation = {
             id: conversationId,
             channel,
+            ownership: context.ownership,
             participants: [participant],
             messages: [],
             status: "active",
@@ -89,6 +104,22 @@ export class InMemoryCommunicationService implements CommunicationService {
 
         this.conversations.set(conversationId, conversation);
         return conversation;
+    }
+
+
+
+    private sameOwnership(
+        left: CommunicationConversation["ownership"],
+        right: CommunicationConversation["ownership"],
+    ): boolean {
+        if (left.scope !== right.scope) return false;
+        if (left.scope === "COMPANY" && right.scope === "COMPANY") {
+            return left.companyId === right.companyId;
+        }
+        if (left.scope === "SPACE" && right.scope === "SPACE") {
+            return left.spaceId === right.spaceId;
+        }
+        return true;
     }
 
     private createId(prefix: string): string {
