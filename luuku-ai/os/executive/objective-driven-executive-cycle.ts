@@ -9,7 +9,7 @@ import { ExecutiveObjectiveInterventionEngine, type ObjectiveIntervention } from
 import { ExecutiveObjectiveProgressTrendScorer, type ObjectiveProgressTrendScore } from "./objective-progress-trend.js";
 import { ExecutiveObjectiveUrgencyScorer, type ObjectiveUrgencyScore } from "./objective-urgency.js";
 import type { ExecutiveState } from "./executive-state.js";
-import type { ExecutionOwnership } from "../../orchestration/ownership.js";
+import { normalizeExecutionOwnership, type ExecutionOwnership } from "../../orchestration/ownership.js";
 import { ExecutiveLearningEngine, InMemoryExecutiveMemoryStore, type ExecutiveLearningRecord, type ExecutiveMemoryStore } from "./executive-memory.js";
 import { MemoryAwareStrategyEngine, type MemoryAwareStrategyDecision } from "./memory-aware-strategy.js";
 import { ExecutiveAdaptiveInterventionPolicy, type AdaptiveInterventionDecision } from "./adaptive-intervention-policy.js";
@@ -39,7 +39,7 @@ export interface ObjectiveDrivenCycleResult {
 }
 
 export interface ObjectiveDrivenExecutiveCycleOptions {
-    readonly ownership: ExecutionOwnership;
+    readonly ownership?: ExecutionOwnership;
     readonly maxSelections?: number;
     readonly capacityGate?: ExecutiveCapacityGate;
     readonly resourceRequirements?: (candidate: ExecutiveWorkCandidate) => readonly ExecutiveCapacityRequirement[];
@@ -74,7 +74,7 @@ export class ObjectiveDrivenExecutiveCycle {
     private readonly adaptivePolicy = new ExecutiveAdaptiveInterventionPolicy();
 
     constructor(objectiveStore: ExecutiveObjectiveStore, capabilityResolver: CapabilityResolver, memoryStore: ExecutiveMemoryStore = new InMemoryExecutiveMemoryStore(), options: ObjectiveDrivenExecutiveCycleOptions = { ownership: { scope: "SYSTEM" } }) {
-        this.ownership = options.ownership;
+        this.ownership = normalizeExecutionOwnership(options.ownership);
         this.objectiveEngine = new ExecutiveObjectiveEngine(objectiveStore);
         this.planBuilder = new ExecutiveIntentPlanBuilder(capabilityResolver);
         this.arbitrator = new ExecutiveWorkArbitrator({ maxSelections: options.maxSelections ?? 1 });
