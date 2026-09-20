@@ -20,7 +20,7 @@ const memoryStore = {} as ExecutiveMemoryStore;
 const checkpointStore = {} as ExecutiveLoopCheckpointStore;
 const capabilities = {} as IntentPlanCapabilityMap;
 
-const composition = createExecutiveComposition({
+const composition = createExecutiveComposition({\n    ownership: { scope: "SYSTEM" },
     workflowStore,
     queueStore,
     capabilityResolver,
