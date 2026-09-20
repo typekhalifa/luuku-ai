@@ -1,6 +1,6 @@
 import { prisma } from "../client";
 import { Deal } from "../../domain/deal";
-import { DealMapper } from "../mappers/deal.mapper;
+import { DealMapper } from "../mappers/deal.mapper";
 import { BaseRepository } from "./base.repository";
 
 export class DealRepository extends BaseRepository<Deal> {
