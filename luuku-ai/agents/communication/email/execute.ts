@@ -331,6 +331,9 @@ export async function executeEmailTask(
     await prismaCommunicationService.sendMessage({
         conversationId,
         channel: "email",
+        context: {
+            ownership: { scope: "COMPANY", companyId },
+        },
         recipient: {
             channel: "email",
             externalId: recipient,
