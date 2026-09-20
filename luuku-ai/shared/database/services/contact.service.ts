@@ -11,7 +11,10 @@ export class ContactService {
         return contactRepository.findById(id, companyId);
     }
 
-    async getCompanyContacts(companyId: string): Promise<Contact[]> {
+    async getCompanyContacts(companyId: string, requesterCompanyId?: string): Promise<Contact[]> {
+        if (requesterCompanyId && companyId !== requesterCompanyId) {
+            throw new Error("COMPANY_TENANT_MISMATCH");
+        }
         return contactRepository.findByCompany(companyId);
     }
 
