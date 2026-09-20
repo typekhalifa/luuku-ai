@@ -51,7 +51,10 @@ function toCounts<T extends string>(
 export class CommunicationObservabilityService {
     async getSnapshot(
         recentLimit = 20,
+        companyId?: string,
     ): Promise<CommunicationObservabilitySnapshot> {
+        if (!companyId) throw new Error("TENANT_CONTEXT_REQUIRED_FOR_COMMUNICATION_OBSERVABILITY");
+        throw new Error("TENANT_SCOPED_COMMUNICATION_OBSERVABILITY_NOT_IMPLEMENTED");
         const [
             messageTotal,
             inboundMessages,
