@@ -241,6 +241,10 @@ export async function processInboundResendEmail(
 
     const companyId = fallbackContact?.companyId;
 
+    if (!companyId) {
+        throw new Error("INBOUND_EMAIL_COMPANY_OWNERSHIP_UNRESOLVED");
+    }
+
     const deal = companyId
         ? await prisma.deal.findFirst({
             where: {
@@ -275,9 +279,7 @@ export async function processInboundResendEmail(
             companyId,
         ),
         context: {
-            ownership: companyId
-                ? { scope: "COMPANY", companyId }
-                : { scope: "SYSTEM" },
+            ownership: { scope: "COMPANY", companyId },
         },
         sender: {
             channel: "email",
