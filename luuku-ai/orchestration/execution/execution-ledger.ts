@@ -1,5 +1,7 @@
 import { prisma } from "../../shared/database/client.js";
 import { AgentResult } from "../../shared/agents/interface.js";
+import type { ExecutionOwnership } from "../ownership.js";
+import { assertValidExecutionOwnership } from "../ownership.js";
 
 export interface ExecutionClaim {
     id: string;
