@@ -1,6 +1,6 @@
 import { Priority } from "../task/priority";
 import type { ExecutionOwnership } from "../ownership";
-import { assertValidExecutionOwnership, ownershipMatches } from "../ownership";
+import { assertValidExecutionOwnership, ownershipMatches, normalizeExecutionOwnership } from "../ownership";
 
 export enum QueueItemStatus {
     QUEUED = "QUEUED",
@@ -12,7 +12,7 @@ export enum QueueItemStatus {
 
 export interface QueueItem {
     id: string;
-    ownership: ExecutionOwnership;
+    ownership?: ExecutionOwnership;
     workflowId: string;
     stepId: string;
     agentId: string;
@@ -39,11 +39,12 @@ export interface QueueStore {
 export class InMemoryQueueStore implements QueueStore {
     private readonly items = new Map<string, QueueItem>();
 
-    constructor(private readonly ownership: ExecutionOwnership) {
+    constructor(private readonly ownership: ExecutionOwnership = { scope: "SYSTEM" }) {
         assertValidExecutionOwnership(ownership);
     }
 
     private assertOwnership(item: QueueItem): void {
+        item.ownership = normalizeExecutionOwnership(item.ownership);
         if (!ownershipMatches(this.ownership, item.ownership)) throw new Error("QUEUE_OWNERSHIP_MISMATCH");
     }
 
