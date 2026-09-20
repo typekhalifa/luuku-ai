@@ -189,3 +189,18 @@ Bootstrap a first internal owner with the environment variables in `.env.example
 - Session cleanup/revocation operations should be exposed through an authenticated administrative control path.
 - Durable tenant ownership should be added to workflow/event telemetry before browser access to those global stores is reopened.
 - Complete automated cross-tenant authorization tests should cover every future write and every new resource endpoint.
+
+
+### Security checklist after the 2026-09-20 hardening pass
+
+| Control | Status |
+|---|---|
+| User authentication | 🟢 Session authentication implemented |
+| Role / permission authorization | 🟢 Membership roles + route permission guards |
+| Tenant-safe writes | 🟢 Tenant context carried through CRM, Sales and communication paths |
+| Resource-level authorization | 🟢 Company ownership checks on CRM resources + membership checks |
+| Browser auth/session boundary | 🟢 HttpOnly session cookie; API key is not a browser credential |
+| Observability | 🟡 Tenant-scoped communication/dashboard; global legacy telemetry fails closed for browser sessions |
+| Deployment / secrets | 🟡 Production env validation + security headers + explicit CORS; managed secret-store wiring remains deployment-specific |
+| Actuator permissions | 🟢 V6 boundary, capability checks, approval gates, evidence and idempotency remain authoritative |
+
