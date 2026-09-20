@@ -1,9 +1,10 @@
 import { companyService } from "../database/services/company.service";
 import type { ApiRequestContext } from "../api/request-context";
+import { communicationObservability } from "../communication";
 
 export class DashboardApplication {
     async getOverview(context: ApiRequestContext) {
-        const companies = await companyService.getCompanies(context.companyId);
+        const [companies, communication] = await Promise.all([\n            companyService.getCompanies(context.companyId),\n            communicationObservability.getSnapshot(10, context.companyId),\n        ]);
 
         // Global communication/event stores are not durably tenant-scoped yet.
         // Fail closed rather than exposing another tenant's telemetry.
