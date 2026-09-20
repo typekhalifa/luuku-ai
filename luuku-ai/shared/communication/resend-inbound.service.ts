@@ -98,8 +98,10 @@ function normalizeSubject(value: string): string {
 function buildEmailThreadKey(
     participantEmail: string,
     subject: string,
+    companyId?: string,
 ): string {
-    return `email:${participantEmail.trim().toLowerCase()}:${normalizeSubject(subject) || "no-subject"}`;
+    const tenantPrefix = companyId ? `${companyId}:` : "unscoped:";
+    return `email:${tenantPrefix}${participantEmail.trim().toLowerCase()}:${normalizeSubject(subject) || "no-subject"}`;
 }
 
 async function retrieveReceivedEmail(
@@ -270,7 +272,13 @@ export async function processInboundResendEmail(
         externalConversationId: buildEmailThreadKey(
             participantEmail,
             subject,
+            companyId,
         ),
+        context: {
+            ownership: companyId
+                ? { scope: "COMPANY", companyId }
+                : { scope: "SYSTEM" },
+        },
         sender: {
             channel: "email",
             externalId: senderEmail || participantEmail,
