@@ -1,4 +1,5 @@
 import { Priority } from "../task/priority";
+import type { ExecutionOwnership } from "../ownership";
 
 export type WorkflowStepStatus =
     | "PENDING"
