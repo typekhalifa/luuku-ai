@@ -162,3 +162,30 @@ Productize into customer autonomous systems
 ~~~
 
 The finish line is not "many agents." It is a company operating loop that can receive objectives, observe reality, choose and coordinate work, execute bounded actions through V6, learn from verified outcomes, recover from failures, and escalate decisions that require the founder.
+
+## Production security hardening — 2026-09-20
+
+Mission Control now has an explicit browser authentication boundary:
+
+- Users are stored with scrypt password hashes; plaintext passwords are never persisted.
+- Browser sessions use random opaque tokens stored only as SHA-256 hashes in the database.
+- Sessions are delivered through an HttpOnly, SameSite cookie and are Secure in production.
+- Session authentication resolves the requested company through a durable company membership; browser-supplied tenant IDs are accepted only as a selector and must match an existing membership.
+- Membership roles are OWNER, ADMIN, OPERATOR and VIEWER.
+- Route permissions distinguish read, operate and admin access.
+- Service-to-service API keys remain supported, but are bound to the configured company and represented as SERVICE scope rather than browser identity.
+- Login attempts are throttled per source address.
+- Global event/workflow/runtime observability that is not yet durably tenant-scoped fails closed for browser sessions rather than exposing cross-company state.
+- Communication observability is tenant-scoped and requires durable company ownership.
+- Communication idempotency reuse now rejects cross-tenant collisions.
+- Tenant-safe CRM writes and resource ownership checks remain in force.
+- Production secrets remain environment-injected; real credentials must never be committed.
+
+Bootstrap a first internal owner with the environment variables in `.env.example` and `npm run dev:auth:bootstrap`. The bootstrap operation is intentionally create-once and fails if the user already exists.
+
+### Security boundary still required before external multi-tenant launch
+
+- A production deployment should use a managed secret store rather than ad-hoc host environment editing.
+- Session cleanup/revocation operations should be exposed through an authenticated administrative control path.
+- Durable tenant ownership should be added to workflow/event telemetry before browser access to those global stores is reopened.
+- Complete automated cross-tenant authorization tests should cover every future write and every new resource endpoint.
