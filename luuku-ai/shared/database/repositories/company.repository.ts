@@ -1,4 +1,3 @@
-import { Prisma } from "@prisma/client";
 import { prisma } from "../client";
 
 import { Company } from "../../domain/company";
