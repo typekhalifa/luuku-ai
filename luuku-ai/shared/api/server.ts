@@ -9,6 +9,8 @@ import { workflowRouter } from "./routes/workflow.routes";
 import { crmRouter } from "./routes/crm.routes";
 import { runtimeRouter } from "./routes/runtime.routes";
 import { resendWebhookRouter } from "./routes/resend-webhook.route";
+import { authRouter } from "./routes/auth.routes";
+import { requireAuthentication } from "../auth/auth.middleware";
 import { prisma } from "../database/client";
 
 const app = express();
@@ -74,46 +76,46 @@ app.use(cors({
             : true,
 }));
 
+app.use("/api/v1/auth", authRouter);
+
 app.use((request, response, next) => {
-    if (!apiKey || request.path.startsWith("/api/v1/webhooks/resend")) {
+    if (request.path.startsWith("/api/v1/webhooks/resend")) {
         return next();
     }
 
     const suppliedKey = request.header("x-luuku-api-key");
-    if (!apiKeysMatch(suppliedKey)) {
-        return response.status(401).json({
-            error: "UNAUTHORIZED",
-        });
-    }
 
-    if (!apiCompanyId) {
-        return response.status(503).json({
-            error: "TENANT_CONTEXT_NOT_CONFIGURED",
-        });
-    }
-
-    void prisma.company.findUnique({
-        where: { id: apiCompanyId },
-        select: { id: true },
-    }).then((company) => {
-        if (!company) {
-            response.status(503).json({
-                error: "TENANT_CONTEXT_INVALID",
-            });
-            return;
+    if (suppliedKey) {
+        if (!apiKeysMatch(suppliedKey)) {
+            return response.status(401).json({ error: "UNAUTHORIZED" });
         }
 
-        response.locals.apiRequestContext = {
-            companyId: company.id,
-            authMethod: "api-key",
-        };
+        if (!apiCompanyId) {
+            return response.status(503).json({ error: "TENANT_CONTEXT_NOT_CONFIGURED" });
+        }
 
-        next();
-    }).catch(() => {
-        response.status(503).json({
-            error: "TENANT_CONTEXT_UNAVAILABLE",
+        void prisma.company.findUnique({
+            where: { id: apiCompanyId },
+            select: { id: true },
+        }).then((company) => {
+            if (!company) {
+                response.status(503).json({ error: "TENANT_CONTEXT_INVALID" });
+                return;
+            }
+
+            response.locals.apiRequestContext = {
+                companyId: company.id,
+                authMethod: "api-key",
+                role: "SERVICE",
+            };
+            next();
+        }).catch(() => {
+            response.status(503).json({ error: "TENANT_CONTEXT_UNAVAILABLE" });
         });
-    });
+        return;
+    }
+
+    void requireAuthentication(request, response, next);
 });
 
 // Resend requires the exact raw request body for Svix signature verification.
