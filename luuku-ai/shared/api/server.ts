@@ -77,6 +77,20 @@ app.use(cors({
     credentials: true,
 }));
 
+// Resend requires the exact raw request body for Svix signature verification.
+app.use(
+    "/api/v1/webhooks/resend",
+    express.raw({
+        type: "application/json",
+        limit: "1mb"
+    }),
+    resendWebhookRouter
+);
+
+app.use(express.json({ limit: "1mb" }));
+
+app.use(express.json({ limit: "1mb" }));
+
 app.use("/api/v1/auth", authRouter);
 
 app.use((request, response, next) => {
@@ -119,17 +133,7 @@ app.use((request, response, next) => {
     void requireAuthentication(request, response, next);
 });
 
-// Resend requires the exact raw request body for Svix signature verification.
-app.use(
-    "/api/v1/webhooks/resend",
-    express.raw({
-        type: "application/json",
-        limit: "1mb"
-    }),
-    resendWebhookRouter
-);
 
-app.use(express.json({ limit: "1mb" }));
 
 app.use("/api/v1/dashboard", dashboardRouter);
 app.use("/api/v1/events", eventsRouter);
