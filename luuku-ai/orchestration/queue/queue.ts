@@ -12,6 +12,7 @@ export enum QueueItemStatus {
 
 export interface QueueItem {
     id: string;
+    ownership: ExecutionOwnership;
     workflowId: string;
     stepId: string;
     agentId: string;
@@ -36,24 +37,30 @@ export interface QueueStore {
 }
 
 export class InMemoryQueueStore implements QueueStore {
+    private readonly items = new Map<string, QueueItem>();
+
     constructor(private readonly ownership: ExecutionOwnership) {
         assertValidExecutionOwnership(ownership);
     }
 
+    private assertOwnership(item: QueueItem): void {
+        if (!ownershipMatches(this.ownership, item.ownership)) throw new Error("QUEUE_OWNERSHIP_MISMATCH");
+    }
+
     async enqueue(item: QueueItem): Promise<void> {
-        const workflowOwnership = ownershipFromQueueItem(item);
-        if (!ownershipMatches(this.ownership, workflowOwnership)) throw new Error("QUEUE_OWNERSHIP_MISMATCH");
+        this.assertOwnership(item);
         if (this.items.has(item.id)) throw new Error(`Queue item ${item.id} already exists.`);
-        this.items.set(item.id, { ...item });
+        this.items.set(item.id, { ...item, ownership: { ...item.ownership } });
     }
 
     async claimNext(now = new Date()): Promise<QueueItem | null> {
         const candidates = [...this.items.values()]
-            .filter((item) => ownershipMatches(this.ownership, ownershipFromQueueItem(item)))
+            .filter((item) => ownershipMatches(this.ownership, item.ownership))
             .filter((item) => item.status === QueueItemStatus.QUEUED && item.availableAt <= now)
             .sort((a, b) => {
                 const priorityRank: Record<Priority, number> = {
-                    [Priority.CRITICAL]: 0, [Priority.HIGH]: 1, [Priority.MEDIUM]: 2, [Priority.LOW]: 3,
+                    [Priority.CRITICAL]: 0, [Priority.HIGH]: 1,
+                    [Priority.MEDIUM]: 2, [Priority.LOW]: 3,
                 };
                 return priorityRank[a.priority] - priorityRank[b.priority]
                     || a.availableAt.getTime() - b.availableAt.getTime()
@@ -64,26 +71,26 @@ export class InMemoryQueueStore implements QueueStore {
         item.status = QueueItemStatus.CLAIMED;
         item.attempts += 1;
         item.updatedAt = now;
-        return { ...item };
+        return { ...item, ownership: { ...item.ownership } };
     }
 
     async complete(id: string, updatedAt = new Date()): Promise<void> {
         const item = this.items.get(id);
-        if (!item || !ownershipMatches(this.ownership, ownershipFromQueueItem(item))) throw new Error(`Queue item ${id} was not found in the requested ownership scope.`);
+        if (!item || !ownershipMatches(this.ownership, item.ownership)) throw new Error(`Queue item ${id} was not found in the requested ownership scope.`);
         item.status = QueueItemStatus.COMPLETED;
         item.updatedAt = updatedAt;
     }
 
     async fail(id: string, updatedAt = new Date()): Promise<void> {
         const item = this.items.get(id);
-        if (!item || !ownershipMatches(this.ownership, ownershipFromQueueItem(item))) throw new Error(`Queue item ${id} was not found in the requested ownership scope.`);
+        if (!item || !ownershipMatches(this.ownership, item.ownership)) throw new Error(`Queue item ${id} was not found in the requested ownership scope.`);
         item.status = QueueItemStatus.FAILED;
         item.updatedAt = updatedAt;
     }
 
     async retry(id: string, availableAt: Date): Promise<void> {
         const item = this.items.get(id);
-        if (!item || !ownershipMatches(this.ownership, ownershipFromQueueItem(item))) throw new Error(`Queue item ${id} was not found in the requested ownership scope.`);
+        if (!item || !ownershipMatches(this.ownership, item.ownership)) throw new Error(`Queue item ${id} was not found in the requested ownership scope.`);
         if (item.status !== QueueItemStatus.CLAIMED && item.status !== QueueItemStatus.FAILED) throw new Error(`Queue item ${id} is not retryable from ${item.status}.`);
         item.status = QueueItemStatus.QUEUED;
         item.availableAt = availableAt;
@@ -92,20 +99,23 @@ export class InMemoryQueueStore implements QueueStore {
 
     async get(id: string): Promise<QueueItem | null> {
         const item = this.items.get(id);
-        return item && ownershipMatches(this.ownership, ownershipFromQueueItem(item)) ? { ...item } : null;
+        return item && ownershipMatches(this.ownership, item.ownership)
+            ? { ...item, ownership: { ...item.ownership } }
+            : null;
     }
 
     async list(): Promise<QueueItem[]> {
         return [...this.items.values()]
-            .filter((item) => ownershipMatches(this.ownership, ownershipFromQueueItem(item)))
-            .map((item) => ({ ...item, metadata: { ...item.metadata } }));
+            .filter((item) => ownershipMatches(this.ownership, item.ownership))
+            .map((item) => ({ ...item, ownership: { ...item.ownership }, metadata: { ...item.metadata } }));
     }
 
     async recoverStaleClaims(now: Date, staleAfterMs: number): Promise<string[]> {
+        if (staleAfterMs < 0) throw new Error("staleAfterMs must be non-negative.");
         const cutoff = now.getTime() - staleAfterMs;
         const recovered: string[] = [];
         for (const item of this.items.values()) {
-            if (!ownershipMatches(this.ownership, ownershipFromQueueItem(item))) continue;
+            if (!ownershipMatches(this.ownership, item.ownership)) continue;
             if (item.status !== QueueItemStatus.CLAIMED || item.updatedAt.getTime() > cutoff) continue;
             item.status = QueueItemStatus.QUEUED;
             item.availableAt = now;
@@ -114,11 +124,4 @@ export class InMemoryQueueStore implements QueueStore {
         }
         return recovered;
     }
-
-    private readonly items = new Map<string, QueueItem>();
-}
-
-function ownershipFromQueueItem(item: QueueItem): ExecutionOwnership {
-    const companyId = typeof item.metadata.companyId === "string" ? item.metadata.companyId : undefined;
-    return companyId ? { scope: "COMPANY", companyId } : { scope: "SYSTEM" };
 }
