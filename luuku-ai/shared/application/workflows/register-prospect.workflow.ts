@@ -193,7 +193,7 @@ export class RegisterProspectWorkflow {
                 updatedAt:
                     now
 
-            }, context.company!.id);
+            });
 
         return true;
 
@@ -299,7 +299,7 @@ export class RegisterProspectWorkflow {
                 updatedAt:
                     now
 
-            });
+            }, context.company!.id);
 
     }
 
@@ -365,7 +365,7 @@ export class RegisterProspectWorkflow {
                 updatedAt:
                     now
 
-            });
+            }, context.company!.id);
 
     }
 
