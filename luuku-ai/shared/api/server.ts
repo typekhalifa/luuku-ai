@@ -1,5 +1,6 @@
 import express from "express";
 import cors from "cors";
+import { randomUUID, timingSafeEqual } from "node:crypto";
 
 import { dashboardRouter } from "./routes/dashboard.route";
 import { eventsRouter } from "./routes/events.route";
@@ -24,7 +25,40 @@ if (environment === "production" && !apiKey) {
     throw new Error("LUUKU_API_KEY must be configured in production.");
 }
 
+function apiKeysMatch(suppliedKey: string | undefined): boolean {
+    if (!suppliedKey || !apiKey) {
+        return false;
+    }
+
+    const supplied = Buffer.from(suppliedKey, "utf8");
+    const expected = Buffer.from(apiKey, "utf8");
+
+    return (
+        supplied.length === expected.length &&
+        timingSafeEqual(supplied, expected)
+    );
+}
+
 app.disable("x-powered-by");
+
+app.use((request, response, next) => {
+    const requestId = request.header("x-request-id")?.trim() || randomUUID();
+
+    response.setHeader("x-request-id", requestId);
+    response.setHeader("x-content-type-options", "nosniff");
+    response.setHeader("x-frame-options", "DENY");
+    response.setHeader("referrer-policy", "no-referrer");
+    response.setHeader("permissions-policy", "camera=(), microphone=(), geolocation=()");
+
+    if (environment === "production") {
+        response.setHeader(
+            "strict-transport-security",
+            "max-age=31536000; includeSubDomains",
+        );
+    }
+
+    next();
+});
 
 app.use(cors({
     origin: configuredOrigins.length > 0
@@ -40,7 +74,7 @@ app.use((request, response, next) => {
     }
 
     const suppliedKey = request.header("x-luuku-api-key");
-    if (!suppliedKey || suppliedKey !== apiKey) {
+    if (!apiKeysMatch(suppliedKey)) {
         return response.status(401).json({
             error: "UNAUTHORIZED",
         });
