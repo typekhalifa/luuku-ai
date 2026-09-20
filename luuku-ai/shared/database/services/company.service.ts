@@ -7,24 +7,27 @@ export class CompanyService {
         return companyRepository.findAll(companyId);
     }
 
-    async getCompany(id: string): Promise<Company | null> {
-        return companyRepository.findById(id);
+    async getCompany(id: string, companyId?: string): Promise<Company | null> {
+        return companyRepository.findById(id, companyId);
     }
 
-    async findCompany(name: string): Promise<Company | null> {
-        return companyRepository.findByName(name);
+    async findCompany(name: string, companyId?: string): Promise<Company | null> {
+        return companyRepository.findByName(name, companyId);
     }
 
-    async createCompany(company: Company): Promise<Company> {
+    async createCompany(company: Company, companyId?: string): Promise<Company> {
+        if (companyId && company.id !== companyId) {
+            throw new Error("COMPANY_TENANT_MISMATCH");
+        }
         return companyRepository.create(company);
     }
 
-    async updateCompany(company: Company): Promise<Company> {
-        return companyRepository.update(company);
+    async updateCompany(company: Company, companyId?: string): Promise<Company> {
+        return companyRepository.update(company, companyId);
     }
 
-    async deleteCompany(id: string): Promise<void> {
-        await companyRepository.delete(id);
+    async deleteCompany(id: string, companyId?: string): Promise<void> {
+        await companyRepository.delete(id, companyId);
     }
 }
 
