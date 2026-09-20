@@ -79,6 +79,21 @@ function isOverdueCrmPrioritization(
 async function executeOverdueCrmPrioritization(
     task: AgentTask
 ): Promise<AgentResult> {
+    const companyId = typeof task.metadata?.companyId === "string"
+        ? task.metadata.companyId
+        : undefined;
+
+    if (!companyId) {
+        return {
+            success: false,
+            summary: "CRM prioritization blocked: tenant company context is required.",
+            completedAt: new Date().toISOString(),
+            executionStatus: "blocked",
+            executed: false,
+            verified: false,
+            blockers: ["TENANT_CONTEXT_REQUIRED"],
+        };
+    }
     const requestedLimit = Number(task.metadata?.limit ?? 5);
     const limit = Number.isFinite(requestedLimit)
         ? Math.max(1, Math.min(10, Math.floor(requestedLimit)))
