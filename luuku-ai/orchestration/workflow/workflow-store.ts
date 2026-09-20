@@ -1,6 +1,6 @@
 import { Workflow } from "./workflow";
 import type { ExecutionOwnership } from "../ownership";
-import { assertValidExecutionOwnership, ownershipMatches } from "../ownership";
+import { assertValidExecutionOwnership, ownershipMatches, normalizeExecutionOwnership } from "../ownership";
 
 /** Durable persistence boundary for workflow state. */
 export interface WorkflowStore {
@@ -11,7 +11,7 @@ export interface WorkflowStore {
 }
 
 export class InMemoryWorkflowStore implements WorkflowStore {
-    constructor(private readonly ownership: ExecutionOwnership) {
+    constructor(private readonly ownership: ExecutionOwnership = { scope: "SYSTEM" }) {
         assertValidExecutionOwnership(ownership);
     }
 
@@ -22,6 +22,7 @@ export class InMemoryWorkflowStore implements WorkflowStore {
     }
 
     async create(workflow: Workflow): Promise<Workflow> {
+        workflow.ownership = normalizeExecutionOwnership(workflow.ownership);
         this.assertOwnership(workflow);
         if (this.workflows.has(workflow.id)) {
             throw new Error(`Workflow ${workflow.id} already exists.`);
@@ -44,6 +45,7 @@ export class InMemoryWorkflowStore implements WorkflowStore {
     }
 
     async save(workflow: Workflow): Promise<Workflow> {
+        workflow.ownership = normalizeExecutionOwnership(workflow.ownership);
         this.assertOwnership(workflow);
         if (!this.workflows.has(workflow.id)) {
             throw new Error(`Workflow ${workflow.id} was not found.`);
@@ -63,7 +65,7 @@ export class InMemoryWorkflowStore implements WorkflowStore {
 function cloneWorkflow(workflow: Workflow): Workflow {
     return {
         ...workflow,
-        ownership: { ...workflow.ownership },
+        ownership: { ...normalizeExecutionOwnership(workflow.ownership) },
         approvedAt: workflow.approvedAt ? new Date(workflow.approvedAt) : undefined,
         createdAt: new Date(workflow.createdAt),
         updatedAt: new Date(workflow.updatedAt),
