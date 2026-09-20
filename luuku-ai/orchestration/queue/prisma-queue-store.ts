@@ -10,7 +10,7 @@ const priorityRank: Record<Priority, number> = {
 };
 
 export class PrismaQueueStore implements QueueStore {
-    constructor(private readonly ownership: ExecutionOwnership) {
+    constructor(private readonly ownership: ExecutionOwnership = { scope: "SYSTEM" }) {
         assertValidExecutionOwnership(ownership);
     }
 
