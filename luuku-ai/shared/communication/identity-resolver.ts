@@ -428,7 +428,7 @@ export class CommunicationIdentityResolver {
         companyId: string,
     ): Promise<string[]> {
         const ids = await Promise.all(
-            identities.map((identity) => this.contactIdForIdentity(identity)),
+            identities.map((identity) => this.contactIdForIdentity(identity, companyId)),
         );
 
         return uniqueIds(ids);
