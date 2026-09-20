@@ -16,8 +16,19 @@ export class SharedAgentWorkflowExecutor implements WorkflowStepExecutor {
             throw new Error(`Workflow identity is required for step ${step.id}.`);
         }
 
+        const companyId =
+            typeof step.input === "object" && step.input !== null &&
+            typeof (step.input as Record<string, unknown>).companyId === "string"
+                ? (step.input as Record<string, unknown>).companyId
+                : undefined;
+
         const idempotencyKey = workflowStepIdempotencyKey(workflowId, step.id);
-        const claim = await this.ledger.begin(idempotencyKey, workflowId, step.id);
+        const claim = await this.ledger.begin(
+            idempotencyKey,
+            workflowId,
+            step.id,
+            companyId,
+        );
 
         // An existing executing record is an uncertain outcome after a crash.
         // Never blindly dispatch the side effect a second time; reconciliation
