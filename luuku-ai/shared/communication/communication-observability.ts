@@ -57,19 +57,191 @@ export class CommunicationObservabilityService {
             throw new Error("TENANT_CONTEXT_REQUIRED_FOR_COMMUNICATION_OBSERVABILITY");
         }
 
-        // Communication records predate durable tenant ownership. Returning
-        // global telemetry here would cross the authenticated tenant boundary.
-        // Until the communication schema carries companyId, fail closed with
-        // an empty tenant-scoped snapshot rather than exposing global data.
+        const conversationWhere = { companyId };
+        const messageWhere = { conversation: { companyId } };
+        const executionWhere = { companyId };
+        const eventWhere = { companyId };
+
+        const [
+            messageTotal,
+            inboundMessages,
+            outboundMessages,
+            conversationTotal,
+            activeConversations,
+            executionTotal,
+            verifiedExecutions,
+            failedExecutions,
+            executionStatuses,
+            executionPolicies,
+            eventTotal,
+            eventProviders,
+            eventTypes,
+            channelMessages,
+            recentMessages,
+            recentExecutions,
+            recentEvents,
+        ] = await Promise.all([
+            prisma.communicationMessage.count({ where: messageWhere }),
+            prisma.communicationMessage.count({ where: { ...messageWhere, direction: "inbound" } }),
+            prisma.communicationMessage.count({ where: { ...messageWhere, direction: "outbound" } }),
+            prisma.communicationConversation.count({ where: conversationWhere }),
+            prisma.communicationConversation.count({ where: { ...conversationWhere, status: "active" } }),
+            prisma.communicationExecution.count({ where: executionWhere }),
+            prisma.communicationExecution.count({ where: { ...executionWhere, verified: true } }),
+            prisma.communicationExecution.count({ where: { ...executionWhere, status: "failed" } }),
+            prisma.communicationExecution.groupBy({
+                by: ["status"],
+                where: executionWhere,
+                _count: { _all: true },
+            }),
+            prisma.communicationExecution.groupBy({
+                by: ["policyDecision"],
+                where: executionWhere,
+                _count: { _all: true },
+            }),
+            prisma.communicationEvent.count({ where: eventWhere }),
+            prisma.communicationEvent.groupBy({
+                by: ["provider"],
+                where: eventWhere,
+                _count: { _all: true },
+            }),
+            prisma.communicationEvent.groupBy({
+                by: ["type"],
+                where: eventWhere,
+                _count: { _all: true },
+            }),
+            prisma.communicationConversation.groupBy({
+                by: ["channel"],
+                where: conversationWhere,
+                _count: { _all: true },
+            }),
+            prisma.communicationMessage.findMany({
+                where: messageWhere,
+                orderBy: { timestamp: "desc" },
+                take: recentLimit,
+                select: {
+                    id: true,
+                    timestamp: true,
+                    direction: true,
+                    conversationId: true,
+                    conversation: { select: { channel: true } },
+                },
+            }),
+            prisma.communicationExecution.findMany({
+                where: executionWhere,
+                orderBy: { createdAt: "desc" },
+                take: recentLimit,
+                select: {
+                    id: true,
+                    createdAt: true,
+                    status: true,
+                    policyDecision: true,
+                    verified: true,
+                    channel: true,
+                    provider: true,
+                    taskId: true,
+                    conversationId: true,
+                },
+            }),
+            prisma.communicationEvent.findMany({
+                where: eventWhere,
+                orderBy: { receivedAt: "desc" },
+                take: recentLimit,
+                select: {
+                    id: true,
+                    receivedAt: true,
+                    provider: true,
+                    type: true,
+                    conversationId: true,
+                },
+            }),
+        ]);
+
+        const timeline: CommunicationObservabilityTimelineEntry[] = [
+            ...recentMessages.map((message) => ({
+                source: "message" as const,
+                id: message.id,
+                timestamp: message.timestamp,
+                channel: message.conversation.channel,
+                direction: message.direction,
+                conversationId: message.conversationId,
+            })),
+            ...recentExecutions.map((execution) => ({
+                source: "execution" as const,
+                id: execution.id,
+                timestamp: execution.createdAt,
+                channel: execution.channel,
+                status: execution.status,
+                provider: execution.provider ?? undefined,
+                policyDecision: execution.policyDecision,
+                verified: execution.verified,
+                taskId: execution.taskId,
+                conversationId: execution.conversationId,
+            })),
+            ...recentEvents.map((event) => ({
+                source: "event" as const,
+                id: event.id,
+                timestamp: event.receivedAt,
+                provider: event.provider,
+                type: event.type,
+                conversationId: event.conversationId,
+            })),
+        ]
+            .sort((left, right) => right.timestamp.getTime() - left.timestamp.getTime())
+            .slice(0, recentLimit);
+
         return {
             generatedAt: new Date(),
-            messages: { total: 0, inbound: 0, outbound: 0 },
-            conversations: { total: 0, active: 0 },
-            executions: { total: 0, verified: 0, failed: 0, byStatus: {}, byPolicyDecision: {} },
-            events: { total: 0, byProvider: {}, byType: {} },
-            channels: {},
-            timeline: [],
+            messages: {
+                total: messageTotal,
+                inbound: inboundMessages,
+                outbound: outboundMessages,
+            },
+            conversations: {
+                total: conversationTotal,
+                active: activeConversations,
+            },
+            executions: {
+                total: executionTotal,
+                verified: verifiedExecutions,
+                failed: failedExecutions,
+                byStatus: toCounts(
+                    executionStatuses.map((row) => ({
+                        value: row.status,
+                        count: row._count._all,
+                    })),
+                ),
+                byPolicyDecision: toCounts(
+                    executionPolicies.map((row) => ({
+                        value: row.policyDecision,
+                        count: row._count._all,
+                    })),
+                ),
+            },
+            events: {
+                total: eventTotal,
+                byProvider: toCounts(
+                    eventProviders.map((row) => ({
+                        value: row.provider,
+                        count: row._count._all,
+                    })),
+                ),
+                byType: toCounts(
+                    eventTypes.map((row) => ({
+                        value: row.type,
+                        count: row._count._all,
+                    })),
+                ),
+            },
+            channels: toCounts(
+                channelMessages.map((row) => ({
+                    value: row.channel,
+                    count: row._count._all,
+                })),
+            ),
+            timeline,
         };
+
     }
 }
 
