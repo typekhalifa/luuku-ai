@@ -18,6 +18,14 @@ export class ExecutionLedger {
     ): Promise<ExecutionClaim> {
         const existing = await prisma.communicationExecution.findUnique({ where: { idempotencyKey } });
         if (existing) {
+            const requestedScope = companyId ? "COMPANY" : "SYSTEM";
+            if (
+                existing.ownershipScope !== requestedScope ||
+                (requestedScope === "COMPANY" && existing.companyId !== companyId) ||
+                (requestedScope === "SYSTEM" && (existing.companyId || existing.spaceId))
+            ) {
+                throw new Error("COMMUNICATION_EXECUTION_OWNERSHIP_MISMATCH");
+            }
             if (existing.executed) {
                 return {
                     id: existing.id,
@@ -51,7 +59,8 @@ export class ExecutionLedger {
 
         const record = await prisma.communicationExecution.create({
             data: {
-                companyId,
+                ownershipScope: companyId ? "COMPANY" : "SYSTEM",
+                companyId: companyId ?? null,
                 taskId: stepId,
                 idempotencyKey,
                 capability: "workflow.step",
