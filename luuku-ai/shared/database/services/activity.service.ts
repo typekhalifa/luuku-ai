@@ -11,21 +11,22 @@ export class ActivityService {
         return activityRepository.findByCompany(companyId);
     }
 
-    async getIncompleteActivities(limit?: number): Promise<Activity[]> {
-        return activityRepository.findIncomplete(limit);
+    async getIncompleteActivities(limit?: number, companyId?: string): Promise<Activity[]> {
+        return activityRepository.findIncomplete(limit, companyId);
     }
 
-    async getOverdueActivities(limit?: number): Promise<Activity[]> {
-        return activityRepository.findOverdue(limit);
+    async getOverdueActivities(limit?: number, companyId?: string): Promise<Activity[]> {
+        return activityRepository.findOverdue(limit, companyId);
     }
 
-    async getActivitiesByIds(ids: string[]): Promise<Activity[]> {
-        return activityRepository.findByIds(ids);
+    async getActivitiesByIds(ids: string[], companyId?: string): Promise<Activity[]> {
+        return activityRepository.findByIds(ids, companyId);
     }
 
     async markPrioritized(
         activity: Activity,
-        actor = "Lex Executive AI"
+        actor = "Lex Executive AI",
+        companyId?: string
     ): Promise<Activity> {
         const marker = `[LEX PRIORITY: HIGH] ${actor}`;
         const description = activity.description.startsWith(marker)
@@ -35,12 +36,13 @@ export class ActivityService {
         return activityRepository.updateOutcome(
             activity.id,
             "Prioritized for follow-up by Lex Executive AI",
-            description
+            description,
+            companyId
         );
     }
 
-    async createActivity(activity: Activity): Promise<Activity> {
-        return activityRepository.create(activity);
+    async createActivity(activity: Activity, companyId?: string): Promise<Activity> {
+        return activityRepository.create(activity, companyId);
     }
 }
 
