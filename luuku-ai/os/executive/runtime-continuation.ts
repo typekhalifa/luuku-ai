@@ -72,6 +72,7 @@ export class ExecutiveRuntimeContinuation {
 
             const item = await this.scheduler.schedule({
                 id: queueId,
+                ownership: workflow.ownership,
                 workflowId: workflow.id,
                 stepId: step.id,
                 agentId: step.agentId,
