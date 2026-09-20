@@ -12,12 +12,14 @@ import {
 
 export async function resolveContact(
     companyName: string,
-    preferredEmail?: string
+    preferredEmail?: string,
+    companyId?: string
 ): Promise<Contact | undefined> {
 
     const company =
         await companyService.findCompany(
-            companyName
+            companyName,
+            companyId
         );
 
     if (!company) {
@@ -26,7 +28,8 @@ export async function resolveContact(
 
     const contacts =
         await contactService.getCompanyContacts(
-            company.id
+            company.id,
+            companyId
         );
 
     const contact = preferredEmail
