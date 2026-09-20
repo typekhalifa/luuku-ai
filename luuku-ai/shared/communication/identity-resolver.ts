@@ -257,7 +257,7 @@ export class CommunicationIdentityResolver {
 
             if (conversation) {
                 const identities = participantIdentities(conversation.participants);
-                const contactIds = await this.resolveParticipantContacts(identities);
+                const contactIds = await this.resolveParticipantContacts(identities, companyId);
 
                 if (contactIds.length === 1) {
                     const contact = await this.db.contact.findFirst({
@@ -329,7 +329,7 @@ export class CommunicationIdentityResolver {
                 await Promise.all(
                     matches.flatMap((conversation) =>
                         participantIdentities(conversation.participants).map((identity) =>
-                            this.contactIdForIdentity(identity),
+                            this.contactIdForIdentity(identity, companyId),
                         ),
                     ),
                 )
@@ -403,6 +403,7 @@ export class CommunicationIdentityResolver {
 
     private async contactIdForIdentity(
         identity: ChannelIdentity,
+        companyId: string,
     ): Promise<string | undefined> {
         const externalId = normalizeExternalId(identity.externalId);
         if (!externalId) {
@@ -410,14 +411,12 @@ export class CommunicationIdentityResolver {
         }
 
         if (identity.channel === "email") {
-            const ids = await this.contactIdsByEmail(externalId, "");
-
+            const ids = await this.contactIdsByEmail(externalId, companyId);
             return ids.length === 1 ? ids[0] : undefined;
         }
 
         if (identity.channel === "voice" || identity.channel === "whatsapp") {
-            const ids = await this.contactIdsByPhone(externalId, "");
-
+            const ids = await this.contactIdsByPhone(externalId, companyId);
             return ids.length === 1 ? ids[0] : undefined;
         }
 
@@ -426,6 +425,7 @@ export class CommunicationIdentityResolver {
 
     private async resolveParticipantContacts(
         identities: ChannelIdentity[],
+        companyId: string,
     ): Promise<string[]> {
         const ids = await Promise.all(
             identities.map((identity) => this.contactIdForIdentity(identity)),
