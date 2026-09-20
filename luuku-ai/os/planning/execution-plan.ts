@@ -1,4 +1,5 @@
 import { Plan } from "../../orchestration/planner/plan";
+import type { ExecutionOwnership } from "../../orchestration/ownership.js";
 
 export interface ExecutionPlanStep {
     taskId: string;
@@ -18,7 +19,7 @@ export interface ExecutionPlan {
     metadata: Record<string, unknown>;
 }
 
-export function createExecutionPlan(plan: Plan): ExecutionPlan {
+export function createExecutionPlan(plan: Plan, ownership: ExecutionOwnership): ExecutionPlan {
     const steps: ExecutionPlanStep[] = plan.tasks.map((task) => {
         const metadata = task.metadata as Record<string, unknown>;
         const agentId = metadata.agentId;
