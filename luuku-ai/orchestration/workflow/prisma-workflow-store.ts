@@ -4,10 +4,10 @@ import { WorkflowStore } from "./workflow-store";
 import { WorkflowStep } from "./workflow-step";
 import { Prisma } from "@prisma/client";
 import type { ExecutionOwnership } from "../ownership";
-import { assertValidExecutionOwnership, ownershipMatches } from "../ownership";
+import { assertValidExecutionOwnership, ownershipMatches, normalizeExecutionOwnership } from "../ownership";
 
 export class PrismaWorkflowStore implements WorkflowStore {
-    constructor(private readonly ownership: ExecutionOwnership) {
+    constructor(private readonly ownership: ExecutionOwnership = { scope: "SYSTEM" }) {
         assertValidExecutionOwnership(ownership);
     }
 
@@ -24,6 +24,7 @@ export class PrismaWorkflowStore implements WorkflowStore {
     }
 
     async create(workflow: Workflow): Promise<Workflow> {
+        workflow.ownership = normalizeExecutionOwnership(workflow.ownership);
         this.assertOwnership(workflow);
         await prisma.workflow.create({
             data: {
@@ -61,6 +62,7 @@ export class PrismaWorkflowStore implements WorkflowStore {
     }
 
     async save(workflow: Workflow): Promise<Workflow> {
+        workflow.ownership = normalizeExecutionOwnership(workflow.ownership);
         this.assertOwnership(workflow);
         await prisma.$transaction(async (tx) => {
             const existing = await tx.workflow.findFirst({
