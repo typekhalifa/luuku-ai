@@ -75,3 +75,16 @@ export function requirePermission(
         next();
     };
 }
+
+export function requireServiceRole(
+    _request: Request,
+    response: Response,
+    next: NextFunction,
+): void {
+    const context = response.locals.apiRequestContext as AuthenticatedContext | undefined;
+    if (context?.role !== "SERVICE") {
+        response.status(403).json({ error: "SERVICE_SCOPE_REQUIRED" });
+        return;
+    }
+    next();
+}
