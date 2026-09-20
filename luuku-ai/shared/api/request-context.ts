@@ -1,6 +1,10 @@
+import type { MembershipRole } from "../auth/auth.service";
+
 export interface ApiRequestContext {
     companyId: string;
-    authMethod: "api-key";
+    authMethod: "api-key" | "session";
+    userId?: string;
+    role: MembershipRole | "SERVICE";
 }
 
 export function getApiRequestContext(
