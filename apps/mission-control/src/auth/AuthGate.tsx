@@ -1,4 +1,5 @@
-import { FormEvent, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
+import type { FormEvent, ReactNode } from "react";
 
 import { api } from "@/services/api";
 
@@ -13,7 +14,7 @@ interface User {
   }>;
 }
 
-export default function AuthGate({ children }: { children: React.ReactNode }) {
+export default function AuthGate({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [checking, setChecking] = useState(true);
   const [email, setEmail] = useState("");
