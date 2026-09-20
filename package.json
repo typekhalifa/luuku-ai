@@ -37,7 +37,8 @@
     "typecheck:backend": "tsc --noEmit -p luuku-ai/tsconfig.json",
     "clean:logs": "powershell -Command \"if (Test-Path logs) { Remove-Item logs\\*.md -Force -ErrorAction SilentlyContinue }\"",
     "dev:tenant-isolation": "tsx luuku-ai/shared/api/demo/v8-tenant-isolation-demo.ts",
-    "dev:auth:bootstrap": "tsx luuku-ai/scripts/bootstrap-auth.ts"
+    "dev:auth:bootstrap": "tsx luuku-ai/scripts/bootstrap-auth.ts",
+    "dev:communication:tenant-isolation": "tsx luuku-ai/shared/communication/demo/ownership-isolation-demo.ts"
   },
   "keywords": [
     "ai",
