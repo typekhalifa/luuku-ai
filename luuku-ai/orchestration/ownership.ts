@@ -15,3 +15,7 @@ export function ownershipMatches(
     if (left.scope !== right.scope) return false;
     return left.scope === "SYSTEM" || left.companyId === right.companyId;
 }
+
+export function normalizeExecutionOwnership(ownership?: ExecutionOwnership): ExecutionOwnership {
+    return ownership ?? { scope: "SYSTEM" };
+}
