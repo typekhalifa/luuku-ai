@@ -15,10 +15,9 @@ export class CompanyRepository extends BaseRepository<Company> {
     }
 
     async findById(id: string, companyId?: string): Promise<Company | null> {
-        const company = companyId
-            ? await prisma.company.findFirst({ where: { id, id: companyId } })
-            : await prisma.company.findUnique({ where: { id } });
+        if (companyId && id !== companyId) return null;
 
+        const company = await prisma.company.findUnique({ where: { id } });
         if (!company) return null;
         return CompanyMapper.toDomain(company);
     }
@@ -44,11 +43,9 @@ export class CompanyRepository extends BaseRepository<Company> {
 
     async update(company: Company, companyId?: string): Promise<Company> {
         if (companyId) {
-            const owned = await prisma.company.findFirst({
-                where: { id: company.id, id: companyId },
-                select: { id: true }
-            });
-            if (!owned) throw new Error("COMPANY_NOT_FOUND_OR_UNAUTHORIZED");
+            if (company.id !== companyId) {
+                throw new Error("COMPANY_NOT_FOUND_OR_UNAUTHORIZED");
+            }
         }
 
         const updated = await prisma.company.update({
@@ -60,11 +57,9 @@ export class CompanyRepository extends BaseRepository<Company> {
 
     async delete(id: string, companyId?: string): Promise<void> {
         if (companyId) {
-            const owned = await prisma.company.findFirst({
-                where: { id, id: companyId },
-                select: { id: true }
-            });
-            if (!owned) throw new Error("COMPANY_NOT_FOUND_OR_UNAUTHORIZED");
+            if (id !== companyId) {
+                throw new Error("COMPANY_NOT_FOUND_OR_UNAUTHORIZED");
+            }
         }
 
         await prisma.company.delete({ where: { id } });
