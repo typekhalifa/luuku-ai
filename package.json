@@ -35,7 +35,8 @@
     "build:web": "npm run build --workspace=web-new",
     "typecheck": "tsc --noEmit",
     "typecheck:backend": "tsc --noEmit -p luuku-ai/tsconfig.json",
-    "clean:logs": "powershell -Command \"if (Test-Path logs) { Remove-Item logs\\*.md -Force -ErrorAction SilentlyContinue }\""
+    "clean:logs": "powershell -Command \"if (Test-Path logs) { Remove-Item logs\\*.md -Force -ErrorAction SilentlyContinue }\"",
+    "dev:tenant-isolation": "tsx luuku-ai/shared/api/demo/v8-tenant-isolation-demo.ts"
   },
   "keywords": [
     "ai",
