@@ -41,6 +41,7 @@ interface CommunicationPolicyMetadata {
     audience?: CommunicationAudience;
     executionMode?: CommunicationExecutionMode;
     crmContactId?: string;
+    companyId?: string;
 }
 
 function readMetadata(
@@ -66,10 +67,16 @@ function readMetadata(
             ? metadata.crmContactId.trim()
             : undefined;
 
+    const companyId =
+        typeof metadata.companyId === "string" && metadata.companyId.trim()
+            ? metadata.companyId.trim()
+            : undefined;
+
     return {
         audience,
         executionMode,
         crmContactId,
+        companyId,
     };
 }
 
@@ -221,6 +228,15 @@ export class CommunicationPolicy {
         }
 
         const externalId = recipientExternalId(request);
+
+        if (!metadata.companyId) {
+            return {
+                decision: "block",
+                reason:
+                    "External communication requires an authenticated tenant company context.",
+                errorCode: "COMMUNICATION_TENANT_CONTEXT_REQUIRED",
+            };
+        }
 
         if (!externalId) {
             return {
