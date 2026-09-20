@@ -7,6 +7,7 @@ import { TaskType } from "../../orchestration/task/task-type.js";
 import type { Task } from "../../orchestration/task/task.js";
 import type { Plan } from "../../orchestration/planner/plan.js";
 import { V8_OBJECTIVE_CAPABILITY_ALIASES } from "./capability-aliases.js";
+import type { ExecutionOwnership } from "../../orchestration/ownership.js";
 
 export interface IntentPlanCapabilityMap {
     readonly [intentType: string]: string;
@@ -67,6 +68,6 @@ export class ExecutiveIntentPlanBuilder {
             createdAt: now,
         };
 
-        return createExecutionPlan(plan);
+        return createExecutionPlan(plan, request.ownership);
     }
 }
