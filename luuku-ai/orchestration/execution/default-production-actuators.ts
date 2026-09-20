@@ -19,6 +19,8 @@ function taskFromWorkflowStep(step: WorkflowStep): AgentTask {
                 : {}),
             workflowId: step.workflowId,
             workflowStepId: step.id,
+            ownershipScope: step.ownership?.scope,
+            companyId: step.ownership?.scope === "COMPANY" ? step.ownership.companyId : undefined,
             capability: step.capability,
         },
     };
