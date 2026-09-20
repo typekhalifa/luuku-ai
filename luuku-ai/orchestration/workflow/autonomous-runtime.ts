@@ -8,6 +8,7 @@ import { WorkflowEngine } from "./workflow-engine";
 import { WorkflowOrchestrator } from "./workflow-orchestrator";
 import { WorkflowStatus } from "./workflow-status";
 import { WorkflowStore } from "./workflow-store";
+import { normalizeExecutionOwnership } from "../ownership.js";
 
 export interface AutonomousRuntimeCycleResult { scheduled: string[]; recovered: string[]; claimed: string[]; executed: string[]; completed: string[]; retried: string[]; failed: string[]; blocked: string[]; reconciled: string[]; escalated: string[]; }
 export interface AutonomousRuntimeOptions { queueClaimStaleAfterMs?: number; failurePolicy?: FailurePolicy; events?: RuntimeEventBus; }
@@ -23,7 +24,7 @@ export class AutonomousRuntime {
     async scheduleRunnableSteps(workflow: Workflow, availableAt = new Date()): Promise<QueueItem[]> {
         const decision = new WorkflowEngine().evaluate(workflow); const runnableIds = new Set(decision.runnableStepIds); const scheduled: QueueItem[] = [];
         for (const step of workflow.steps) { if (!runnableIds.has(step.id)) continue; const id = `${workflow.id}:${step.id}`; const existing = await this.queue.get(id); if (existing && [QueueItemStatus.QUEUED, QueueItemStatus.CLAIMED, QueueItemStatus.COMPLETED].includes(existing.status)) continue;
-            const input: ScheduleItemInput = { id, ownership: workflow.ownership, workflowId: workflow.id, stepId: step.id, agentId: step.agentId, availableAt, priority: step.priority, metadata: { workflowId: workflow.id, stepId: step.id, source: "v6-autonomous-runtime" } };
+            const input: ScheduleItemInput = { id, ownership: normalizeExecutionOwnership(workflow.ownership), workflowId: workflow.id, stepId: step.id, agentId: step.agentId, availableAt, priority: step.priority, metadata: { workflowId: workflow.id, stepId: step.id, source: "v6-autonomous-runtime" } };
             try { scheduled.push(await this.scheduler.schedule(input)); } catch (error) { if (!(error instanceof Error) || !error.message.includes("already exists")) throw error; }
         } return scheduled;
     }
