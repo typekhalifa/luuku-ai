@@ -38,7 +38,8 @@ export interface ObjectiveDrivenCycleResult {
     readonly learningAdaptation?: readonly ExecutiveLearningAdaptationDecision[];
 }
 
-export interface ObjectiveDrivenExecutiveCycleOptions {\n    readonly ownership: ExecutionOwnership;
+export interface ObjectiveDrivenExecutiveCycleOptions {
+    readonly ownership: ExecutionOwnership;
     readonly maxSelections?: number;
     readonly capacityGate?: ExecutiveCapacityGate;
     readonly resourceRequirements?: (candidate: ExecutiveWorkCandidate) => readonly ExecutiveCapacityRequirement[];
