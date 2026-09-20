@@ -50,7 +50,7 @@ async function runDemo() {
         source: "executive-ai",
         timestamp: new Date().toISOString(),
         payload: {
-                context: { ownership: { scope: "SYSTEM" } },
+                context: { ownership: { scope: "SPACE", spaceId: `founder-discord:${discord.channelId}` } },
             conversationId,
             channel: "discord",
             recipient: {
@@ -68,6 +68,7 @@ async function runDemo() {
 
     const conversation = await communicationService.getConversation(
         conversationId,
+        { ownership: { scope: "SPACE", spaceId: `founder-discord:${discord.channelId}` } },
     );
 
     if (!conversation || conversation.messages.length < 1) {
