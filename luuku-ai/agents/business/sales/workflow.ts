@@ -90,7 +90,7 @@ async function executeOverdueCrmPrioritization(
     console.log("========================================");
     console.log("");
 
-    const before = await activityService.getOverdueActivities();
+    const before = await activityService.getOverdueActivities(undefined, companyId);
 
     if (before.length === 0) {
         return {
@@ -151,7 +151,7 @@ async function executeOverdueCrmPrioritization(
             );
         });
 
-    const after = await activityService.getOverdueActivities();
+    const after = await activityService.getOverdueActivities(undefined, companyId);
 
     console.log(`Overdue before   : ${before.length}`);
     console.log(`Activities selected: ${selected.length}`);
@@ -204,6 +204,22 @@ export async function executeSalesWorkflow(
     task: AgentTask
 
 ): Promise<AgentResult> {
+
+    const companyId = typeof task.metadata?.companyId === "string"
+        ? task.metadata.companyId
+        : undefined;
+
+    if (!companyId) {
+        return {
+            success: false,
+            summary: "Sales workflow blocked: tenant company context is required for CRM access.",
+            completedAt: new Date().toISOString(),
+            executionStatus: "blocked",
+            executed: false,
+            verified: false,
+            blockers: ["TENANT_CONTEXT_REQUIRED"],
+        };
+    }
 
     console.log("");
 
@@ -306,7 +322,8 @@ export async function executeSalesWorkflow(
                 company: context.companyName,
                 reasons: [
                     "No contact found in PostgreSQL."
-                ]
+                ],
+                companyId
             });
 
         if (!enrichment.success) {
@@ -363,7 +380,8 @@ export async function executeSalesWorkflow(
         const enrichment =
             await requestContactEnrichment({
                 company: context.companyName,
-                reasons: validation.reasons
+                reasons: validation.reasons,
+                companyId
             });
 
         if (!enrichment.success) {
