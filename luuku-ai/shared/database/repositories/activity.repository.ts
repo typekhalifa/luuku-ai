@@ -1,6 +1,6 @@
 import { prisma } from "../client";
 import { Activity } from "../../domain/activity";
-import { ActivityMapper } from "../mappers/activity.mapper;
+import { ActivityMapper } from "../mappers/activity.mapper";
 
 export class ActivityRepository {
     async findAll(companyId?: string): Promise<Activity[]> {
