@@ -71,7 +71,7 @@ export class ObjectiveDrivenExecutiveCycle {
     private readonly strategyEngine = new MemoryAwareStrategyEngine();
     private readonly adaptivePolicy = new ExecutiveAdaptiveInterventionPolicy();
 
-    constructor(objectiveStore: ExecutiveObjectiveStore, capabilityResolver: CapabilityResolver, memoryStore: ExecutiveMemoryStore = new InMemoryExecutiveMemoryStore(), options: ObjectiveDrivenExecutiveCycleOptions = {}) {
+    constructor(objectiveStore: ExecutiveObjectiveStore, capabilityResolver: CapabilityResolver, memoryStore: ExecutiveMemoryStore = new InMemoryExecutiveMemoryStore(), options: ObjectiveDrivenExecutiveCycleOptions = { ownership: { scope: "SYSTEM" } }) {
         this.objectiveEngine = new ExecutiveObjectiveEngine(objectiveStore);
         this.planBuilder = new ExecutiveIntentPlanBuilder(capabilityResolver);
         this.arbitrator = new ExecutiveWorkArbitrator({ maxSelections: options.maxSelections ?? 1 });
