@@ -3,6 +3,7 @@ import { WorkflowStep } from "./workflow-step";
 import { WorkflowStepExecutor } from "./workflow-orchestrator";
 import { ExecutionLedger, workflowStepIdempotencyKey } from "../execution/execution-ledger";
 import { createDefaultProductionActuatorComposition } from "../execution/default-production-actuators.js";
+import type { ExecutionOwnership } from "../ownership.js";
 
 export class SharedAgentWorkflowExecutor implements WorkflowStepExecutor {
     constructor(
@@ -16,11 +17,12 @@ export class SharedAgentWorkflowExecutor implements WorkflowStepExecutor {
             throw new Error(`Workflow identity is required for step ${step.id}.`);
         }
 
-        const companyId =
-            typeof step.input === "object" && step.input !== null &&
-            typeof (step.input as Record<string, unknown>).companyId === "string"
-                ? (step.input as Record<string, unknown>).companyId
-                : undefined;
+        const ownership: ExecutionOwnership | undefined = step.ownership;
+        if (!ownership) {
+            throw new Error(`Workflow ownership is required for step ${step.id}.`);
+        }
+
+        const companyId = ownership.scope === "COMPANY" ? ownership.companyId : undefined;
 
         const idempotencyKey = workflowStepIdempotencyKey(workflowId, step.id);
         const claim = await this.ledger.begin(
