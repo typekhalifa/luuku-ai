@@ -89,6 +89,22 @@ export class PrismaCommunicationService implements CommunicationService {
             input.recipient,
         );
 
+        const companyId =
+            typeof input.metadata?.companyId === "string"
+                ? input.metadata.companyId
+                : undefined;
+
+        if (companyId && conversation.companyId && conversation.companyId !== companyId) {
+            throw new Error("COMMUNICATION_CONVERSATION_TENANT_MISMATCH");
+        }
+
+        if (companyId && !conversation.companyId) {
+            await prisma.communicationConversation.update({
+                where: { id: conversation.id },
+                data: { companyId },
+            });
+        }
+
         const externalMessageId =
             typeof input.metadata?.externalMessageId === "string"
                 ? input.metadata.externalMessageId
