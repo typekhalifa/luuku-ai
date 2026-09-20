@@ -53,6 +53,7 @@ export interface ObjectiveDrivenExecutiveCycleOptions {
 
 /** Connects objective assessment, V8-C arbitration, V8-D capacity gating, V8-E budget allocation, V8-F tradeoff economics, V8-G learning adaptation, V8-H strategy evolution, planning, and V8-B execution preparation. */
 export class ObjectiveDrivenExecutiveCycle {
+    private readonly ownership: ExecutionOwnership;
     private readonly objectiveEngine: ExecutiveObjectiveEngine;
     private readonly intentBridge = new ExecutiveObjectiveIntentBridge();
     private readonly interventionEngine = new ExecutiveObjectiveInterventionEngine();
@@ -73,6 +74,7 @@ export class ObjectiveDrivenExecutiveCycle {
     private readonly adaptivePolicy = new ExecutiveAdaptiveInterventionPolicy();
 
     constructor(objectiveStore: ExecutiveObjectiveStore, capabilityResolver: CapabilityResolver, memoryStore: ExecutiveMemoryStore = new InMemoryExecutiveMemoryStore(), options: ObjectiveDrivenExecutiveCycleOptions = { ownership: { scope: "SYSTEM" } }) {
+        this.ownership = options.ownership;
         this.objectiveEngine = new ExecutiveObjectiveEngine(objectiveStore);
         this.planBuilder = new ExecutiveIntentPlanBuilder(capabilityResolver);
         this.arbitrator = new ExecutiveWorkArbitrator({ maxSelections: options.maxSelections ?? 1 });
@@ -123,7 +125,7 @@ export class ObjectiveDrivenExecutiveCycle {
                 results.push({ objective, assessment, urgency, progressTrend, intervention, learning, strategyEvolution, strategy, adaptiveIntervention, intent, capacity, budget, tradeoff, learningAdaptation });
                 continue;
             }
-            const plan = this.planBuilder.build({ intent, capabilities, ownership: options.ownership });
+            const plan = this.planBuilder.build({ intent, capabilities, ownership: this.ownership });
             results.push({ objective, assessment, urgency, progressTrend, intervention, learning, strategyEvolution, strategy, adaptiveIntervention, intent, plan, capacity, budget, tradeoff, learningAdaptation });
         }
         return results;
