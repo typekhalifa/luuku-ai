@@ -164,7 +164,7 @@ function fromRecord(record: any): Workflow {
         updatedAt: record.updatedAt,
         metadata: record.metadata ?? {},
         steps: record.steps.map((step: any) => ({
-            id: step.id, workflowId: step.workflowId, title: step.title, description: step.description,
+            id: step.id, workflowId: step.workflowId, ownership: ownership, title: step.title, description: step.description,
             agentId: step.agentId, capability: step.capability,
             dependsOn: Array.isArray(step.dependsOn) ? step.dependsOn : [],
             priority: step.priority, requiresApproval: step.requiresApproval, status: step.status,
