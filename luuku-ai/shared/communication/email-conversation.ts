@@ -29,6 +29,10 @@ export async function getOrCreateEmailConversation(input: {
     companyId?: string;
     metadata?: Record<string, unknown>;
 }): Promise<{ id: string; threadKey: string }> {
+    if (!input.companyId?.trim()) {
+        throw new Error("EMAIL_CONVERSATION_COMPANY_OWNERSHIP_REQUIRED");
+    }
+
     const threadKey = buildEmailThreadKey(
         input.participantEmail,
         input.subject,
@@ -49,7 +53,9 @@ export async function getOrCreateEmailConversation(input: {
     try {
         const created = await prisma.communicationConversation.create({
             data: {
+                ownershipScope: "COMPANY",
                 companyId: input.companyId,
+                spaceId: null,
                 channel: "email",
                 threadKey,
                 participants: [
