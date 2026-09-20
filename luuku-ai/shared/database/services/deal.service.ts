@@ -7,24 +7,24 @@ export class DealService {
         return dealRepository.findAll(companyId);
     }
 
-    async getDeal(id: string): Promise<Deal | null> {
-        return dealRepository.findById(id);
+    async getDeal(id: string, companyId?: string): Promise<Deal | null> {
+        return dealRepository.findById(id, companyId);
     }
 
     async getCompanyDeals(companyId: string): Promise<Deal[]> {
         return dealRepository.findByCompany(companyId);
     }
 
-    async createDeal(deal: Deal): Promise<Deal> {
-        return dealRepository.create(deal);
+    async createDeal(deal: Deal, companyId?: string): Promise<Deal> {
+        return dealRepository.create(deal, companyId);
     }
 
-    async updateDeal(deal: Deal): Promise<Deal> {
-        return dealRepository.update(deal);
+    async updateDeal(deal: Deal, companyId?: string): Promise<Deal> {
+        return dealRepository.update(deal, companyId);
     }
 
-    async deleteDeal(id: string): Promise<void> {
-        await dealRepository.delete(id);
+    async deleteDeal(id: string, companyId?: string): Promise<void> {
+        await dealRepository.delete(id, companyId);
     }
 }
 
