@@ -48,6 +48,7 @@ registerAgent({
 
 const workflow: Workflow = {
     id: workflowId,
+    ownership: { scope: "SYSTEM" },
     goal: "Demonstrate bounded retry and terminal failure policy.",
     status: WorkflowStatus.READY,
     steps: [{
@@ -79,10 +80,10 @@ async function main() {
     await new PrismaWorkflowStore({ scope: "SYSTEM" }).create(workflow);
 
     const runtime = () => new AutonomousRuntime(
-        new QueueScheduler(new PrismaQueueStore()),
-        new PrismaQueueStore(),
+        new QueueScheduler(new PrismaQueueStore({ scope: "SYSTEM" })),
+        new PrismaQueueStore({ scope: "SYSTEM" }),
         new WorkflowOrchestrator(undefined, new SharedAgentWorkflowExecutor()),
-        new PrismaWorkflowStore(),
+        new PrismaWorkflowStore({ scope: "SYSTEM" }),
     );
 
     const t1 = new Date("2026-08-30T09:00:00.000Z");
@@ -100,7 +101,7 @@ async function main() {
     assert.deepEqual(second.retried, [queueId]);
     assert.equal(executions, 2);
 
-    const afterSecond = await new PrismaQueueStore().get(queueId);
+    const afterSecond = await new PrismaQueueStore({ scope: "SYSTEM" }).get(queueId);
     assert.equal(afterSecond?.status, "QUEUED");
     assert.equal(afterSecond?.attempts, 2);
 
