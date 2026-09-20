@@ -3,12 +3,33 @@ import { Workflow } from "./workflow";
 import { WorkflowStore } from "./workflow-store";
 import { WorkflowStep } from "./workflow-step";
 import { Prisma } from "@prisma/client";
+import type { ExecutionOwnership } from "../ownership";
+import { assertValidExecutionOwnership, ownershipMatches } from "../ownership";
 
 export class PrismaWorkflowStore implements WorkflowStore {
+    constructor(private readonly ownership: ExecutionOwnership) {
+        assertValidExecutionOwnership(ownership);
+    }
+
+    private ownershipWhere() {
+        return this.ownership.scope === "COMPANY"
+            ? { ownershipScope: "COMPANY", companyId: this.ownership.companyId }
+            : { ownershipScope: "SYSTEM", companyId: null };
+    }
+
+    private assertOwnership(workflow: Workflow): void {
+        if (!ownershipMatches(this.ownership, workflow.ownership)) {
+            throw new Error("WORKFLOW_OWNERSHIP_MISMATCH");
+        }
+    }
+
     async create(workflow: Workflow): Promise<Workflow> {
+        this.assertOwnership(workflow);
         await prisma.workflow.create({
             data: {
                 id: workflow.id,
+                ownershipScope: workflow.ownership.scope,
+                companyId: workflow.ownership.scope === "COMPANY" ? workflow.ownership.companyId : null,
                 goal: workflow.goal,
                 status: workflow.status,
                 requiresFounderApproval: workflow.requiresFounderApproval,
@@ -16,31 +37,38 @@ export class PrismaWorkflowStore implements WorkflowStore {
                 metadata: toJson(workflow.metadata),
                 createdAt: workflow.createdAt,
                 updatedAt: workflow.updatedAt,
-                steps: {
-                    create: workflow.steps.map((step) => toNestedStepCreateData(step)),
-                },
+                steps: { create: workflow.steps.map((step) => toNestedStepCreateData(step)) },
             },
         });
-
         return this.getOrThrow(workflow.id);
     }
 
     async get(id: string): Promise<Workflow | null> {
-        const record = await prisma.workflow.findUnique({
-            where: { id },
+        const record = await prisma.workflow.findFirst({
+            where: { id, ...this.ownershipWhere() },
             include: { steps: true },
         });
-
         return record ? fromRecord(record) : null;
     }
 
     async list(): Promise<Workflow[]> {
-        const records = await prisma.workflow.findMany({ include: { steps: true }, orderBy: { createdAt: "asc" } });
+        const records = await prisma.workflow.findMany({
+            where: this.ownershipWhere(),
+            include: { steps: true },
+            orderBy: { createdAt: "asc" },
+        });
         return records.map(fromRecord);
     }
 
     async save(workflow: Workflow): Promise<Workflow> {
+        this.assertOwnership(workflow);
         await prisma.$transaction(async (tx) => {
+            const existing = await tx.workflow.findFirst({
+                where: { id: workflow.id, ...this.ownershipWhere() },
+                select: { id: true, ownershipScope: true, companyId: true },
+            });
+            if (!existing) throw new Error(`Workflow ${workflow.id} was not found in the requested ownership scope.`);
+
             await tx.workflow.update({
                 where: { id: workflow.id },
                 data: {
@@ -54,27 +82,19 @@ export class PrismaWorkflowStore implements WorkflowStore {
             });
 
             const incomingIds = workflow.steps.map((step) => step.id);
-
             await tx.workflowStep.deleteMany({
-                where: {
-                    workflowId: workflow.id,
-                    id: { notIn: incomingIds },
-                },
+                where: { workflowId: workflow.id, id: { notIn: incomingIds } },
             });
 
             for (const step of workflow.steps) {
-                const existing = await tx.workflowStep.findUnique({
+                const existingStep = await tx.workflowStep.findUnique({
                     where: { id: step.id },
                     select: { workflowId: true },
                 });
-
-                if (existing && existing.workflowId !== workflow.id) {
-                    throw new Error(
-                        `Workflow step ${step.id} belongs to workflow ${existing.workflowId}.`,
-                    );
+                if (existingStep && existingStep.workflowId !== workflow.id) {
+                    throw new Error(`Workflow step ${step.id} belongs to workflow ${existingStep.workflowId}.`);
                 }
-
-                if (existing) {
+                if (existingStep) {
                     await tx.workflowStep.update({
                         where: { id: step.id },
                         data: toStepUpdateData(step),
@@ -86,7 +106,6 @@ export class PrismaWorkflowStore implements WorkflowStore {
                 }
             }
         });
-
         return this.getOrThrow(workflow.id);
     }
 
@@ -99,57 +118,25 @@ export class PrismaWorkflowStore implements WorkflowStore {
 
 function toNestedStepCreateData(step: WorkflowStep) {
     return {
-        id: step.id,
-        title: step.title,
-        description: step.description,
-        agentId: step.agentId,
-        capability: step.capability,
-        dependsOn: toJson(step.dependsOn),
-        priority: step.priority,
-        requiresApproval: step.requiresApproval,
-        status: step.status,
+        id: step.id, title: step.title, description: step.description, agentId: step.agentId,
+        capability: step.capability, dependsOn: toJson(step.dependsOn), priority: step.priority,
+        requiresApproval: step.requiresApproval, status: step.status,
         input: step.input === undefined ? undefined : toJson(step.input),
         output: step.output === undefined ? undefined : toJson(step.output),
-        error: step.error,
-        createdAt: new Date(),
-        updatedAt: new Date(),
+        error: step.error, createdAt: new Date(), updatedAt: new Date(),
     };
 }
 
 function toStepCreateData(step: WorkflowStep, workflowId: string) {
-    return {
-        id: step.id,
-        workflowId,
-        title: step.title,
-        description: step.description,
-        agentId: step.agentId,
-        capability: step.capability,
-        dependsOn: toJson(step.dependsOn),
-        priority: step.priority,
-        requiresApproval: step.requiresApproval,
-        status: step.status,
-        input: step.input === undefined ? undefined : toJson(step.input),
-        output: step.output === undefined ? undefined : toJson(step.output),
-        error: step.error,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-    };
+    return { ...toNestedStepCreateData(step), workflowId };
 }
 
 function toStepUpdateData(step: WorkflowStep) {
     return {
-        title: step.title,
-        description: step.description,
-        agentId: step.agentId,
-        capability: step.capability,
-        dependsOn: toJson(step.dependsOn),
-        priority: step.priority,
-        requiresApproval: step.requiresApproval,
-        status: step.status,
-        input: step.input === undefined ? undefined : toJson(step.input),
-        output: step.output === undefined ? undefined : toJson(step.output),
-        error: step.error,
-        updatedAt: new Date(),
+        title: step.title, description: step.description, agentId: step.agentId, capability: step.capability,
+        dependsOn: toJson(step.dependsOn), priority: step.priority, requiresApproval: step.requiresApproval,
+        status: step.status, input: step.input === undefined ? undefined : toJson(step.input),
+        output: step.output === undefined ? undefined : toJson(step.output), error: step.error, updatedAt: new Date(),
     };
 }
 
@@ -158,8 +145,17 @@ function toJson(value: unknown): Prisma.InputJsonValue {
 }
 
 function fromRecord(record: any): Workflow {
+    const ownership: ExecutionOwnership = record.ownershipScope === "COMPANY"
+        ? { scope: "COMPANY", companyId: record.companyId }
+        : { scope: "SYSTEM" };
+
+    if (record.ownershipScope !== "COMPANY" && record.ownershipScope !== "SYSTEM") {
+        throw new Error("WORKFLOW_OWNERSHIP_UNRESOLVED");
+    }
+
     return {
         id: record.id,
+        ownership,
         goal: record.goal,
         status: record.status,
         requiresFounderApproval: record.requiresFounderApproval,
@@ -168,18 +164,11 @@ function fromRecord(record: any): Workflow {
         updatedAt: record.updatedAt,
         metadata: record.metadata ?? {},
         steps: record.steps.map((step: any) => ({
-            id: step.id,
-            title: step.title,
-            description: step.description,
-            agentId: step.agentId,
-            capability: step.capability,
+            id: step.id, workflowId: step.workflowId, title: step.title, description: step.description,
+            agentId: step.agentId, capability: step.capability,
             dependsOn: Array.isArray(step.dependsOn) ? step.dependsOn : [],
-            priority: step.priority,
-            requiresApproval: step.requiresApproval,
-            status: step.status,
-            input: step.input ?? undefined,
-            output: step.output ?? undefined,
-            error: step.error ?? undefined,
+            priority: step.priority, requiresApproval: step.requiresApproval, status: step.status,
+            input: step.input ?? undefined, output: step.output ?? undefined, error: step.error ?? undefined,
         })),
     };
 }
