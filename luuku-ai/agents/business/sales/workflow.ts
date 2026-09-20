@@ -124,7 +124,7 @@ async function executeOverdueCrmPrioritization(
 
     for (const activity of selected) {
         updated.push(
-            await activityService.markPrioritized(activity)
+            await activityService.markPrioritized(activity, "Lex Executive AI", companyId)
         );
     }
 
@@ -132,7 +132,8 @@ async function executeOverdueCrmPrioritization(
     // completion: the activities must remain open and therefore remain overdue.
     const verifiedRecords =
         await activityService.getActivitiesByIds(
-            selected.map(activity => activity.id)
+            selected.map(activity => activity.id),
+            companyId,
         );
 
     const verificationPassed =
@@ -223,7 +224,7 @@ export async function executeSalesWorkflow(
     const text = rawText.toLowerCase();
 
     const context =
-        await resolveTaskContext(task);
+        await resolveTaskContext(task, companyId);
 
     const preferredContactEmail =
         extractContactEmail(rawText);
@@ -258,7 +259,8 @@ export async function executeSalesWorkflow(
     let activeContact =
         await resolveContact(
             requestedCompany,
-            preferredContactEmail
+            preferredContactEmail,
+            companyId,
         );
 
     if (
