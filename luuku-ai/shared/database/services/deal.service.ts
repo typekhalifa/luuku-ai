@@ -11,7 +11,10 @@ export class DealService {
         return dealRepository.findById(id, companyId);
     }
 
-    async getCompanyDeals(companyId: string): Promise<Deal[]> {
+    async getCompanyDeals(companyId: string, requesterCompanyId?: string): Promise<Deal[]> {
+        if (requesterCompanyId && companyId !== requesterCompanyId) {
+            throw new Error("COMPANY_TENANT_MISMATCH");
+        }
         return dealRepository.findByCompany(companyId);
     }
 
