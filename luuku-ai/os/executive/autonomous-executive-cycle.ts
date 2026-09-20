@@ -98,7 +98,7 @@ export class AutonomousExecutiveCycle {
         this.runtime = new AutonomousRuntime(new QueueScheduler(queueStore), queueStore, new WorkflowOrchestrator(undefined, options.workflowExecutor ?? new SharedAgentWorkflowExecutor()), workflowStore);
         this.memoryStore = options.memoryStore ?? new InMemoryExecutiveMemoryStore();
         this.institutionalMemoryProjector = options.institutionalMemoryStore ? new ExecutiveMemoryInstitutionalProjector(this.memoryStore, new ExecutiveInstitutionalMemory(options.institutionalMemoryStore)) : undefined;
-        this.objectiveCycle = options.objectiveStore ? new ObjectiveDrivenExecutiveCycle(options.objectiveStore, capabilityResolver, this.memoryStore, { maxSelections: options.maxObjectiveSelections ?? 1, capacityGate: options.capacityGate, resourceRequirements: options.resourceRequirements, resourceBudget: options.resourceBudget, budgetRequirements: options.budgetRequirements, tradeoffEngine: options.tradeoffEngine, tradeoffInputs: options.tradeoffInputs, learningAdaptation: options.learningAdaptation }) : undefined;
+        this.objectiveCycle = options.objectiveStore ? new ObjectiveDrivenExecutiveCycle(options.objectiveStore, capabilityResolver, this.memoryStore, { ownership: options.ownership, maxSelections: options.maxObjectiveSelections ?? 1, capacityGate: options.capacityGate, resourceRequirements: options.resourceRequirements, resourceBudget: options.resourceBudget, budgetRequirements: options.budgetRequirements, tradeoffEngine: options.tradeoffEngine, tradeoffInputs: options.tradeoffInputs, learningAdaptation: options.learningAdaptation }) : undefined;
     }
 
     async run(options: AutonomousExecutiveCycleOptions, now = new Date()): Promise<AutonomousExecutiveCycleResult> {
@@ -120,7 +120,7 @@ export class AutonomousExecutiveCycle {
             if (options.shouldProcessIntent && !(await options.shouldProcessIntent(intent))) continue;
             if (intent.type === "NO_ACTION" || intent.type === "WAIT_FOR_FOUNDER_DECISION" || intent.type === "MONITOR_ACTIVE_WORK") { intentResults.push({ intent }); continue; }
             const objectivePlan = objectiveResults.find((result) => result.intent.id === intent.id)?.plan;
-            const plan = objectivePlan ?? this.planBuilder.build({ intent, capabilities: options.capabilities });
+            const plan = objectivePlan ?? this.planBuilder.build({ intent, capabilities: options.capabilities, ownership: options.ownership });
             const policy = this.policy.evaluate({ intent, plan });
             const decision = this.decisionProjector.decide(intent, plan, policy);
             const gate = this.companyLoop.evaluateExecutionGate({ observedAt: now.toISOString(), exceptionSignals: preExecutionSignals, hasRunnableWork: true, hasStrategicPlan: objectiveResults.length > 0, interventionRequired: objectiveResults.some((result) => result.intervention.interventionRequired), executionApproved: decision.status === "ELIGIBLE" });
