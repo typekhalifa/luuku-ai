@@ -10,7 +10,12 @@ export interface ExecutionClaim {
 
 /** Durable V6 execution ledger. */
 export class ExecutionLedger {
-    async begin(idempotencyKey: string, workflowId: string, stepId: string): Promise<ExecutionClaim> {
+    async begin(
+        idempotencyKey: string,
+        workflowId: string,
+        stepId: string,
+        companyId?: string,
+    ): Promise<ExecutionClaim> {
         const existing = await prisma.communicationExecution.findUnique({ where: { idempotencyKey } });
         if (existing) {
             if (existing.executed) {
@@ -46,6 +51,7 @@ export class ExecutionLedger {
 
         const record = await prisma.communicationExecution.create({
             data: {
+                companyId,
                 taskId: stepId,
                 idempotencyKey,
                 capability: "workflow.step",
