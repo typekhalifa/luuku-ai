@@ -6,6 +6,7 @@ import { researchProspect } from "./web-research";
 export interface EnrichmentRequest {
     company: string;
     reasons: string[];
+    companyId: string;
 }
 
 export interface EnrichmentResult {
@@ -67,6 +68,9 @@ export async function requestContactEnrichment(
             source: research.contact.source,
             lastVerifiedAt: new Date().toISOString(),
         },
+    }, {
+        companyId: request.companyId,
+        authMethod: "api-key",
     });
 
     console.log("");
