@@ -30,6 +30,7 @@ import { AutonomousCompanyLoopEngine, type AutonomousCompanyLoopCycle } from "./
 import type { ExecutiveExceptionSignal } from "./v8-m-exception-management.js";
 
 export interface AutonomousExecutiveCycleOptions {
+    readonly ownership: ExecutionOwnership;
     readonly capabilities: IntentPlanCapabilityMap;
     readonly policyRules: readonly AutonomyPolicyRule[];
     readonly executeRuntime?: boolean;
