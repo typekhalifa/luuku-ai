@@ -20,6 +20,7 @@ import type { InstitutionalMemoryStore } from "./v8-l-institutional-memory.js";
  * domain behavior. Durable implementations should be supplied by the caller.
  */
 export interface ExecutiveCompositionDependencies {
+    readonly ownership: ExecutionOwnership;
     readonly workflowStore: WorkflowStore;
     readonly queueStore: QueueStore;
     readonly capabilityResolver: CapabilityResolver;
@@ -49,6 +50,7 @@ export function createExecutiveComposition(
     dependencies: ExecutiveCompositionDependencies,
 ): ExecutiveComposition {
     const cycleOptions: AutonomousExecutiveCycleOptions = {
+        ownership: dependencies.ownership,
         capabilities: dependencies.capabilities,
         policyRules: dependencies.policyRules,
         executeRuntime: dependencies.executeRuntime,
