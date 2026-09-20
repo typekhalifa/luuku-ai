@@ -12,8 +12,11 @@ export class DealRepository extends BaseRepository<Deal> {
         return deals.map(DealMapper.toDomain);
     }
 
-    async findById(id: string): Promise<Deal | null> {
-        const deal = await prisma.deal.findUnique({ where: { id } });
+    async findById(id: string, companyId?: string): Promise<Deal | null> {
+        const deal = companyId
+            ? await prisma.deal.findFirst({ where: { id, companyId } })
+            : await prisma.deal.findUnique({ where: { id } });
+
         if (!deal) return null;
         return DealMapper.toDomain(deal);
     }
@@ -23,14 +26,26 @@ export class DealRepository extends BaseRepository<Deal> {
         return deals.map(DealMapper.toDomain);
     }
 
-    async create(deal: Deal): Promise<Deal> {
+    async create(deal: Deal, companyId?: string): Promise<Deal> {
+        if (companyId && deal.companyId !== companyId) {
+            throw new Error("DEAL_TENANT_MISMATCH");
+        }
+
         const created = await prisma.deal.create({
             data: DealMapper.toPersistence(deal)
         });
         return DealMapper.toDomain(created);
     }
 
-    async update(deal: Deal): Promise<Deal> {
+    async update(deal: Deal, companyId?: string): Promise<Deal> {
+        if (companyId) {
+            const owned = await prisma.deal.findFirst({
+                where: { id: deal.id, companyId },
+                select: { id: true }
+            });
+            if (!owned) throw new Error("DEAL_NOT_FOUND_OR_UNAUTHORIZED");
+        }
+
         const updated = await prisma.deal.update({
             where: { id: deal.id },
             data: DealMapper.toPersistence(deal)
@@ -38,7 +53,15 @@ export class DealRepository extends BaseRepository<Deal> {
         return DealMapper.toDomain(updated);
     }
 
-    async delete(id: string): Promise<void> {
+    async delete(id: string, companyId?: string): Promise<void> {
+        if (companyId) {
+            const owned = await prisma.deal.findFirst({
+                where: { id, companyId },
+                select: { id: true }
+            });
+            if (!owned) throw new Error("DEAL_NOT_FOUND_OR_UNAUTHORIZED");
+        }
+
         await prisma.deal.delete({ where: { id } });
     }
 }
