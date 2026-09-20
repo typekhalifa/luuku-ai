@@ -9,6 +9,7 @@ import { workflowRouter } from "./routes/workflow.routes";
 import { crmRouter } from "./routes/crm.routes";
 import { runtimeRouter } from "./routes/runtime.routes";
 import { resendWebhookRouter } from "./routes/resend-webhook.route";
+import { prisma } from "../database/client";
 
 const app = express();
 
@@ -20,9 +21,14 @@ const configuredOrigins = (process.env.CORS_ORIGINS || "")
     .filter(Boolean);
 
 const apiKey = process.env.LUUKU_API_KEY?.trim();
+const apiCompanyId = process.env.LUUKU_API_COMPANY_ID?.trim();
 
 if (environment === "production" && !apiKey) {
     throw new Error("LUUKU_API_KEY must be configured in production.");
+}
+
+if (environment === "production" && !apiCompanyId) {
+    throw new Error("LUUKU_API_COMPANY_ID must be configured in production.");
 }
 
 function apiKeysMatch(suppliedKey: string | undefined): boolean {
@@ -80,7 +86,34 @@ app.use((request, response, next) => {
         });
     }
 
-    return next();
+    if (!apiCompanyId) {
+        return response.status(503).json({
+            error: "TENANT_CONTEXT_NOT_CONFIGURED",
+        });
+    }
+
+    void prisma.company.findUnique({
+        where: { id: apiCompanyId },
+        select: { id: true },
+    }).then((company) => {
+        if (!company) {
+            response.status(503).json({
+                error: "TENANT_CONTEXT_INVALID",
+            });
+            return;
+        }
+
+        response.locals.apiRequestContext = {
+            companyId: company.id,
+            authMethod: "api-key",
+        };
+
+        next();
+    }).catch(() => {
+        response.status(503).json({
+            error: "TENANT_CONTEXT_UNAVAILABLE",
+        });
+    });
 });
 
 // Resend requires the exact raw request body for Svix signature verification.
