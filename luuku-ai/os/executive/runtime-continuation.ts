@@ -3,6 +3,7 @@ import type { QueueItem } from "../../orchestration/queue/queue.js";
 import { QueueScheduler } from "../../orchestration/scheduler/scheduler.js";
 import { WorkflowOrchestrator } from "../../orchestration/workflow/workflow-orchestrator.js";
 import type { WorkflowStore } from "../../orchestration/workflow/workflow-store.js";
+import { normalizeExecutionOwnership } from "../../orchestration/ownership.js";
 
 export interface RuntimeContinuationResult {
     readonly status: "SCHEDULED" | "ALREADY_SCHEDULED" | "WAITING" | "BLOCKED" | "NOT_FOUND";
@@ -72,7 +73,7 @@ export class ExecutiveRuntimeContinuation {
 
             const item = await this.scheduler.schedule({
                 id: queueId,
-                ownership: workflow.ownership,
+                ownership: normalizeExecutionOwnership(workflow.ownership),
                 workflowId: workflow.id,
                 stepId: step.id,
                 agentId: step.agentId,
