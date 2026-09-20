@@ -92,7 +92,7 @@ export class CRMApplication {
 
     async registerProspect(
         request: RegisterProspectRequest,
-        context: ApiRequestContext,
+        context?: ApiRequestContext,
     ): Promise<RegisterProspectResult> {
         const result = await registerProspectWorkflow.execute({
             company: {
@@ -119,7 +119,7 @@ export class CRMApplication {
                 source: request.contact.source,
                 lastVerifiedAt: request.contact.lastVerifiedAt,
             },
-        }, context.companyId);
+        }, context?.companyId);
 
         return {
             success: result.success,
