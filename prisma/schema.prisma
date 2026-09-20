@@ -7,6 +7,42 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model User {
+  id           String              @id @default(uuid())
+  email        String              @unique
+  name         String
+  passwordHash String
+  status       UserStatus           @default(ACTIVE)
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
+  memberships  CompanyMembership[]
+  sessions     Session[]
+  @@index([status])
+}
+
+model CompanyMembership {
+  id        String         @id @default(uuid())
+  userId    String
+  companyId String
+  role      MembershipRole
+  createdAt DateTime       @default(now())
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  company   Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  @@unique([userId, companyId])
+  @@index([companyId, role])
+}
+
+model Session {
+  id         String   @id @default(uuid())
+  tokenHash  String   @unique
+  userId     String
+  expiresAt  DateTime
+  lastSeenAt DateTime @default(now())
+  createdAt  DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId, expiresAt])
+}
+
 model Company {
   id         String        @id @default(uuid())
   name       String        @unique
@@ -27,6 +63,7 @@ model Company {
   communicationConversations CommunicationConversation[]
   communicationExecutions CommunicationExecution[]
   communicationEvents CommunicationEvent[]
+  memberships CompanyMembership[]
 }
 
 model Contact {
@@ -306,6 +343,18 @@ model ExecutiveInstitutionalMemory {
   @@index([subject])
   @@index([confidence])
   @@index([lastConfirmedAt])
+}
+
+enum UserStatus {
+  ACTIVE
+  DISABLED
+}
+
+enum MembershipRole {
+  OWNER
+  ADMIN
+  OPERATOR
+  VIEWER
 }
 
 enum CompanyStatus {
