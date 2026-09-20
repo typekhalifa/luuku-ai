@@ -130,3 +130,20 @@ The demo is intentionally separate from the CI V8 suite until the workflow has a
 - Mission Control dashboard communication telemetry fails closed to an empty snapshot until communication records have durable company ownership.
 - A CI regression demo verifies the Sales agent cannot execute CRM work without tenant context.
 - Global communication observability must not be re-enabled until the communication schema and persistence path are tenant-scoped end to end.
+
+
+## Mission Control authentication validation
+
+Before starting Mission Control against a migrated database:
+
+1. Apply Prisma migrations.
+2. Set `LUUKU_AUTH_BOOTSTRAP_EMAIL`, `LUUKU_AUTH_BOOTSTRAP_PASSWORD`, `LUUKU_AUTH_BOOTSTRAP_NAME`, and `LUUKU_AUTH_BOOTSTRAP_COMPANY_ID`.
+3. Run `npm run dev:auth:bootstrap` once to create the first owner.
+4. Start the API and Mission Control.
+5. Verify unauthenticated API requests receive `401 UNAUTHORIZED`.
+6. Verify login creates an HttpOnly session cookie and `GET /api/v1/auth/me` returns the authenticated user and memberships.
+7. Verify selecting a company through `x-luuku-company-id` only succeeds for a company membership.
+8. Verify VIEWER cannot access operate/admin routes and browser access to global, non-tenant-scoped observability remains blocked.
+9. Verify logout invalidates the session.
+
+The browser must never receive or store `LUUKU_API_KEY`. Server-to-server API keys remain a separate SERVICE authentication path.
