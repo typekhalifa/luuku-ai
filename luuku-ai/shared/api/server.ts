@@ -74,6 +74,7 @@ app.use(cors({
         : environment === "production"
             ? false
             : true,
+    credentials: true,
 }));
 
 app.use("/api/v1/auth", authRouter);
