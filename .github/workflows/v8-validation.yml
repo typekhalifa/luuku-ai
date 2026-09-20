@@ -55,3 +55,6 @@ jobs:
 
       - name: Agent tenant authorization validation
         run: npx tsx luuku-ai/agents/business/sales/demo/v8-agent-tenant-authorization-demo.ts
+
+      - name: Workflow Queue Runtime V6 tenant isolation validation
+        run: npx tsx luuku-ai/orchestration/runtime/demo/workflow-queue-runtime-isolation-demo.ts
