@@ -1,4 +1,5 @@
 import type { QueueStore } from "../../orchestration/queue/queue.js";
+import type { ExecutionOwnership } from "../../orchestration/ownership.js";
 import { AutonomousRuntime, type AutonomousRuntimeCycleResult } from "../../orchestration/workflow/autonomous-runtime.js";
 import type { WorkflowStore } from "../../orchestration/workflow/workflow-store.js";
 import { SharedAgentWorkflowExecutor } from "../../orchestration/workflow/shared-agent-workflow-executor.js";
