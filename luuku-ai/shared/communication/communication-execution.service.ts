@@ -74,6 +74,7 @@ export class CommunicationExecutionService {
         request: CommunicationRequest,
         policy: CommunicationPolicyResult,
     ): Promise<CommunicationExecutionHandle> {
+        const companyId = metadataString(request, "companyId");
         const idempotencyKey =
             metadataString(request, "idempotencyKey");
 
@@ -114,6 +115,7 @@ export class CommunicationExecutionService {
                 await this.db.communicationExecution.update({
                     where: { id: existing.id },
                     data: {
+                        companyId,
                         policyDecision: policy.decision,
                         policyReason: policy.reason,
                         executionMode:
@@ -142,6 +144,7 @@ export class CommunicationExecutionService {
         const record =
             await this.db.communicationExecution.create({
                 data: {
+                    companyId,
                     conversationId:
                         metadataString(request, "conversationId"),
                     taskId:
