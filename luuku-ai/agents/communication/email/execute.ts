@@ -149,6 +149,22 @@ export async function executeEmailTask(
     task: AgentTask,
     contact: Contact
 ): Promise<AgentResult> {
+    const companyId = typeof task.metadata?.companyId === "string"
+        ? task.metadata.companyId
+        : undefined;
+
+    if (!companyId) {
+        return {
+            success: false,
+            summary: "Sales email workflow blocked: tenant company context is required for communication.",
+            completedAt: new Date().toISOString(),
+            executionStatus: "blocked",
+            executed: false,
+            verified: false,
+            blockers: ["TENANT_CONTEXT_REQUIRED"],
+        };
+    }
+
     if (!contact.email) {
         return {
             success: false,
@@ -163,7 +179,8 @@ export async function executeEmailTask(
 
     const company =
         await companyService.findCompany(
-            contact.company
+            contact.company,
+            companyId,
         );
 
     if (!company) {
@@ -246,6 +263,7 @@ export async function executeEmailTask(
                 // operator has supplied the exact opt-in confirmation phrase.
                 executionMode,
                 crmContactId: contact.id,
+                companyId,
                 taskId: task.id,
                 idempotencyKey,
                 replyTo: process.env.RESEND_REPLY_TO || "",
@@ -293,11 +311,13 @@ export async function executeEmailTask(
             await getOrCreateEmailConversation({
                 participantEmail: recipient,
                 subject,
+                companyId,
                 metadata: {
                     source: inboundReply
                         ? "sales-agent-inbound-reply"
                         : "sales-agent",
-                    taskId: task.id
+                    taskId: task.id,
+                    companyId,
                 }
             });
 
@@ -328,13 +348,15 @@ export async function executeEmailTask(
             inReplyTo: inboundReply?.inReplyTo,
             references: inboundReply?.references,
             verified: result.verified,
-            executionMode
+            executionMode,
+            companyId,
         }
     });
 
     const deals =
         await dealService.getCompanyDeals(
-            company.id
+            company.id,
+            companyId,
         );
 
     const activeDeal = deals[0];
@@ -366,7 +388,7 @@ export async function executeEmailTask(
         createdAt: new Date().toISOString()
     };
 
-    await activityService.createActivity(activity);
+    await activityService.createActivity(activity, companyId);
 
     console.log("");
     console.log("========================================");
