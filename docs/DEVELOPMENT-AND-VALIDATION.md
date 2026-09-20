@@ -99,3 +99,11 @@ The API key is intentionally not exposed to Mission Control's browser bundle. A 
 ## Production readiness gate
 
 Before calling Luuku's autonomous loop production-ready, verify durable stores, secrets, authentication, authorization, tenant boundaries, explicit actuator permissions, idempotency, provider evidence, bounded retries/recovery, monitoring, alerts, reliable founder approval/escalation, environment-driven frontend/backend configuration and representative end-to-end workflows.
+
+## Tenant-bound API hardening
+
+The authenticated API request context now carries the configured company ID and CRM overview reads are scoped to that tenant. CRM company/contact/deal/activity repositories also support tenant-bound resource reads and writes, including ownership checks before update/delete and tenant checks on creates.
+
+The prospect-registration workflow is tenant-bound when invoked through the authenticated application context: it must resolve the authenticated company and cannot create a new company for that request. This prevents a browser/API caller from selecting an arbitrary company ID or creating records under another tenant through the prospect workflow.
+
+This is an incremental boundary, not full multi-tenant authorization yet. Internal non-HTTP callers may still use the legacy unscoped service methods, and dashboard communication/event observability remains subject to a separate tenant-scope review. Production browser authentication/session authorization and a complete cross-tenant isolation test remain required before production readiness.
