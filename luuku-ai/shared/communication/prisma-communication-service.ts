@@ -271,12 +271,18 @@ export class PrismaCommunicationService implements CommunicationService {
         assertValidOwnership(input.context.ownership);
 
         if (input.conversationId) {
-            const existing = await prisma.communicationConversation.findFirst({
-                where: {
-                    id: input.conversationId,
-                    ...this.ownershipWhere(input.context.ownership),
-                },
+            const existingById = await prisma.communicationConversation.findUnique({
+                where: { id: input.conversationId },
             });
+
+            if (
+                existingById &&
+                !this.ownershipMatches(existingById, input.context.ownership)
+            ) {
+                throw new Error("COMMUNICATION_CONVERSATION_OWNERSHIP_MISMATCH");
+            }
+
+            const existing = existingById;
 
             if (existing) {
                 const currentParticipants = asParticipants(existing.participants);
@@ -349,12 +355,18 @@ export class PrismaCommunicationService implements CommunicationService {
         participant: ChannelIdentity,
         context: CommunicationContext,
     ) {
-        const existing = await prisma.communicationConversation.findFirst({
-            where: {
-                id: conversationId,
-                ...this.ownershipWhere(context.ownership),
-            },
+        const existingById = await prisma.communicationConversation.findUnique({
+            where: { id: conversationId },
         });
+
+        if (
+            existingById &&
+            !this.ownershipMatches(existingById, context.ownership)
+        ) {
+            throw new Error("COMMUNICATION_CONVERSATION_OWNERSHIP_MISMATCH");
+        }
+
+        const existing = existingById;
 
         if (existing) {
             const currentParticipants = asParticipants(existing.participants);
@@ -386,6 +398,34 @@ export class PrismaCommunicationService implements CommunicationService {
         });
     }
 
+
+    private ownershipMatches(
+        conversation: {
+            ownershipScope: string | null;
+            companyId: string | null;
+            spaceId: string | null;
+        },
+        ownership: CommunicationConversation["ownership"],
+    ): boolean {
+        switch (ownership.scope) {
+            case "COMPANY":
+                return (
+                    conversation.ownershipScope === "COMPANY" &&
+                    conversation.companyId === ownership.companyId
+                );
+            case "SPACE":
+                return (
+                    conversation.ownershipScope === "SPACE" &&
+                    conversation.spaceId === ownership.spaceId
+                );
+            case "SYSTEM":
+                return (
+                    conversation.ownershipScope === "SYSTEM" &&
+                    !conversation.companyId &&
+                    !conversation.spaceId
+                );
+        }
+    }
 
     private ownershipWhere(
         ownership: CommunicationConversation["ownership"],
