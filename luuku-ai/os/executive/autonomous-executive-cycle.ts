@@ -73,6 +73,7 @@ export interface AutonomousExecutiveCycleResult {
 }
 
 export class AutonomousExecutiveCycle {
+    private readonly ownership: ExecutionOwnership;
     private readonly stateSource: DurableExecutiveStateSource;
     private readonly feedbackSource: DurableExecutionFeedbackSource;
     private readonly feedbackProjector = new ExecutionFeedbackStateProjector();
@@ -90,6 +91,7 @@ export class AutonomousExecutiveCycle {
     private readonly companyLoop = new AutonomousCompanyLoopEngine();
 
     constructor(private readonly workflowStore: WorkflowStore, private readonly queueStore: QueueStore, capabilityResolver: CapabilityResolver, options: AutonomousExecutiveCycleOptions) {
+        this.ownership = options.ownership;
         this.stateSource = new DurableExecutiveStateSource(workflowStore, queueStore);
         this.feedbackSource = new DurableExecutionFeedbackSource(workflowStore, queueStore);
         this.planBuilder = new ExecutiveIntentPlanBuilder(capabilityResolver);
@@ -121,7 +123,7 @@ export class AutonomousExecutiveCycle {
             if (options.shouldProcessIntent && !(await options.shouldProcessIntent(intent))) continue;
             if (intent.type === "NO_ACTION" || intent.type === "WAIT_FOR_FOUNDER_DECISION" || intent.type === "MONITOR_ACTIVE_WORK") { intentResults.push({ intent }); continue; }
             const objectivePlan = objectiveResults.find((result) => result.intent.id === intent.id)?.plan;
-            const plan = objectivePlan ?? this.planBuilder.build({ intent, capabilities: options.capabilities, ownership: options.ownership });
+            const plan = objectivePlan ?? this.planBuilder.build({ intent, capabilities: options.capabilities, ownership: this.ownership });
             const policy = this.policy.evaluate({ intent, plan });
             const decision = this.decisionProjector.decide(intent, plan, policy);
             const gate = this.companyLoop.evaluateExecutionGate({ observedAt: now.toISOString(), exceptionSignals: preExecutionSignals, hasRunnableWork: true, hasStrategicPlan: objectiveResults.length > 0, interventionRequired: objectiveResults.some((result) => result.intervention.interventionRequired), executionApproved: decision.status === "ELIGIBLE" });
