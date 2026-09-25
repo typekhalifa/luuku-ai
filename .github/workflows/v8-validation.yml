@@ -58,3 +58,6 @@ jobs:
 
       - name: Workflow Queue Runtime V6 tenant isolation validation
         run: npx tsx luuku-ai/orchestration/runtime/demo/workflow-queue-runtime-isolation-demo.ts
+
+      - name: Executive durable ownership isolation validation
+        run: npx tsx luuku-ai/os/executive/demo/executive-ownership-isolation-demo.ts
