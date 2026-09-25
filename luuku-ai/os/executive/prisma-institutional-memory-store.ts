@@ -1,11 +1,14 @@
-import { prisma } from "../../shared/database/client";
+import { prisma } from "../../shared/database/client.js";
+import { normalizeExecutionOwnership, ownershipMatches, type ExecutionOwnership } from "../../orchestration/ownership.js";
 import type {
     InstitutionalMemoryRecord,
     InstitutionalMemoryStore,
-} from "./v8-l-institutional-memory";
+} from "./v8-l-institutional-memory.js";
 
 const toRecord = (row: {
     id: string;
+    ownershipScope: string;
+    companyId: string | null;
     kind: string;
     subject: string;
     statement: string;
@@ -17,6 +20,7 @@ const toRecord = (row: {
     lastConfirmedAt: Date;
 }): InstitutionalMemoryRecord => ({
     id: row.id,
+    ownership: parseOwnership(row.ownershipScope, row.companyId),
     kind: row.kind as InstitutionalMemoryRecord["kind"],
     subject: row.subject,
     statement: row.statement,
@@ -28,16 +32,16 @@ const toRecord = (row: {
     lastConfirmedAt: new Date(row.lastConfirmedAt),
 });
 
-/**
- * Durable institutional-memory adapter backed by Prisma/PostgreSQL.
- *
- * This adapter only persists and retrieves institutional knowledge. It does
- * not infer truth, alter objectives, approve work, allocate resources, select
- * agents, or execute anything. V6 remains the sole execution authority.
- */
 export class PrismaInstitutionalMemoryStore implements InstitutionalMemoryStore {
+    private readonly ownership: ExecutionOwnership;
+
+    constructor(ownership?: ExecutionOwnership) {
+        this.ownership = normalizeExecutionOwnership(ownership);
+    }
+
     async list(): Promise<readonly InstitutionalMemoryRecord[]> {
         const rows = await prisma.executiveInstitutionalMemory.findMany({
+            where: ownershipWhere(this.ownership),
             orderBy: [
                 { lastConfirmedAt: "desc" },
                 { id: "asc" },
@@ -48,9 +52,16 @@ export class PrismaInstitutionalMemoryStore implements InstitutionalMemoryStore 
     }
 
     async save(record: InstitutionalMemoryRecord): Promise<void> {
+        const normalizedOwnership = normalizeExecutionOwnership(record.ownership);
+        if (!ownershipMatches(this.ownership, normalizedOwnership)) {
+            throw new Error("Institutional memory ownership mismatch.");
+        }
+
         await prisma.executiveInstitutionalMemory.create({
             data: {
                 id: record.id,
+                ownershipScope: normalizedOwnership.scope,
+                companyId: normalizedOwnership.scope === "COMPANY" ? normalizedOwnership.companyId : null,
                 kind: record.kind,
                 subject: record.subject,
                 statement: record.statement,
@@ -63,4 +74,19 @@ export class PrismaInstitutionalMemoryStore implements InstitutionalMemoryStore 
             },
         });
     }
+}
+
+function ownershipWhere(ownership: ExecutionOwnership): {
+    ownershipScope: "SYSTEM" | "COMPANY";
+    companyId: string | null;
+} {
+    return ownership.scope === "COMPANY"
+        ? { ownershipScope: "COMPANY", companyId: ownership.companyId }
+        : { ownershipScope: "SYSTEM", companyId: null };
+}
+
+function parseOwnership(scope: string, companyId: string | null): ExecutionOwnership {
+    if (scope === "COMPANY" && companyId) return { scope: "COMPANY", companyId };
+    if (scope === "SYSTEM" && companyId === null) return { scope: "SYSTEM" };
+    throw new Error("Invalid persisted institutional memory ownership.");
 }
