@@ -68,6 +68,8 @@ model Company {
   executiveObjectives ExecutiveObjective[]
   executiveMemories ExecutiveMemory[]
   institutionalMemories ExecutiveInstitutionalMemory[]
+  executiveCheckpoints ExecutiveLoopCheckpoint[]
+  executiveEventInboxes ExecutiveEventInbox[]
 }
 
 model Contact {
@@ -297,14 +299,21 @@ model QueueItem {
 
 model ExecutiveLoopCheckpoint {
   id                String   @id
+  ownershipScope    String   @default("SYSTEM")
+  companyId         String?
   version           Int      @default(1)
   handledIntentKeys Json
   cycleCount        Int      @default(0)
   updatedAt         DateTime
+  company            Company? @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  @@index([companyId])
+  @@index([ownershipScope])
 }
 
 model ExecutiveEventInbox {
   id                  String   @id
+  ownershipScope     String   @default("SYSTEM")
+  companyId          String?
   type                String
   occurredAt          DateTime @default(now())
   metadata            Json?
@@ -315,7 +324,10 @@ model ExecutiveEventInbox {
   lastError           String?
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
+  company             Company? @relation(fields: [companyId], references: [id], onDelete: SetNull)
   @@index([status, occurredAt])
+  @@index([companyId, status, occurredAt])
+  @@index([ownershipScope])
   @@index([processingStartedAt])
 }
 
