@@ -25,6 +25,7 @@ export interface DurableExecutiveEventAdapterState {
 
 const toInboxRecord = (event: ExecutiveSystemEvent, now: Date): ExecutiveEventInboxRecord => ({
     id: event.id,
+    ownership: event.ownership,
     type: event.type,
     occurredAt: event.occurredAt ?? now,
     metadata: event.metadata,
