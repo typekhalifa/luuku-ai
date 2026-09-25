@@ -171,7 +171,7 @@ export class AutonomousExecutiveCycle {
             const id = `executive-memory:${workflowId}:outcome`;
             const existing = await this.memoryStore.list();
             if (existing.some((record) => record.id === id)) continue;
-            await this.memoryStore.save({ id, objectiveId: objectiveResult?.objective.id, workflowId, eventType: success ? "ACTION_COMPLETED" : "ACTION_FAILED", action: objectiveResult?.adaptiveIntervention.mode ?? result.intent.type, outcome: success ? "Workflow completed." : "Workflow reached a non-success terminal outcome.", success, lesson: success ? "The selected executive approach completed successfully." : "The selected executive approach produced a non-success outcome and should be reconsidered.", createdAt: now });
+            await this.memoryStore.save({ id, ownership: this.ownership, objectiveId: objectiveResult?.objective.id, workflowId, eventType: success ? "ACTION_COMPLETED" : "ACTION_FAILED", action: objectiveResult?.adaptiveIntervention.mode ?? result.intent.type, outcome: success ? "Workflow completed." : "Workflow reached a non-success terminal outcome.", success, lesson: success ? "The selected executive approach completed successfully." : "The selected executive approach produced a non-success outcome and should be reconsidered.", createdAt: now });
         }
     }
 }
