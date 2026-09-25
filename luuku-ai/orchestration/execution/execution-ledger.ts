@@ -1,7 +1,6 @@
 import { prisma } from "../../shared/database/client.js";
 import { AgentResult } from "../../shared/agents/interface.js";
-import type { ExecutionOwnership } from "../ownership.js";
-import { assertValidExecutionOwnership } from "../ownership.js";
+import { normalizeExecutionOwnership, assertValidExecutionOwnership, type ExecutionOwnership } from "../ownership.js";
 
 export interface ExecutionClaim {
     id: string;
@@ -16,10 +15,11 @@ export class ExecutionLedger {
         idempotencyKey: string,
         workflowId: string,
         stepId: string,
-        ownership: ExecutionOwnership,
+        ownership?: ExecutionOwnership,
     ): Promise<ExecutionClaim> {
-        assertValidExecutionOwnership(ownership);
-        const companyId = ownership.scope === "COMPANY" ? ownership.companyId : undefined;
+        const normalizedOwnership = normalizeExecutionOwnership(ownership);
+        assertValidExecutionOwnership(normalizedOwnership);
+        const companyId = normalizedOwnership.scope === "COMPANY" ? normalizedOwnership.companyId : undefined;
         const existing = await prisma.communicationExecution.findUnique({ where: { idempotencyKey } });
         if (existing) {
             const requestedScope = companyId ? "COMPANY" : "SYSTEM";
