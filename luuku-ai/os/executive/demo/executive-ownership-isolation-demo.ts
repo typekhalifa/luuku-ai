@@ -89,15 +89,17 @@ if ((await institutionalA.list()).length !== 1) throw new Error("Company A insti
 if ((await institutionalB.list()).length !== 0) throw new Error("Company B can see Company A institutional memory.");
 
 await expectOwnershipFailure(
-    () => institutionalMemoryB.remember({
-        id: "institutional-b-owned-by-a",
-        ownership: companyA,
-        kind: "LESSON",
-        subject: "cross-tenant",
-        statement: "Must be rejected.",
-        confidence: 0.9,
-        observedAt: now,
-    }),
+    async () => {
+        await institutionalMemoryB.remember({
+            id: "institutional-b-owned-by-a",
+            ownership: companyA,
+            kind: "LESSON",
+            subject: "cross-tenant",
+            statement: "Must be rejected.",
+            confidence: 0.9,
+            observedAt: now,
+        });
+    },
     "institutional memory",
 );
 
