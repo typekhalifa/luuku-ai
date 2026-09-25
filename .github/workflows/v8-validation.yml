@@ -61,3 +61,6 @@ jobs:
 
       - name: Executive durable ownership isolation validation
         run: npx tsx luuku-ai/os/executive/demo/executive-ownership-isolation-demo.ts
+
+      - name: Executive checkpoint and event ownership validation
+        run: npx tsx luuku-ai/os/executive/demo/executive-checkpoint-event-isolation-demo.ts
