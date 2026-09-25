@@ -333,27 +333,32 @@ model ExecutiveObjective {
   staleAfterDays   Float?
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
+  company          Company? @relation(fields: [companyId], references: [id], onDelete: SetNull)
   @@index([status, priority])
+  @@index([companyId, status, priority])
+  @@index([ownershipScope])
 }
 
 model ExecutiveMemory {
-  id          String   @id
-  objectiveId String?
-  workflowId  String?
-  eventType   String
-  action      String
-  outcome     String
-  success     Boolean
-  lesson      String?
-  confidence  Float?
-  createdAt   DateTime
-  company         Company? @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  id             String   @id
+  ownershipScope String   @default("SYSTEM")
+  companyId      String?
+  objectiveId    String?
+  workflowId     String?
+  eventType      String
+  action         String
+  outcome        String
+  success        Boolean
+  lesson         String?
+  confidence     Float?
+  createdAt      DateTime
+  company        Company? @relation(fields: [companyId], references: [id], onDelete: SetNull)
   @@index([objectiveId, createdAt])
-  @@index([companyId, createdAt])
-  @@index([ownershipScope])
   @@index([workflowId, createdAt])
   @@index([eventType, createdAt])
   @@index([action, createdAt])
+  @@index([companyId, createdAt])
+  @@index([ownershipScope])
 }
 
 model ExecutiveInstitutionalMemory {
