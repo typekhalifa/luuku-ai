@@ -1,5 +1,5 @@
 import { Plan } from "../../orchestration/planner/plan";
-import type { ExecutionOwnership } from "../../orchestration/ownership.js";
+import { normalizeExecutionOwnership, type ExecutionOwnership } from "../../orchestration/ownership.js";
 
 export interface ExecutionPlanStep {
     taskId: string;
@@ -11,7 +11,7 @@ export interface ExecutionPlanStep {
 
 export interface ExecutionPlan {
     id: string;
-    ownership: ExecutionOwnership;
+    ownership?: ExecutionOwnership;
     goal: string;
     sourcePlanId: string;
     steps: ExecutionPlanStep[];
@@ -20,7 +20,7 @@ export interface ExecutionPlan {
     metadata: Record<string, unknown>;
 }
 
-export function createExecutionPlan(plan: Plan, ownership: ExecutionOwnership): ExecutionPlan {
+export function createExecutionPlan(plan: Plan, ownership?: ExecutionOwnership): ExecutionPlan {
     const steps: ExecutionPlanStep[] = plan.tasks.map((task) => {
         const metadata = task.metadata as Record<string, unknown>;
         const agentId = metadata.agentId;
@@ -60,7 +60,7 @@ export function createExecutionPlan(plan: Plan, ownership: ExecutionOwnership): 
 
     return {
         id: `execution-${plan.id}`,
-        ownership,
+        ownership: normalizeExecutionOwnership(ownership),
         goal: plan.goal,
         sourcePlanId: plan.id,
         steps,
