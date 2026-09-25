@@ -1,3 +1,5 @@
+import { normalizeExecutionOwnership, ownershipMatches, type ExecutionOwnership } from "../../orchestration/ownership.js";
+
 export type InstitutionalMemoryKind =
     | "FACT"
     | "BELIEF"
@@ -8,6 +10,7 @@ export type InstitutionalMemoryKind =
 
 export interface InstitutionalMemoryRecord {
     readonly id: string;
+    readonly ownership?: ExecutionOwnership;
     readonly kind: InstitutionalMemoryKind;
     readonly subject: string;
     readonly statement: string;
@@ -26,6 +29,7 @@ export interface InstitutionalMemoryStore {
 
 export interface InstitutionalMemoryCandidate {
     readonly id: string;
+    readonly ownership?: ExecutionOwnership;
     readonly kind: InstitutionalMemoryKind;
     readonly subject: string;
     readonly statement: string;
@@ -64,17 +68,31 @@ const scoreMatch = (query: string, record: InstitutionalMemoryRecord): number =>
 
 export class InMemoryInstitutionalMemoryStore implements InstitutionalMemoryStore {
     private readonly records = new Map<string, InstitutionalMemoryRecord>();
+    private readonly ownership: ExecutionOwnership;
+
+    constructor(ownership?: ExecutionOwnership) {
+        this.ownership = normalizeExecutionOwnership(ownership);
+    }
 
     async list(): Promise<readonly InstitutionalMemoryRecord[]> {
-        return structuredClone([...this.records.values()]);
+        return structuredClone(
+            [...this.records.values()].filter((record) => ownershipMatches(this.ownership, record.ownership)),
+        );
     }
 
     async save(record: InstitutionalMemoryRecord): Promise<void> {
+        const normalized = {
+            ...record,
+            ownership: normalizeExecutionOwnership(record.ownership),
+        };
+        if (!ownershipMatches(this.ownership, normalized.ownership)) {
+            throw new Error("Institutional memory ownership mismatch.");
+        }
         if (this.records.has(record.id)) {
             throw new Error(`Institutional memory record ${record.id} already exists.`);
         }
-        validateRecord(record);
-        this.records.set(record.id, structuredClone(record));
+        validateRecord(normalized);
+        this.records.set(record.id, structuredClone(normalized));
     }
 }
 
@@ -105,6 +123,7 @@ export class ExecutiveInstitutionalMemory {
         const observedAt = candidate.observedAt ?? new Date();
         const record: InstitutionalMemoryRecord = {
             id: candidate.id,
+            ownership: normalizeExecutionOwnership(candidate.ownership),
             kind: candidate.kind,
             subject: candidate.subject.trim(),
             statement: candidate.statement.trim(),
