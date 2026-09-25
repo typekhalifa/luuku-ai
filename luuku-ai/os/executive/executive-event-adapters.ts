@@ -1,3 +1,4 @@
+import type { ExecutionOwnership } from "../../orchestration/ownership.js";
 import type { ExecutiveWakeEvent, ExecutiveWakeTrigger } from "./executive-wake-trigger.js";
 
 export type ExecutiveEventName =
@@ -12,6 +13,7 @@ export type ExecutiveEventName =
 export interface ExecutiveSystemEvent {
     readonly id: string;
     readonly type: ExecutiveEventName;
+    readonly ownership?: ExecutionOwnership;
     readonly occurredAt?: Date;
     readonly metadata?: Readonly<Record<string, unknown>>;
 }
