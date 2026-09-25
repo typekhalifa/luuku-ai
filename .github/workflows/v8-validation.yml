@@ -26,6 +26,8 @@ jobs:
 
       - name: Prisma schema validation
         run: npx prisma validate --schema prisma/schema.prisma
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/luuku_ai
 
       - name: Executive durable ownership isolation smoke test
         run: npx tsx luuku-ai/os/executive/demo/executive-ownership-isolation-demo.ts
