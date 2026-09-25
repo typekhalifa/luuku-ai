@@ -1,5 +1,8 @@
+import type { ExecutionOwnership } from "../../orchestration/ownership.js";
+
 export interface ExecutiveLoopCheckpoint {
     readonly version: number;
+    readonly ownership?: ExecutionOwnership;
     readonly handledIntentKeys: readonly string[];
     readonly cycleCount: number;
     readonly updatedAt: Date;
@@ -23,12 +26,19 @@ export function intentCheckpointKey(intent: {
 }
 
 export class InMemoryExecutiveLoopCheckpointStore implements ExecutiveLoopCheckpointStore {
-    private checkpoint: ExecutiveLoopCheckpoint = {
-        version: 1,
-        handledIntentKeys: [],
-        cycleCount: 0,
-        updatedAt: new Date(0),
-    };
+    private checkpoint: ExecutiveLoopCheckpoint;
+    private readonly ownership: ExecutionOwnership;
+
+    constructor(ownership?: ExecutionOwnership) {
+        this.ownership = ownership ?? { scope: "SYSTEM" };
+        this.checkpoint = {
+            version: 1,
+            ownership: this.ownership,
+            handledIntentKeys: [],
+            cycleCount: 0,
+            updatedAt: new Date(0),
+        };
+    }
 
     async load(): Promise<ExecutiveLoopCheckpoint> {
         return {
@@ -38,8 +48,17 @@ export class InMemoryExecutiveLoopCheckpointStore implements ExecutiveLoopCheckp
     }
 
     async save(checkpoint: ExecutiveLoopCheckpoint): Promise<void> {
+        const ownership = checkpoint.ownership ?? { scope: "SYSTEM" as const };
+        if (
+            ownership.scope !== this.ownership.scope ||
+            (ownership.scope === "COMPANY" && ownership.companyId !== this.ownership.companyId)
+        ) {
+            throw new Error("Executive checkpoint ownership mismatch.");
+        }
+
         this.checkpoint = {
             ...checkpoint,
+            ownership: this.ownership,
             handledIntentKeys: [...checkpoint.handledIntentKeys],
         };
     }
