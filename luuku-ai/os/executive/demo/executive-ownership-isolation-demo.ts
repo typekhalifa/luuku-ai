@@ -109,6 +109,7 @@ console.log("✓ Company B cannot write Company A executive objectives.");
 console.log("✓ Company A institutional memory is isolated from Company B.");
 console.log("✓ Company B cannot write Company A institutional memory.");
 console.log("EXECUTIVE OWNERSHIP ISOLATION: PASS");
+}
 
 async function expectOwnershipFailure(
     operation: () => Promise<void>,
