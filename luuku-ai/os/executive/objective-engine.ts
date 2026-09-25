@@ -1,3 +1,4 @@
+import { normalizeExecutionOwnership, ownershipMatches, type ExecutionOwnership } from "../../orchestration/ownership.js";
 import type { ExecutiveObjective } from "../../shared/executive/objectives.js";
 import type { ExecutiveState } from "./executive-state.js";
 
@@ -5,6 +6,7 @@ export type ExecutiveObjectiveStatus = "ACTIVE" | "PAUSED" | "COMPLETED";
 
 export interface ExecutiveObjectiveRecord extends ExecutiveObjective {
     readonly id: string;
+    readonly ownership?: ExecutionOwnership;
     readonly status: ExecutiveObjectiveStatus;
     readonly progress: number;
     readonly previousProgress?: number;
@@ -47,13 +49,36 @@ export class ExecutiveObjectiveEngine {
 
 export class InMemoryExecutiveObjectiveStore implements ExecutiveObjectiveStore {
     private readonly objectives = new Map<string, ExecutiveObjectiveRecord>();
-    async get(id: string): Promise<ExecutiveObjectiveRecord | undefined> { const objective = this.objectives.get(id); return objective ? structuredClone(objective) : undefined; }
-    async list(): Promise<readonly ExecutiveObjectiveRecord[]> { return structuredClone([...this.objectives.values()]); }
+    private readonly ownership: ExecutionOwnership;
+
+    constructor(ownership?: ExecutionOwnership) {
+        this.ownership = normalizeExecutionOwnership(ownership);
+    }
+
+    async get(id: string): Promise<ExecutiveObjectiveRecord | undefined> {
+        const objective = this.objectives.get(id);
+        if (!objective || !ownershipMatches(this.ownership, objective.ownership)) return undefined;
+        return structuredClone(objective);
+    }
+
+    async list(): Promise<readonly ExecutiveObjectiveRecord[]> {
+        return structuredClone(
+            [...this.objectives.values()].filter((objective) => ownershipMatches(this.ownership, objective.ownership)),
+        );
+    }
+
     async save(objective: ExecutiveObjectiveRecord): Promise<void> {
+        const normalized = {
+            ...objective,
+            ownership: normalizeExecutionOwnership(objective.ownership),
+        };
+        if (!ownershipMatches(this.ownership, normalized.ownership)) {
+            throw new Error("Executive objective ownership mismatch.");
+        }
         if (this.objectives.has(objective.id)) {
             const existing = this.objectives.get(objective.id)!;
             if (existing.title !== objective.title || existing.description !== objective.description) throw new Error(`Objective ${objective.id} already exists with different identity.`);
         }
-        this.objectives.set(objective.id, structuredClone(objective));
+        this.objectives.set(objective.id, structuredClone(normalized));
     }
 }
