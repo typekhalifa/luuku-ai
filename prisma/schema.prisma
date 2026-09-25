@@ -65,6 +65,9 @@ model Company {
   communicationExecutions CommunicationExecution[]
   communicationEvents CommunicationEvent[]
   memberships CompanyMembership[]
+  executiveObjectives ExecutiveObjective[]
+  executiveMemories ExecutiveMemory[]
+  institutionalMemories ExecutiveInstitutionalMemory[]
 }
 
 model Contact {
@@ -318,6 +321,8 @@ model ExecutiveEventInbox {
 
 model ExecutiveObjective {
   id               String   @id
+  ownershipScope   String   @default("SYSTEM")
+  companyId        String?
   title            String
   description      String
   priority         String
@@ -342,7 +347,10 @@ model ExecutiveMemory {
   lesson      String?
   confidence  Float?
   createdAt   DateTime
+  company         Company? @relation(fields: [companyId], references: [id], onDelete: SetNull)
   @@index([objectiveId, createdAt])
+  @@index([companyId, createdAt])
+  @@index([ownershipScope])
   @@index([workflowId, createdAt])
   @@index([eventType, createdAt])
   @@index([action, createdAt])
@@ -350,6 +358,8 @@ model ExecutiveMemory {
 
 model ExecutiveInstitutionalMemory {
   id              String   @id
+  ownershipScope  String   @default("SYSTEM")
+  companyId       String?
   kind            String
   subject         String
   statement       String
@@ -359,7 +369,10 @@ model ExecutiveInstitutionalMemory {
   active          Boolean
   firstObservedAt DateTime
   lastConfirmedAt DateTime
+  company         Company? @relation(fields: [companyId], references: [id], onDelete: SetNull)
   @@index([kind, active])
+  @@index([companyId, active])
+  @@index([ownershipScope])
   @@index([subject])
   @@index([confidence])
   @@index([lastConfirmedAt])
