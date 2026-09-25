@@ -51,7 +51,7 @@ export class InMemoryExecutiveLoopCheckpointStore implements ExecutiveLoopCheckp
         const ownership = checkpoint.ownership ?? { scope: "SYSTEM" as const };
         if (
             ownership.scope !== this.ownership.scope ||
-            (ownership.scope === "COMPANY" && ownership.companyId !== this.ownership.companyId)
+            (ownership.scope === "COMPANY" && this.ownership.scope === "COMPANY" && ownership.companyId !== this.ownership.companyId)
         ) {
             throw new Error("Executive checkpoint ownership mismatch.");
         }
