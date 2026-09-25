@@ -1,7 +1,10 @@
+import type { ExecutionOwnership } from "../../orchestration/ownership.js";
+
 export type ExecutiveEventInboxStatus = "PENDING" | "PROCESSING" | "DELIVERED" | "FAILED";
 
 export interface ExecutiveEventInboxRecord {
     readonly id: string;
+    readonly ownership?: ExecutionOwnership;
     readonly type: string;
     readonly occurredAt: Date;
     readonly metadata?: Readonly<Record<string, unknown>>;
