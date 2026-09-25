@@ -24,6 +24,15 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Prisma schema validation
+        run: npx prisma validate --schema prisma/schema.prisma
+
+      - name: Executive durable ownership isolation smoke test
+        run: npx tsx luuku-ai/os/executive/demo/executive-ownership-isolation-demo.ts
+
+      - name: Executive checkpoint and event ownership smoke test
+        run: npx tsx luuku-ai/os/executive/demo/executive-checkpoint-event-isolation-demo.ts
+
       - name: Backend typecheck
         run: npm run typecheck:backend
 
