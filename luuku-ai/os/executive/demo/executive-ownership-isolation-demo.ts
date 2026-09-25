@@ -6,6 +6,7 @@ const companyA = { scope: "COMPANY" as const, companyId: "company-a" };
 const companyB = { scope: "COMPANY" as const, companyId: "company-b" };
 const now = new Date("2026-09-25T21:00:00.000Z");
 
+async function main(): Promise<void> {
 const memoryA = new InMemoryExecutiveMemoryStore(companyA);
 const memoryB = new InMemoryExecutiveMemoryStore(companyB);
 
@@ -122,3 +123,9 @@ async function expectOwnershipFailure(
 
     throw new Error(`Expected ${label} ownership mismatch to be rejected.`);
 }
+
+
+main().catch((error) => {
+    console.error(error);
+    process.exitCode = 1;
+});
