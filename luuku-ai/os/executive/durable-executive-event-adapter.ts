@@ -1,4 +1,3 @@
-import type { ExecutionOwnership } from "../../orchestration/ownership.js";
 import type { ExecutiveWakeEvent, ExecutiveWakeTrigger } from "./executive-wake-trigger.js";
 import type {
     ExecutiveEventInboxRecord,
