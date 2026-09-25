@@ -51,7 +51,7 @@ export class InMemoryQueueStore implements QueueStore {
     async enqueue(item: QueueItem): Promise<void> {
         this.assertOwnership(item);
         if (this.items.has(item.id)) throw new Error(`Queue item ${item.id} already exists.`);
-        this.items.set(item.id, { ...item, ownership: { ...item.ownership } });
+        this.items.set(item.id, { ...item, ownership: normalizeExecutionOwnership(item.ownership) });
     }
 
     async claimNext(now = new Date()): Promise<QueueItem | null> {
@@ -72,7 +72,7 @@ export class InMemoryQueueStore implements QueueStore {
         item.status = QueueItemStatus.CLAIMED;
         item.attempts += 1;
         item.updatedAt = now;
-        return { ...item, ownership: { ...item.ownership } };
+        return { ...item, ownership: normalizeExecutionOwnership(item.ownership) };
     }
 
     async complete(id: string, updatedAt = new Date()): Promise<void> {
@@ -101,14 +101,14 @@ export class InMemoryQueueStore implements QueueStore {
     async get(id: string): Promise<QueueItem | null> {
         const item = this.items.get(id);
         return item && ownershipMatches(this.ownership, item.ownership)
-            ? { ...item, ownership: { ...item.ownership } }
+            ? { ...item, ownership: normalizeExecutionOwnership(item.ownership) }
             : null;
     }
 
     async list(): Promise<QueueItem[]> {
         return [...this.items.values()]
             .filter((item) => ownershipMatches(this.ownership, item.ownership))
-            .map((item) => ({ ...item, ownership: { ...item.ownership }, metadata: { ...item.metadata } }));
+            .map((item) => ({ ...item, ownership: normalizeExecutionOwnership(item.ownership), metadata: { ...item.metadata } }));
     }
 
     async recoverStaleClaims(now: Date, staleAfterMs: number): Promise<string[]> {
