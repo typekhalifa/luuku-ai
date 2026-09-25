@@ -57,7 +57,6 @@ class OwnershipAwareExecutor implements WorkflowStepExecutor {
             verified: true,
             evidence: {
                 provider: "in-memory-v6-boundary",
-                companyId: ownership.companyId,
             },
         };
     }
