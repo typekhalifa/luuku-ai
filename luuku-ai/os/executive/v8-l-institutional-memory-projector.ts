@@ -1,3 +1,4 @@
+import type { ExecutionOwnership } from "../../orchestration/ownership.js";
 import type {
     ExecutiveMemoryRecord,
     ExecutiveMemoryStore,
@@ -17,6 +18,7 @@ const candidateFromRecord = (record: ExecutiveMemoryRecord): InstitutionalMemory
     if (record.lesson?.trim()) {
         return {
             id: `lesson:${record.id}`,
+            ownership: record.ownership,
             kind: "LESSON",
             subject: record.action,
             statement: record.lesson.trim(),
@@ -30,6 +32,7 @@ const candidateFromRecord = (record: ExecutiveMemoryRecord): InstitutionalMemory
     if (record.eventType === "DECISION_APPROVED" || record.eventType === "DECISION_REJECTED") {
         return {
             id: `decision:${record.id}`,
+            ownership: record.ownership,
             kind: "DECISION",
             subject: record.action,
             statement: `${record.eventType === "DECISION_APPROVED" ? "Approved" : "Rejected"}: ${record.outcome}`,
