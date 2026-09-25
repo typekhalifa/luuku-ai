@@ -5,4 +5,8 @@ import { getCRMOverview } from "../controllers/crm.controller";
 
 export const crmRouter = Router();
 
-crmRouter.get(\n    "/",\n    requirePermission("read"),\n    getCRMOverview\n);
+crmRouter.get(
+    "/",
+    requirePermission("read"),
+    getCRMOverview
+);
