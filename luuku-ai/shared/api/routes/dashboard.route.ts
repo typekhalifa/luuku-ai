@@ -5,4 +5,8 @@ import { getDashboard } from "../controllers/dashboard.controller";
 
 export const dashboardRouter = Router();
 
-dashboardRouter.get(\n    "/",\n    requirePermission("read"),\n    getDashboard\n);
+dashboardRouter.get(
+    "/",
+    requirePermission("read"),
+    getDashboard
+);
