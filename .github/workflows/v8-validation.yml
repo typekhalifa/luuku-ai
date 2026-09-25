@@ -75,3 +75,6 @@ jobs:
 
       - name: Executive checkpoint and event ownership validation
         run: npx tsx luuku-ai/os/executive/demo/executive-checkpoint-event-isolation-demo.ts
+
+      - name: Generic event store ownership validation
+        run: npx tsx luuku-ai/shared/events/demo/event-store-ownership-isolation-demo.ts
