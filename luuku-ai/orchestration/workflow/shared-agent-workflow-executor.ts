@@ -22,14 +22,12 @@ export class SharedAgentWorkflowExecutor implements WorkflowStepExecutor {
             throw new Error(`Workflow ownership is required for step ${step.id}.`);
         }
 
-        const companyId = ownership.scope === "COMPANY" ? ownership.companyId : undefined;
-
         const idempotencyKey = workflowStepIdempotencyKey(workflowId, step.id);
         const claim = await this.ledger.begin(
             idempotencyKey,
             workflowId,
             step.id,
-            companyId,
+            ownership,
         );
 
         // An existing executing record is an uncertain outcome after a crash.
