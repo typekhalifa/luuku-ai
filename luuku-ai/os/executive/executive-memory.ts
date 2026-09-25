@@ -1,3 +1,5 @@
+import { normalizeExecutionOwnership, ownershipMatches, type ExecutionOwnership } from "../../orchestration/ownership.js";
+
 export type ExecutiveMemoryEventType =
     | "ACTION_STARTED"
     | "ACTION_COMPLETED"
@@ -9,6 +11,7 @@ export type ExecutiveMemoryEventType =
 
 export interface ExecutiveMemoryRecord {
     readonly id: string;
+    readonly ownership?: ExecutionOwnership;
     readonly objectiveId?: string;
     readonly workflowId?: string;
     readonly eventType: ExecutiveMemoryEventType;
@@ -40,17 +43,32 @@ export interface ExecutiveLearningRecord {
 
 export class InMemoryExecutiveMemoryStore implements ExecutiveMemoryStore {
     private readonly records = new Map<string, ExecutiveMemoryRecord>();
+    private readonly ownership: ExecutionOwnership;
+
+    constructor(ownership?: ExecutionOwnership) {
+        this.ownership = normalizeExecutionOwnership(ownership);
+    }
 
     async list(): Promise<readonly ExecutiveMemoryRecord[]> {
-        return structuredClone([...this.records.values()]);
+        return structuredClone(
+            [...this.records.values()].filter((record) => ownershipMatches(this.ownership, record.ownership)),
+        );
     }
 
     async save(record: ExecutiveMemoryRecord): Promise<void> {
+        const normalized = {
+            ...record,
+            ownership: normalizeExecutionOwnership(record.ownership),
+        };
+
+        if (!ownershipMatches(this.ownership, normalized.ownership)) {
+            throw new Error("Executive memory ownership mismatch.");
+        }
         if (this.records.has(record.id)) throw new Error(`Memory record ${record.id} already exists.`);
         if (record.confidence !== undefined && (record.confidence < 0 || record.confidence > 1)) {
             throw new Error("Memory confidence must be between 0 and 1.");
         }
-        this.records.set(record.id, structuredClone(record));
+        this.records.set(record.id, structuredClone(normalized));
     }
 }
 
