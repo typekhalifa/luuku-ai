@@ -5,4 +5,8 @@ import { getAgents } from "../controllers/agents.controller";
 
 export const agentsRouter = Router();
 
-agentsRouter.get(\n    "/",\n    requirePermission("read"),\n    getAgents\n);
+agentsRouter.get(
+    "/",
+    requirePermission("read"),
+    getAgents
+);
