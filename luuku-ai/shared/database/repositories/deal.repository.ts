@@ -4,18 +4,32 @@ import { DealMapper } from "../mappers/deal.mapper";
 import { BaseRepository } from "./base.repository";
 
 export class DealRepository extends BaseRepository<Deal> {
-    async findAll(companyId?: string): Promise<Deal[]> {
+    async findAll(companyId: string): Promise<Deal[]> {
         const deals = await prisma.deal.findMany({
-            where: companyId ? { companyId } : undefined,
+            where: { companyId },
             orderBy: { createdAt: "asc" }
         });
         return deals.map(DealMapper.toDomain);
     }
 
-    async findById(id: string, companyId?: string): Promise<Deal | null> {
-        const deal = companyId
-            ? await prisma.deal.findFirst({ where: { id, companyId } })
-            : await prisma.deal.findUnique({ where: { id } });
+    async findAllSystem(): Promise<Deal[]> {
+        const deals = await prisma.deal.findMany({
+            orderBy: { createdAt: "asc" }
+        });
+        return deals.map(DealMapper.toDomain);
+    }
+
+    async findById(id: string, companyId: string): Promise<Deal | null> {
+        const deal = await prisma.deal.findFirst({
+            where: { id, companyId }
+        });
+
+        if (!deal) return null;
+        return DealMapper.toDomain(deal);
+    }
+
+    async findByIdSystem(id: string): Promise<Deal | null> {
+        const deal = await prisma.deal.findUnique({ where: { id } });
 
         if (!deal) return null;
         return DealMapper.toDomain(deal);
@@ -26,8 +40,8 @@ export class DealRepository extends BaseRepository<Deal> {
         return deals.map(DealMapper.toDomain);
     }
 
-    async create(deal: Deal, companyId?: string): Promise<Deal> {
-        if (companyId && deal.companyId !== companyId) {
+    async create(deal: Deal, companyId: string): Promise<Deal> {
+        if (deal.companyId !== companyId) {
             throw new Error("DEAL_TENANT_MISMATCH");
         }
 
@@ -37,14 +51,19 @@ export class DealRepository extends BaseRepository<Deal> {
         return DealMapper.toDomain(created);
     }
 
-    async update(deal: Deal, companyId?: string): Promise<Deal> {
-        if (companyId) {
-            const owned = await prisma.deal.findFirst({
-                where: { id: deal.id, companyId },
-                select: { id: true }
-            });
-            if (!owned) throw new Error("DEAL_NOT_FOUND_OR_UNAUTHORIZED");
-        }
+    async createSystem(deal: Deal): Promise<Deal> {
+        const created = await prisma.deal.create({
+            data: DealMapper.toPersistence(deal)
+        });
+        return DealMapper.toDomain(created);
+    }
+
+    async update(deal: Deal, companyId: string): Promise<Deal> {
+        const owned = await prisma.deal.findFirst({
+            where: { id: deal.id, companyId },
+            select: { id: true }
+        });
+        if (!owned) throw new Error("DEAL_NOT_FOUND_OR_UNAUTHORIZED");
 
         const updated = await prisma.deal.update({
             where: { id: deal.id },
@@ -53,15 +72,25 @@ export class DealRepository extends BaseRepository<Deal> {
         return DealMapper.toDomain(updated);
     }
 
-    async delete(id: string, companyId?: string): Promise<void> {
-        if (companyId) {
-            const owned = await prisma.deal.findFirst({
-                where: { id, companyId },
-                select: { id: true }
-            });
-            if (!owned) throw new Error("DEAL_NOT_FOUND_OR_UNAUTHORIZED");
-        }
+    async updateSystem(deal: Deal): Promise<Deal> {
+        const updated = await prisma.deal.update({
+            where: { id: deal.id },
+            data: DealMapper.toPersistence(deal)
+        });
+        return DealMapper.toDomain(updated);
+    }
 
+    async delete(id: string, companyId: string): Promise<void> {
+        const owned = await prisma.deal.findFirst({
+            where: { id, companyId },
+            select: { id: true }
+        });
+        if (!owned) throw new Error("DEAL_NOT_FOUND_OR_UNAUTHORIZED");
+
+        await prisma.deal.delete({ where: { id } });
+    }
+
+    async deleteSystem(id: string): Promise<void> {
         await prisma.deal.delete({ where: { id } });
     }
 }
