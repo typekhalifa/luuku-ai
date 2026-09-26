@@ -12,8 +12,8 @@ import {
 
 export async function resolveContact(
     companyName: string,
-    preferredEmail?: string,
-    companyId?: string
+    preferredEmail: string | undefined,
+    companyId: string
 ): Promise<Contact | undefined> {
 
     const company =
