@@ -10,7 +10,7 @@ async function main() {
     console.log("========================================");
     console.log("");
 
-    const company = await companyService.createCompany({
+    const company = await companyService.createCompanySystem({
 
         id: crypto.randomUUID(),
 
@@ -46,7 +46,7 @@ async function main() {
     console.log("");
 
     const companies =
-        await companyService.getCompanies();
+        await companyService.getCompaniesSystem();
 
     console.log("========================================");
     console.log("      ALL COMPANIES");
