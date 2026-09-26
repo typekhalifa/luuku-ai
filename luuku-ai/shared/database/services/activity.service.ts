@@ -8,7 +8,7 @@ export class ActivityService {
     }
 
     async getActivitiesSystem(): Promise<Activity[]> {
-        return activityRepository.findAll();
+        return activityRepository.findAllSystem();
     }
 
     async getCompanyActivities(companyId: string, requesterCompanyId: string): Promise<Activity[]> {
@@ -27,7 +27,7 @@ export class ActivityService {
     }
 
     async getIncompleteActivitiesSystem(limit?: number): Promise<Activity[]> {
-        return activityRepository.findIncomplete(limit);
+        return activityRepository.findIncompleteSystem(limit);
     }
 
     async getOverdueActivities(limit: number | undefined, companyId: string): Promise<Activity[]> {
@@ -35,7 +35,7 @@ export class ActivityService {
     }
 
     async getOverdueActivitiesSystem(limit?: number): Promise<Activity[]> {
-        return activityRepository.findOverdue(limit);
+        return activityRepository.findOverdueSystem(limit);
     }
 
     async getActivitiesByIds(ids: string[], companyId: string): Promise<Activity[]> {
@@ -43,12 +43,12 @@ export class ActivityService {
     }
 
     async getActivitiesByIdsSystem(ids: string[]): Promise<Activity[]> {
-        return activityRepository.findByIds(ids);
+        return activityRepository.findByIdsSystem(ids);
     }
 
     async markPrioritized(
         activity: Activity,
-        actor = "Lex Executive AI",
+        actor: string,
         companyId: string
     ): Promise<Activity> {
         const marker = `[LEX PRIORITY: HIGH] ${actor}`;
@@ -73,7 +73,7 @@ export class ActivityService {
             ? activity.description
             : `${marker}\n${activity.description}`;
 
-        return activityRepository.updateOutcome(
+        return activityRepository.updateOutcomeSystem(
             activity.id,
             "Prioritized for follow-up by Lex Executive AI",
             description
@@ -85,7 +85,7 @@ export class ActivityService {
     }
 
     async createActivitySystem(activity: Activity): Promise<Activity> {
-        return activityRepository.create(activity);
+        return activityRepository.createSystem(activity);
     }
 }
 
