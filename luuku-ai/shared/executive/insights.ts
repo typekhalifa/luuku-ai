@@ -13,9 +13,9 @@ export interface ExecutiveInsights {
 
 export async function buildExecutiveInsights(): Promise<ExecutiveInsights> {
     const [companies, deals, activities] = await Promise.all([
-        companyService.getCompanies(),
-        dealService.getDeals(),
-        activityService.getActivities(),
+        companyService.getCompaniesSystem(),
+        dealService.getDealsSystem(),
+        activityService.getActivitiesSystem(),
     ]);
 
     const messages: string[] = [];
@@ -32,9 +32,6 @@ export async function buildExecutiveInsights(): Promise<ExecutiveInsights> {
         activity => !activity.completed,
     ).length;
 
-    // "Overdue" has one canonical meaning across executive intelligence and
-    // Sales execution: an open activity with an explicit dueAt in the past.
-    // Activity age alone must never make an activity overdue.
     const overdueActivities = activities.filter(activity =>
         !activity.completed &&
         Boolean(activity.dueAt) &&
