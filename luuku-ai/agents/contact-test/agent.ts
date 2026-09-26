@@ -28,10 +28,10 @@ async function main() {
     console.log("");
 
     let company =
-        await companyService.findCompany(companyName);
+        await companyService.findCompanySystem(companyName);
 
     if (!company) {
-        company = await companyService.createCompany({
+        company = await companyService.createCompanySystem({
             id: crypto.randomUUID(),
             name: companyName,
             industry: "Artificial Intelligence",
@@ -53,7 +53,7 @@ async function main() {
     }
 
     const contacts =
-        await contactService.getCompanyContacts(company.id);
+        await contactService.getCompanyContactsSystem(company.id);
 
     const existing = contacts.find(
         contact =>
@@ -69,7 +69,7 @@ async function main() {
     }
 
     const contact =
-        await contactService.createContact({
+        await contactService.createContactSystem({
             id: crypto.randomUUID(),
             companyId: company.id,
             name: "Luuku AI Controlled Test Contact",
