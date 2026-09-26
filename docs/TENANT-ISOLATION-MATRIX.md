@@ -37,8 +37,12 @@ The invariant is fail-closed tenant isolation: a Company A execution context mus
 6. Existing communication conversations are checked against the requested ownership before reuse.
 7. System-owned records are not treated as company-owned records.
 
-## Remaining audit item
+## Repository contract status
 
-The generic CompanyRepository exposes optional companyId parameters. Calls made without a company scope are currently capable of global company access and therefore must remain explicitly classified as system/admin operations or be migrated to mandatory tenant context before customer-facing multi-tenant production.
+The CRM Company, Contact, Deal, and Activity repositories now require tenant context for tenant-scoped methods. Global access is exposed only through explicitly named `System` methods.
 
-This matrix does not claim the repository is globally production-ready; it records the boundaries that have been explicitly hardened and the remaining authorization classification work.
+The corresponding service layer follows the same contract, and executive aggregation uses the explicit system methods.
+
+Remaining work is to audit any other repositories outside this CRM boundary and classify their global/system access before customer-facing multi-tenant production.
+
+This matrix does not claim the entire repository is globally production-ready; it records the boundaries that have been explicitly hardened and the remaining authorization classification work.
