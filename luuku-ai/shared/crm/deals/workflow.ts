@@ -22,7 +22,8 @@ export async function updateDealsAfterCall(
 
     executed = false,
 
-    verified = false
+    verified = false,
+    requesterCompanyId?: string
 
 ): Promise<void> {
 
@@ -59,7 +60,8 @@ export async function updateDealsAfterCall(
 
     const deals =
         await dealService.getCompanyDeals(
-            companyId
+            companyId,
+            requesterCompanyId
         );
 
     if (deals.length === 0) {
@@ -110,7 +112,7 @@ export async function updateDealsAfterCall(
             updatedAt:
                 new Date().toISOString()
 
-        });
+        }, requesterCompanyId);
 
         console.log("");
 
@@ -146,7 +148,8 @@ export async function updateDealsAfterCall(
         new Date().toISOString();
 
     await dealService.updateDeal(
-        deal
+        deal,
+        requesterCompanyId
     );
 
     console.log("");
