@@ -17,14 +17,14 @@ async function main() {
         new Date().toISOString();
 
     let company =
-        await companyService.findCompany(
+        await companyService.findCompanySystem(
             "Luuku AI"
         );
 
     if (!company) {
 
         company =
-            await companyService.createCompany({
+            await companyService.createCompanySystem({
 
                 id:
                     crypto.randomUUID(),
@@ -78,7 +78,7 @@ async function main() {
     console.log("");
 
     const createdDeal =
-        await dealService.createDeal({
+        await dealService.createDealSystem({
 
             id:
                 crypto.randomUUID(),
@@ -130,7 +130,7 @@ async function main() {
     console.log("");
 
     const deals =
-        await dealService.getCompanyDeals(
+        await dealService.getCompanyDealsSystem(
 
             company.id
 
