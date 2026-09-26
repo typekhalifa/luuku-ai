@@ -86,7 +86,10 @@ async function main() {
         title: `Follow up: ${company.name} by email`,
         description:
             "Send the controlled Luuku AI real communication layer test email through the Sales Agent. This is a development-only test to the configured test recipient.",
-        priority: "high"
+        priority: "high",
+        metadata: {
+            companyId: company.id,
+        },
     };
 
     const agent = new SalesAgent();
