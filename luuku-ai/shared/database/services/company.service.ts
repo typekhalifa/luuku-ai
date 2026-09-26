@@ -8,7 +8,7 @@ export class CompanyService {
     }
 
     async getCompaniesSystem(): Promise<Company[]> {
-        return companyRepository.findAll();
+        return companyRepository.findAllSystem();
     }
 
     async getCompany(id: string, companyId: string): Promise<Company | null> {
@@ -16,7 +16,7 @@ export class CompanyService {
     }
 
     async getCompanySystem(id: string): Promise<Company | null> {
-        return companyRepository.findById(id);
+        return companyRepository.findByIdSystem(id);
     }
 
     async findCompany(name: string, companyId: string): Promise<Company | null> {
@@ -24,18 +24,15 @@ export class CompanyService {
     }
 
     async findCompanySystem(name: string): Promise<Company | null> {
-        return companyRepository.findByName(name);
+        return companyRepository.findByNameSystem(name);
     }
 
     async createCompany(company: Company, companyId: string): Promise<Company> {
-        if (company.id !== companyId) {
-            throw new Error("COMPANY_TENANT_MISMATCH");
-        }
         return companyRepository.create(company, companyId);
     }
 
     async createCompanySystem(company: Company): Promise<Company> {
-        return companyRepository.create(company);
+        return companyRepository.createSystem(company);
     }
 
     async updateCompany(company: Company, companyId: string): Promise<Company> {
@@ -43,7 +40,7 @@ export class CompanyService {
     }
 
     async updateCompanySystem(company: Company): Promise<Company> {
-        return companyRepository.update(company);
+        return companyRepository.updateSystem(company);
     }
 
     async deleteCompany(id: string, companyId: string): Promise<void> {
@@ -51,7 +48,7 @@ export class CompanyService {
     }
 
     async deleteCompanySystem(id: string): Promise<void> {
-        await companyRepository.delete(id);
+        await companyRepository.deleteSystem(id);
     }
 }
 
