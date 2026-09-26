@@ -8,7 +8,7 @@ export class ContactService {
     }
 
     async getContactsSystem(): Promise<Contact[]> {
-        return contactRepository.findAll();
+        return contactRepository.findAllSystem();
     }
 
     async getContact(id: string, companyId: string): Promise<Contact | null> {
@@ -16,7 +16,7 @@ export class ContactService {
     }
 
     async getContactSystem(id: string): Promise<Contact | null> {
-        return contactRepository.findById(id);
+        return contactRepository.findByIdSystem(id);
     }
 
     async getCompanyContacts(companyId: string, requesterCompanyId: string): Promise<Contact[]> {
@@ -35,7 +35,7 @@ export class ContactService {
     }
 
     async createContactSystem(contact: Contact): Promise<Contact> {
-        return contactRepository.create(contact);
+        return contactRepository.createSystem(contact);
     }
 
     async updateContact(contact: Contact, companyId: string): Promise<Contact> {
@@ -43,7 +43,7 @@ export class ContactService {
     }
 
     async updateContactSystem(contact: Contact): Promise<Contact> {
-        return contactRepository.update(contact);
+        return contactRepository.updateSystem(contact);
     }
 
     async deleteContact(id: string, companyId: string): Promise<void> {
@@ -51,7 +51,7 @@ export class ContactService {
     }
 
     async deleteContactSystem(id: string): Promise<void> {
-        await contactRepository.delete(id);
+        await contactRepository.deleteSystem(id);
     }
 }
 
