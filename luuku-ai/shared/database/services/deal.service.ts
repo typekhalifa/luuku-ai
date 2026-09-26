@@ -3,31 +3,55 @@ import { Deal } from "../../domain/deal";
 import { dealRepository } from "../repositories/deal.repository";
 
 export class DealService {
-    async getDeals(companyId?: string): Promise<Deal[]> {
+    async getDeals(companyId: string): Promise<Deal[]> {
         return dealRepository.findAll(companyId);
     }
 
-    async getDeal(id: string, companyId?: string): Promise<Deal | null> {
+    async getDealsSystem(): Promise<Deal[]> {
+        return dealRepository.findAll();
+    }
+
+    async getDeal(id: string, companyId: string): Promise<Deal | null> {
         return dealRepository.findById(id, companyId);
     }
 
-    async getCompanyDeals(companyId: string, requesterCompanyId?: string): Promise<Deal[]> {
-        if (requesterCompanyId && companyId !== requesterCompanyId) {
+    async getDealSystem(id: string): Promise<Deal | null> {
+        return dealRepository.findById(id);
+    }
+
+    async getCompanyDeals(companyId: string, requesterCompanyId: string): Promise<Deal[]> {
+        if (companyId !== requesterCompanyId) {
             throw new Error("COMPANY_TENANT_MISMATCH");
         }
         return dealRepository.findByCompany(companyId);
     }
 
-    async createDeal(deal: Deal, companyId?: string): Promise<Deal> {
+    async getCompanyDealsSystem(companyId: string): Promise<Deal[]> {
+        return dealRepository.findByCompany(companyId);
+    }
+
+    async createDeal(deal: Deal, companyId: string): Promise<Deal> {
         return dealRepository.create(deal, companyId);
     }
 
-    async updateDeal(deal: Deal, companyId?: string): Promise<Deal> {
+    async createDealSystem(deal: Deal): Promise<Deal> {
+        return dealRepository.create(deal);
+    }
+
+    async updateDeal(deal: Deal, companyId: string): Promise<Deal> {
         return dealRepository.update(deal, companyId);
     }
 
-    async deleteDeal(id: string, companyId?: string): Promise<void> {
+    async updateDealSystem(deal: Deal): Promise<Deal> {
+        return dealRepository.update(deal);
+    }
+
+    async deleteDeal(id: string, companyId: string): Promise<void> {
         await dealRepository.delete(id, companyId);
+    }
+
+    async deleteDealSystem(id: string): Promise<void> {
+        await dealRepository.delete(id);
     }
 }
 
