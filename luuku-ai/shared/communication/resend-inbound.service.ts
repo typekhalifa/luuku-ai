@@ -192,8 +192,8 @@ export async function processInboundResendEmail(
         data.subject ||
         "No subject";
 
-    const existingContact = senderEmail
-        ? await prisma.contact.findFirst({
+    const senderContacts = senderEmail
+        ? await prisma.contact.findMany({
             where: {
                 email: {
                     equals: senderEmail,
@@ -204,7 +204,7 @@ export async function processInboundResendEmail(
                 company: true,
             },
         })
-        : null;
+        : [];
 
     let threadEvent = null as Awaited<
         ReturnType<typeof prisma.communicationEvent.findFirst>
@@ -223,26 +223,51 @@ export async function processInboundResendEmail(
         });
     }
 
-    const fallbackContact =
-        existingContact ||
-        (threadEvent?.recipient
-            ? await prisma.contact.findFirst({
-                where: {
-                    email: {
-                        equals: threadEvent.recipient,
-                        mode: "insensitive",
-                    },
-                },
-                include: {
-                    company: true,
-                },
-            })
-            : null);
+    const senderCompanyIds = [
+        ...new Set(
+            senderContacts
+                .map((contact) => contact.companyId)
+                .filter((id): id is string => Boolean(id)),
+        ),
+    ];
 
-    const companyId = fallbackContact?.companyId;
+    const threadCompanyId =
+        threadEvent?.ownershipScope === "COMPANY" &&
+        threadEvent.companyId
+            ? threadEvent.companyId
+            : undefined;
 
-    if (!companyId) {
+    if (
+        threadCompanyId &&
+        senderCompanyIds.length &&
+        !senderCompanyIds.includes(threadCompanyId)
+    ) {
+        throw new Error("INBOUND_EMAIL_COMPANY_OWNERSHIP_CONFLICT");
+    }
+
+    const candidateCompanyIds = [
+        ...new Set([
+            ...senderCompanyIds,
+            ...(threadCompanyId ? [threadCompanyId] : []),
+        ]),
+    ];
+
+    if (candidateCompanyIds.length === 0) {
         throw new Error("INBOUND_EMAIL_COMPANY_OWNERSHIP_UNRESOLVED");
+    }
+
+    if (candidateCompanyIds.length > 1) {
+        throw new Error("INBOUND_EMAIL_COMPANY_OWNERSHIP_AMBIGUOUS");
+    }
+
+    const companyId = candidateCompanyIds[0];
+
+    const fallbackContact = senderContacts.find(
+        (contact) => contact.companyId === companyId,
+    );
+
+    if (!fallbackContact) {
+        throw new Error("INBOUND_EMAIL_CONTACT_OWNERSHIP_UNRESOLVED");
     }
 
     const deal = companyId
@@ -329,6 +354,8 @@ export async function processInboundResendEmail(
                         externalId: emailId,
                         messageId,
                         conversationId: conversation.conversationId,
+                        ownershipScope: "COMPANY",
+                        companyId,
                         recipient: Array.isArray(receivedEmail.to)
                             ? receivedEmail.to[0]
                             : data.to?.[0],
