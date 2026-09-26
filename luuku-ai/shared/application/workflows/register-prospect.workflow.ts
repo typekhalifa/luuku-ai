@@ -1,5 +1,3 @@
-import crypto from "crypto";
-
 import { Company } from "../../domain/company";
 import { Contact } from "../../domain/contact";
 import { Deal } from "../../domain/deal";
@@ -155,37 +153,19 @@ export class RegisterProspectWorkflow {
 
     ): Promise<boolean> {
 
-        {
-            const existing = await companyService.getCompany(companyId, companyId);
+        const existing =
+            await companyService.getCompany(
+                companyId,
+                companyId
+            );
 
-            if (!existing) {
-                throw new Error("COMPANY_NOT_FOUND_OR_UNAUTHORIZED");
-            }
-
-            context.company = existing;
-            return false;
+        if (!existing) {
+            throw new Error("COMPANY_NOT_FOUND_OR_UNAUTHORIZED");
         }
 
-        const now =
-            new Date().toISOString();
+        context.company = existing;
 
-        context.company =
-            await companyService.createCompany({
-
-                ...company,
-
-                id:
-                    crypto.randomUUID(),
-
-                createdAt:
-                    now,
-
-                updatedAt:
-                    now
-
-            }, companyId);
-
-        return true;
+        return false;
 
     }
 
