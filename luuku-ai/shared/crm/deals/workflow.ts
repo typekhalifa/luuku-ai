@@ -23,7 +23,7 @@ export async function updateDealsAfterCall(
     executed = false,
 
     verified = false,
-    requesterCompanyId?: string
+    requesterCompanyId: string
 
 ): Promise<void> {
 
