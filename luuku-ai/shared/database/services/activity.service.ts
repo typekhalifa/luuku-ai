@@ -48,7 +48,7 @@ export class ActivityService {
 
     async markPrioritized(
         activity: Activity,
-        actor: string,
+        actor = "Lex Executive AI",
         companyId: string
     ): Promise<Activity> {
         const marker = `[LEX PRIORITY: HIGH] ${actor}`;
