@@ -13,10 +13,10 @@ export interface ExecutiveCRM {
 
 export async function buildExecutiveCRM(): Promise<ExecutiveCRM> {
     const [companies, contacts, deals, activities] = await Promise.all([
-        companyService.getCompanies(),
-        contactService.getContacts(),
-        dealService.getDeals(),
-        activityService.getActivities(),
+        companyService.getCompaniesSystem(),
+        contactService.getContactsSystem(),
+        dealService.getDealsSystem(),
+        activityService.getActivitiesSystem(),
     ]);
 
     return {
