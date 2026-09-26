@@ -44,7 +44,7 @@ export class RegisterProspectWorkflow {
     async execute(
 
         request: RegisterProspectRequest,
-        companyId?: string
+        companyId: string
 
     ): Promise<RegisterProspectResult> {
 
@@ -151,11 +151,11 @@ export class RegisterProspectWorkflow {
         context: WorkflowContext,
 
         company: RegisterProspectRequest["company"],
-        companyId?: string
+        companyId: string
 
     ): Promise<boolean> {
 
-        if (companyId) {
+        {
             const existing = await companyService.getCompany(companyId, companyId);
 
             if (!existing) {
@@ -164,19 +164,6 @@ export class RegisterProspectWorkflow {
 
             context.company = existing;
             return false;
-        }
-
-        const existing =
-            await companyService.findCompany(
-                company.name
-            );
-
-        if (existing) {
-
-            context.company = existing;
-
-            return false;
-
         }
 
         const now =
@@ -196,7 +183,7 @@ export class RegisterProspectWorkflow {
                 updatedAt:
                     now
 
-            });
+            }, companyId);
 
         return true;
 
@@ -207,7 +194,7 @@ export class RegisterProspectWorkflow {
         context: WorkflowContext,
 
         contact: RegisterProspectRequest["contact"],
-        companyId?: string
+        companyId: string
 
     ): Promise<void> {
 
@@ -311,7 +298,7 @@ export class RegisterProspectWorkflow {
     private async ensureInitialDeal(
 
         context: WorkflowContext,
-        companyId?: string
+        companyId: string
 
     ): Promise<void> {
 
