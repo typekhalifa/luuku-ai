@@ -60,15 +60,18 @@ export class RegisterProspectWorkflow {
 
         await this.ensurePrimaryContact(
             context,
-            request.contact
+            request.contact,
+            companyId
         );
 
         await this.ensureInitialDeal(
-            context
+            context,
+            companyId
         );
 
         await this.logInitialActivity(
-            context
+            context,
+            companyId
         );
 
         completeWorkflow(
@@ -153,7 +156,7 @@ export class RegisterProspectWorkflow {
     ): Promise<boolean> {
 
         if (companyId) {
-            const existing = await companyService.getCompany(companyId);
+            const existing = await companyService.getCompany(companyId, companyId);
 
             if (!existing) {
                 throw new Error("COMPANY_NOT_FOUND_OR_UNAUTHORIZED");
@@ -203,13 +206,15 @@ export class RegisterProspectWorkflow {
 
         context: WorkflowContext,
 
-        contact: RegisterProspectRequest["contact"]
+        contact: RegisterProspectRequest["contact"],
+        companyId?: string
 
     ): Promise<void> {
 
         const existingContacts =
             await contactService.getCompanyContacts(
-                context.company!.id
+                context.company!.id,
+                companyId
             );
 
         const normalizedEmail =
@@ -305,13 +310,15 @@ export class RegisterProspectWorkflow {
 
     private async ensureInitialDeal(
 
-        context: WorkflowContext
+        context: WorkflowContext,
+        companyId?: string
 
     ): Promise<void> {
 
         const existingDeals =
             await dealService.getCompanyDeals(
-                context.company!.id
+                context.company!.id,
+                companyId
             );
 
         if (existingDeals.length > 0) {
@@ -371,13 +378,15 @@ export class RegisterProspectWorkflow {
 
     private async logInitialActivity(
 
-        context: WorkflowContext
+        context: WorkflowContext,
+        companyId?: string
 
     ): Promise<void> {
 
         const existingActivities =
             await activityService.getCompanyActivities(
-                context.company!.id
+                context.company!.id,
+                companyId
             );
 
         const existingRegistration =
