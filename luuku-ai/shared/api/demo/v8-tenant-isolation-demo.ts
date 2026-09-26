@@ -106,8 +106,8 @@ async function main(): Promise<void> {
     console.log("");
 
     try {
-        await companyService.createCompany(makeCompany(companyAId, "Tenant A Isolation Test"));
-        await companyService.createCompany(makeCompany(companyBId, "Tenant B Isolation Test"));
+        await companyService.createCompany(makeCompany(companyAId, "Tenant A Isolation Test"), companyAId);
+        await companyService.createCompany(makeCompany(companyBId, "Tenant B Isolation Test"), companyBId);
 
         await contactService.createContact(makeContact(contactAId, companyAId), companyAId);
         await contactService.createContact(makeContact(contactBId, companyBId), companyBId);
