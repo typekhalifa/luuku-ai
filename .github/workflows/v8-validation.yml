@@ -78,3 +78,42 @@ jobs:
 
       - name: Generic event store ownership validation
         run: npx tsx luuku-ai/shared/events/demo/event-store-ownership-isolation-demo.ts
+
+  crm-tenant-isolation:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: luuku_ai
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d luuku_ai"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Apply Prisma migrations
+        run: npx prisma migrate deploy --schema prisma/schema.prisma
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/luuku_ai
+
+      - name: CRM tenant isolation regression
+        run: npx tsx luuku-ai/shared/api/demo/v8-tenant-isolation-demo.ts
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/luuku_ai
