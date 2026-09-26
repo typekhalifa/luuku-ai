@@ -92,8 +92,12 @@ export class CRMApplication {
 
     async registerProspect(
         request: RegisterProspectRequest,
-        context?: ApiRequestContext,
+        context: ApiRequestContext,
     ): Promise<RegisterProspectResult> {
+        if (!context.companyId) {
+            throw new Error("TENANT_CONTEXT_REQUIRED");
+        }
+
         const result = await registerProspectWorkflow.execute({
             company: {
                 name: request.company.name,
