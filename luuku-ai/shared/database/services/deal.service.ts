@@ -8,7 +8,7 @@ export class DealService {
     }
 
     async getDealsSystem(): Promise<Deal[]> {
-        return dealRepository.findAll();
+        return dealRepository.findAllSystem();
     }
 
     async getDeal(id: string, companyId: string): Promise<Deal | null> {
@@ -16,7 +16,7 @@ export class DealService {
     }
 
     async getDealSystem(id: string): Promise<Deal | null> {
-        return dealRepository.findById(id);
+        return dealRepository.findByIdSystem(id);
     }
 
     async getCompanyDeals(companyId: string, requesterCompanyId: string): Promise<Deal[]> {
@@ -35,7 +35,7 @@ export class DealService {
     }
 
     async createDealSystem(deal: Deal): Promise<Deal> {
-        return dealRepository.create(deal);
+        return dealRepository.createSystem(deal);
     }
 
     async updateDeal(deal: Deal, companyId: string): Promise<Deal> {
@@ -43,7 +43,7 @@ export class DealService {
     }
 
     async updateDealSystem(deal: Deal): Promise<Deal> {
-        return dealRepository.update(deal);
+        return dealRepository.updateSystem(deal);
     }
 
     async deleteDeal(id: string, companyId: string): Promise<void> {
@@ -51,7 +51,7 @@ export class DealService {
     }
 
     async deleteDealSystem(id: string): Promise<void> {
-        await dealRepository.delete(id);
+        await dealRepository.deleteSystem(id);
     }
 }
 
