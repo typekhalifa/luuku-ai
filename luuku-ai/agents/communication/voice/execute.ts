@@ -65,6 +65,22 @@ export async function executeVoiceTask(
 
 ): Promise<AgentResult> {
 
+    const companyId = typeof task.metadata?.companyId === "string"
+        ? task.metadata.companyId
+        : undefined;
+
+    if (!companyId) {
+        return {
+            success: false,
+            summary: "Sales voice workflow blocked: tenant company context is required for communication.",
+            completedAt: new Date().toISOString(),
+            executionStatus: "blocked",
+            executed: false,
+            verified: false,
+            blockers: ["TENANT_CONTEXT_REQUIRED"],
+        };
+    }
+
     if (!contact.phoneNumber) {
 
         throw new Error(
@@ -178,6 +194,7 @@ export async function executeVoiceTask(
                 audience: "external",
                 executionMode: "simulation",
                 taskId: task.id,
+                companyId,
             },
         });
 
@@ -191,7 +208,8 @@ export async function executeVoiceTask(
 
     const company =
         await companyService.findCompany(
-            brief.company
+            brief.company,
+            companyId
         );
 
     if (!company) {
@@ -204,7 +222,8 @@ export async function executeVoiceTask(
 
     const deals =
         await dealService.getCompanyDeals(
-            company.id
+            company.id,
+            companyId
         );
 
     const activeDeal =
@@ -260,7 +279,8 @@ export async function executeVoiceTask(
         };
 
         await activityService.createActivity(
-            activity
+            activity,
+            companyId
         );
 
         console.log("");
@@ -311,7 +331,8 @@ export async function executeVoiceTask(
 
         result.executed,
 
-        result.verified
+        result.verified,
+        companyId
 
     );
 
