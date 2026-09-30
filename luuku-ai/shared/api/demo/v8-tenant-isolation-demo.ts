@@ -1,14 +1,14 @@
 import crypto from "node:crypto";
 
-import { prisma } from "../../shared/database/client";
-import { companyService } from "../../shared/database/services/company.service";
-import { contactService } from "../../shared/database/services/contact.service";
-import { dealService } from "../../shared/database/services/deal.service";
-import { activityService } from "../../shared/database/services/activity.service";
-import type { Company } from "../../shared/domain/company";
-import type { Contact } from "../../shared/domain/contact";
-import type { Deal } from "../../shared/domain/deal";
-import type { Activity } from "../../shared/domain/activity";
+import { prisma } from "../../database/client";
+import { companyService } from "../../database/services/company.service";
+import { contactService } from "../../database/services/contact.service";
+import { dealService } from "../../database/services/deal.service";
+import { activityService } from "../../database/services/activity.service";
+import type { Company } from "../../domain/company";
+import type { Contact } from "../../domain/contact";
+import type { Deal } from "../../domain/deal";
+import type { Activity } from "../../domain/activity";
 
 function assert(condition: boolean, message: string): void {
     if (!condition) throw new Error(`TENANT ISOLATION ASSERTION FAILED: ${message}`);
