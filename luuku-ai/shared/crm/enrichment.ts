@@ -71,6 +71,7 @@ export async function requestContactEnrichment(
     }, {
         companyId: request.companyId,
         authMethod: "api-key",
+        role: "SERVICE",
     });
 
     console.log("");
