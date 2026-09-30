@@ -79,6 +79,10 @@ jobs:
       - name: Generic event store ownership validation
         run: npx tsx luuku-ai/shared/events/demo/event-store-ownership-isolation-demo.ts
 
+      - name: API authenticated tenant authorization validation
+        run: npx tsx luuku-ai/shared/api/demo/v8-api-tenant-authorization-demo.ts
+
+
   crm-tenant-isolation:
     runs-on: ubuntu-latest
     services:
