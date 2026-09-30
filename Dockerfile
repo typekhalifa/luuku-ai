@@ -10,8 +10,7 @@ COPY prisma ./prisma
 COPY tsconfig.json tsconfig.base.json ./
 
 RUN npm ci
-RUN npx prisma generate --schema prisma/schema.prisma
-RUN npm run typecheck:backend
+RUN npm run build:backend
 
 FROM node:22-bookworm-slim AS runtime
 
@@ -24,8 +23,9 @@ COPY --from=build /app/package.json /app/package-lock.json ./
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/dist/backend ./dist/backend
 COPY --from=build /app/prisma ./prisma
-COPY --from=build /app/luuku-ai ./luuku-ai
 
 EXPOSE 3000
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 CMD node -e "fetch('http://127.0.0.1:3000/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 
 CMD ["node", "dist/backend/shared/api/server.js"]
