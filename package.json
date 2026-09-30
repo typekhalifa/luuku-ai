@@ -37,7 +37,13 @@
     "typecheck:backend": "tsc --noEmit -p luuku-ai/tsconfig.json",
     "clean:logs": "powershell -Command \"if (Test-Path logs) { Remove-Item logs\\*.md -Force -ErrorAction SilentlyContinue }\"",
     "dev:tenant-isolation": "tsx luuku-ai/shared/api/demo/v8-tenant-isolation-demo.ts",
-    "dev:auth:bootstrap": "tsx luuku-ai/scripts/bootstrap-auth.ts"
+    "dev:auth:bootstrap": "tsx luuku-ai/scripts/bootstrap-auth.ts",
+    "start": "node dist/backend/shared/api/server.js",
+    "start:api": "npm run start",
+    "db:deploy": "prisma migrate deploy --schema prisma/schema.prisma",
+    "db:generate": "prisma generate --schema prisma/schema.prisma",
+    "build:backend": "npm run db:generate && tsc --noEmit -p luuku-ai/tsconfig.json",
+    "deployment:validate": "npm run db:generate && npm run typecheck:backend"
   },
   "keywords": [
     "ai",
