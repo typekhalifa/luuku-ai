@@ -48,7 +48,7 @@ async function main(): Promise<void> {
     });
 
     const conversation = accepted.message
-        ? await communicationService.getConversation(accepted.message.conversationId)
+        ? await communicationService.getConversation(accepted.message.conversationId, { ownership: { scope: "SYSTEM" } })
         : null;
 
     const storedMessage = conversation?.messages[0];
