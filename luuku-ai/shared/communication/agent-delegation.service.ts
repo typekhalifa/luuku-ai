@@ -97,6 +97,7 @@ export class AgentDelegationService {
                 displayName: target.agent.name,
             },
             content: request.task.description,
+            context: { ownership: { scope: "SYSTEM" } },
             metadata: {
                 type: "agent-delegation",
                 fromAgentId: sourceId,
