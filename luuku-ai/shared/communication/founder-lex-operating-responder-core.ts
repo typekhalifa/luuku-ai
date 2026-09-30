@@ -539,6 +539,7 @@ export class FounderLexOperatingResponder {
                 channel: "discord",
                 recipient: { channel: "discord", displayName: "Founder" },
                 content,
+                context: SYSTEM_COMMUNICATION_CONTEXT,
                 metadata: {
                     ...partMetadata,
                     executionStatus: execution.status,
