@@ -55,6 +55,7 @@ async function run(): Promise<void> {
 
     const conversation = await communication.getConversation(
         "agent:lex:research-demo",
+        { ownership: { scope: "SYSTEM" } },
     );
 
     console.log("");
