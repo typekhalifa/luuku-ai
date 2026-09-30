@@ -90,8 +90,7 @@ app.use(
 
 app.use(express.json({ limit: "1mb" }));
 
-app.use("/healthz", healthRouter);
-app.use("/readyz", healthRouter);
+app.use("/", healthRouter);
 
 app.use("/api/v1/auth", authRouter);
 
