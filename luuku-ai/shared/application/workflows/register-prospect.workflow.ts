@@ -346,7 +346,7 @@ export class RegisterProspectWorkflow {
     private async logInitialActivity(
 
         context: WorkflowContext,
-        companyId?: string
+        companyId: string
 
     ): Promise<void> {
 
