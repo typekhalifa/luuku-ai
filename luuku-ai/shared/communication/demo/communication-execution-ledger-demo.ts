@@ -71,6 +71,7 @@ async function main(): Promise<void> {
             displayName: "Ledger Demo",
         },
         content: "Execution ledger correlation regression test.",
+            context: { ownership: { scope: "SYSTEM" } },
         metadata: {
             idempotencyKey,
             externalMessageId: `message-${idempotencyKey}`,
