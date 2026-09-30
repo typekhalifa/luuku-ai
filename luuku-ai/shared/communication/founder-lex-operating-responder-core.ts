@@ -309,10 +309,13 @@ export class FounderLexOperatingResponder {
             }
 
             if (hasCompletedAction(conversation.messages, action.id)) {
-                await prismaCommunicationService.updateConversationMetadata(message.conversationId,
+                await prismaCommunicationService.updateConversationMetadata(
+                message.conversationId,
                 {
                     pendingLexAction: null,
-            }, SYSTEM_COMMUNICATION_CONTEXT);
+                },
+                SYSTEM_COMMUNICATION_CONTEXT,
+            );
                 return this.sendResponse(message, "ℹ️ **Already done.**\n\nThat action has already been executed, so I won’t run it twice.", "action_already_completed");
             }
 
@@ -332,7 +335,8 @@ export class FounderLexOperatingResponder {
                     blockers: guard.blockers,
                     actionContract: action.contract,
                 });
-                await prismaCommunicationService.updateConversationMetadata(message.conversationId,
+                await prismaCommunicationService.updateConversationMetadata(
+                message.conversationId,
                 {
                     pendingLexAction: action,
                     lastLexActionReceipt: {
@@ -343,7 +347,9 @@ export class FounderLexOperatingResponder {
                         executionStatus: "blocked",
                         blockers: guard.blockers,
                     },
-            }, SYSTEM_COMMUNICATION_CONTEXT);
+                },
+                SYSTEM_COMMUNICATION_CONTEXT,
+            );
                 return response;
             }
 
@@ -383,7 +389,8 @@ export class FounderLexOperatingResponder {
                 },
             });
 
-            await prismaCommunicationService.updateConversationMetadata(message.conversationId,
+            await prismaCommunicationService.updateConversationMetadata(
+                message.conversationId,
                 {
                 pendingLexAction: actionCompleted ? null : action,
                 lastLexActionReceipt: {
@@ -394,7 +401,9 @@ export class FounderLexOperatingResponder {
                     executionStatus: result.executionStatus ?? (result.success ? "completed" : "failed"),
                     blockers: result.blockers ?? [],
                 },
-            }, SYSTEM_COMMUNICATION_CONTEXT);
+                },
+                SYSTEM_COMMUNICATION_CONTEXT,
+            );
 
             return response;
         }
@@ -416,10 +425,13 @@ export class FounderLexOperatingResponder {
                 "Say `Do it` when you’re ready.",
             ].join("\n");
             const sent = await this.sendResponse(message, response, "recommendation", { proposedAction: controlledTestProposal });
-            await prismaCommunicationService.updateConversationMetadata(message.conversationId,
+            await prismaCommunicationService.updateConversationMetadata(
+                message.conversationId,
                 {
                 pendingLexAction: controlledTestProposal,
-            }, SYSTEM_COMMUNICATION_CONTEXT);
+                },
+                SYSTEM_COMMUNICATION_CONTEXT,
+            );
             return sent;
         }
 
@@ -471,10 +483,13 @@ export class FounderLexOperatingResponder {
         const sent = await this.sendResponse(message, rendered, structured.type, proposedAction ? { proposedAction } : undefined);
 
         if (proposedAction) {
-            await prismaCommunicationService.updateConversationMetadata(message.conversationId,
+            await prismaCommunicationService.updateConversationMetadata(
+                message.conversationId,
                 {
                 pendingLexAction: proposedAction,
-            }, SYSTEM_COMMUNICATION_CONTEXT);
+                },
+                SYSTEM_COMMUNICATION_CONTEXT,
+            );
         }
 
         return sent;
