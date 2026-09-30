@@ -8,6 +8,11 @@ import { guardExecutiveDecision } from "../executive/decision-guard";
 import { CommunicationMessage } from "./message";
 import { prismaCommunicationService } from "./prisma-communication-service";
 import { communicationRouter } from "./router";
+import type { CommunicationContext } from "./communication-service";
+
+const SYSTEM_COMMUNICATION_CONTEXT: CommunicationContext = {
+    ownership: { scope: "SYSTEM" },
+};
 import {
     LEX_RESPONSE_SCHEMA,
     LexActionContract,
@@ -292,7 +297,7 @@ export class FounderLexOperatingResponder {
         verified: boolean;
         conversationId: string;
     }> {
-        const conversation = await prismaCommunicationService.getConversation(message.conversationId);
+        const conversation = await prismaCommunicationService.getConversation(message.conversationId, SYSTEM_COMMUNICATION_CONTEXT);
         if (!conversation) throw new Error(`Founder conversation ${message.conversationId} could not be loaded.`);
 
         if (isFounderApproval(message.content)) {
@@ -304,9 +309,10 @@ export class FounderLexOperatingResponder {
             }
 
             if (hasCompletedAction(conversation.messages, action.id)) {
-                await prismaCommunicationService.updateConversationMetadata(message.conversationId, {
+                await prismaCommunicationService.updateConversationMetadata(message.conversationId,
+                {
                     pendingLexAction: null,
-                });
+            }, SYSTEM_COMMUNICATION_CONTEXT);
                 return this.sendResponse(message, "ℹ️ **Already done.**\n\nThat action has already been executed, so I won’t run it twice.", "action_already_completed");
             }
 
@@ -326,7 +332,8 @@ export class FounderLexOperatingResponder {
                     blockers: guard.blockers,
                     actionContract: action.contract,
                 });
-                await prismaCommunicationService.updateConversationMetadata(message.conversationId, {
+                await prismaCommunicationService.updateConversationMetadata(message.conversationId,
+                {
                     pendingLexAction: action,
                     lastLexActionReceipt: {
                         actionId: action.id,
@@ -336,7 +343,7 @@ export class FounderLexOperatingResponder {
                         executionStatus: "blocked",
                         blockers: guard.blockers,
                     },
-                });
+            }, SYSTEM_COMMUNICATION_CONTEXT);
                 return response;
             }
 
@@ -376,7 +383,8 @@ export class FounderLexOperatingResponder {
                 },
             });
 
-            await prismaCommunicationService.updateConversationMetadata(message.conversationId, {
+            await prismaCommunicationService.updateConversationMetadata(message.conversationId,
+                {
                 pendingLexAction: actionCompleted ? null : action,
                 lastLexActionReceipt: {
                     actionId: action.id,
@@ -386,7 +394,7 @@ export class FounderLexOperatingResponder {
                     executionStatus: result.executionStatus ?? (result.success ? "completed" : "failed"),
                     blockers: result.blockers ?? [],
                 },
-            });
+            }, SYSTEM_COMMUNICATION_CONTEXT);
 
             return response;
         }
@@ -408,9 +416,10 @@ export class FounderLexOperatingResponder {
                 "Say `Do it` when you’re ready.",
             ].join("\n");
             const sent = await this.sendResponse(message, response, "recommendation", { proposedAction: controlledTestProposal });
-            await prismaCommunicationService.updateConversationMetadata(message.conversationId, {
+            await prismaCommunicationService.updateConversationMetadata(message.conversationId,
+                {
                 pendingLexAction: controlledTestProposal,
-            });
+            }, SYSTEM_COMMUNICATION_CONTEXT);
             return sent;
         }
 
@@ -462,9 +471,10 @@ export class FounderLexOperatingResponder {
         const sent = await this.sendResponse(message, rendered, structured.type, proposedAction ? { proposedAction } : undefined);
 
         if (proposedAction) {
-            await prismaCommunicationService.updateConversationMetadata(message.conversationId, {
+            await prismaCommunicationService.updateConversationMetadata(message.conversationId,
+                {
                 pendingLexAction: proposedAction,
-            });
+            }, SYSTEM_COMMUNICATION_CONTEXT);
         }
 
         return sent;
