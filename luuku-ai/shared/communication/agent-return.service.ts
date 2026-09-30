@@ -54,6 +54,7 @@ export class AgentReturnService {
                 displayName: target.agent.name,
             },
             content: request.result.summary,
+            context: { ownership: { scope: "SYSTEM" } },
             metadata: {
                 type: "agent-delegation-result",
                 fromAgentId: source.agent.id,
