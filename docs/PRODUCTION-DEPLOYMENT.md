@@ -95,3 +95,6 @@ Database rollback is separate: Prisma migrations should be treated as forward-on
 Never commit real credentials, API keys, session secrets, provider secrets, or production database URLs.
 
 The repository's `.env.example` is documentation only.
+
+
+<!-- CI trigger: validate feat/v8 after tenant hardening. -->
