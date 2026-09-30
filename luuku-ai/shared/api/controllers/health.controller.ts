@@ -1,5 +1,5 @@
 import type { Request, Response } from "express";
-import { prisma } from "../database/client";
+import { prisma } from "../../database/client";
 
 export async function healthzController(
     _request: Request,
