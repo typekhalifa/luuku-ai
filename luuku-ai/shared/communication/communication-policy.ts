@@ -265,6 +265,11 @@ export class CommunicationPolicy {
 
         const identityResolution =
             await this.identityResolver.resolve({
+                context: {
+                    ownership: metadata.companyId
+                        ? { scope: "COMPANY", companyId: metadata.companyId }
+                        : { scope: "SYSTEM" },
+                },
                 channel: request.channel,
                 externalId,
                 crmContactId: metadata.crmContactId,
