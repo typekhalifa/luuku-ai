@@ -1,8 +1,6 @@
 import { prisma } from "../client";
 import { Contact } from "../../domain/contact";
 import { ContactMapper } from "../mappers/contact.mapper";
-import { BaseRepository } from "./base.repository";
-
 export class ContactRepository extends BaseRepository<Contact> {
     async findAll(companyId: string): Promise<Contact[]> {
         const contacts = await prisma.contact.findMany({
