@@ -5,6 +5,11 @@ import { buildExecutiveContext } from "../../agents/executive-ai/brain";
 import { CommunicationMessage } from "./message";
 import { prismaCommunicationService } from "./prisma-communication-service";
 import { communicationRouter } from "./router";
+import type { CommunicationContext } from "./communication-service";
+
+const SYSTEM_COMMUNICATION_CONTEXT: CommunicationContext = {
+    ownership: { scope: "SYSTEM" },
+};
 import {
     LEX_RESPONSE_SCHEMA,
     LexStructuredResponse,
@@ -84,7 +89,7 @@ export interface FounderLexResponseResult {
 export class FounderLexResponder {
     async respond(message: CommunicationMessage): Promise<FounderLexResponseResult> {
         const conversation =
-            await prismaCommunicationService.getConversation(message.conversationId);
+            await prismaCommunicationService.getConversation(message.conversationId, SYSTEM_COMMUNICATION_CONTEXT);
 
         if (!conversation) {
             throw new Error(
@@ -133,6 +138,7 @@ export class FounderLexResponder {
                 displayName: "Founder",
             },
             content: response,
+            context: SYSTEM_COMMUNICATION_CONTEXT,
             metadata: {
                 source: "founder-lex-responder",
                 executionStatus: execution.status,
