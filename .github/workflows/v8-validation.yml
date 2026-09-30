@@ -82,6 +82,10 @@ jobs:
       - name: API authenticated tenant authorization validation
         run: npx tsx luuku-ai/shared/api/demo/v8-api-tenant-authorization-demo.ts
 
+      - name: Production container build validation
+        run: docker build --tag luuku-ai:ci .
+
+
 
   crm-tenant-isolation:
     runs-on: ubuntu-latest
