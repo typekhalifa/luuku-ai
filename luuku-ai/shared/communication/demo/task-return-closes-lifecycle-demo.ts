@@ -81,6 +81,7 @@ async function main(): Promise<void> {
 
     const conversation = await communicationService.getConversation(
         conversationId,
+        { ownership: { scope: "SYSTEM" } },
     );
 
     if (
