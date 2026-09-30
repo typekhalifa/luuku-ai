@@ -40,18 +40,6 @@ function makeRequest(requestedCompanyId?: string): Request {
     } as Request;
 }
 
-function makeResponse(): Response & { locals: Record<string, unknown> } {
-    return {
-        locals: {},
-        status: () => {
-            throw new Error("status() should not be called directly by this demo");
-        },
-        json: () => {
-            throw new Error("json() should not be called directly by this demo");
-        },
-    } as unknown as Response & { locals: Record<string, unknown> };
-}
-
 async function invokeAuthentication(
     request: Request,
 ): Promise<{
@@ -83,7 +71,6 @@ async function invokeAuthentication(
         nextCalled = true;
     };
 
-    const originalResponse = response;
     await requireAuthentication(request, originalResponse, next);
 
     return {
