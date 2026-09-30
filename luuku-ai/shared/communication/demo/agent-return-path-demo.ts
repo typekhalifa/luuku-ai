@@ -64,7 +64,7 @@ async function main(): Promise<void> {
         result: agentResult,
     });
 
-    const conversation = await communicationService.getConversation(conversationId);
+    const conversation = await communicationService.getConversation(conversationId, { ownership: { scope: "SYSTEM" } });
 
     if (
         returned.status !== "completed" ||
