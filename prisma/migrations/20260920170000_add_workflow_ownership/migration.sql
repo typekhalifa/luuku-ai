@@ -28,8 +28,5 @@ ALTER TABLE "Workflow"
   ON DELETE SET NULL
   ON UPDATE CASCADE;
 
-ALTER TABLE "QueueItem"
-  ADD CONSTRAINT "QueueItem_workflowId_fkey"
-  FOREIGN KEY ("workflowId") REFERENCES "Workflow"("id")
-  ON DELETE CASCADE
-  ON UPDATE CASCADE;
+-- QueueItem.workflowId and its foreign key already exist in the initial schema.
+-- Do not recreate the constraint here.
