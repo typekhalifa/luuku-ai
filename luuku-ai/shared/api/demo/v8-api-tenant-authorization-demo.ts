@@ -48,35 +48,31 @@ async function invokeAuthentication(
     body?: unknown;
     context?: AuthenticatedContext;
 }> {
+    let statusCode: number | undefined;
+    let body: unknown;
     const response = {
-        locals: {},
+        locals: {} as Record<string, unknown>,
         status(code: number) {
-            this.statusCode = code;
-            return this;
+            statusCode = code;
+            return response;
         },
-        json(body: unknown) {
-            this.body = body;
-            return this;
+        json(value: unknown) {
+            body = value;
+            return response;
         },
-        statusCode: undefined as number | undefined,
-        body: undefined as unknown,
-    } as unknown as Response & {
-        locals: Record<string, unknown>;
-        statusCode?: number;
-        body?: unknown;
-    };
+    } as unknown as Response;
 
     let nextCalled = false;
     const next: NextFunction = () => {
         nextCalled = true;
     };
 
-    await requireAuthentication(request, originalResponse, next);
+    await requireAuthentication(request, response, next);
 
     return {
         nextCalled,
-        statusCode: response.statusCode,
-        body: response.body,
+        statusCode,
+        body,
         context: response.locals.apiRequestContext as AuthenticatedContext | undefined,
     };
 }
@@ -110,12 +106,12 @@ async function main(): Promise<void> {
         assert(authenticated!.user.id === user.id, "session belongs to the authenticated user");
 
         const validRequest = makeRequest(companyAId);
-        validRequest.header = (name: string) =>
+        validRequest.header = ((name: string) =>
             name.toLowerCase() === "cookie"
                 ? `luuku_session=${authenticated!.token}`
                 : name.toLowerCase() === "x-luuku-company-id"
                     ? companyAId
-                    : undefined;
+                    : undefined) as Request["header"];
 
         const validResult = await invokeAuthentication(validRequest);
         assert(validResult.nextCalled, "authorized company membership reaches the API");
@@ -123,12 +119,12 @@ async function main(): Promise<void> {
         assert(validResult.context?.userId === user.id, "API context is bound to the authenticated user");
 
         const attackRequest = makeRequest(companyBId);
-        attackRequest.header = (name: string) =>
+        attackRequest.header = ((name: string) =>
             name.toLowerCase() === "cookie"
                 ? `luuku_session=${authenticated!.token}`
                 : name.toLowerCase() === "x-luuku-company-id"
                     ? companyBId
-                    : undefined;
+                    : undefined) as Request["header"];
 
         const attackResult = await invokeAuthentication(attackRequest);
         assert(!attackResult.nextCalled, "company A user cannot select company B");
@@ -137,10 +133,10 @@ async function main(): Promise<void> {
             "cross-tenant rejection uses the authorization boundary");
 
         const implicitRequest = makeRequest();
-        implicitRequest.header = (name: string) =>
+        implicitRequest.header = ((name: string) =>
             name.toLowerCase() === "cookie"
                 ? `luuku_session=${authenticated!.token}`
-                : undefined;
+                : undefined) as Request["header"];
 
         const implicitResult = await invokeAuthentication(implicitRequest);
         assert(implicitResult.nextCalled, "authenticated user without selector still reaches the API");
