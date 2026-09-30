@@ -10,6 +10,7 @@ import { crmRouter } from "./routes/crm.routes";
 import { runtimeRouter } from "./routes/runtime.routes";
 import { resendWebhookRouter } from "./routes/resend-webhook.route";
 import { authRouter } from "./routes/auth.routes";
+import { healthRouter } from "./routes/health.routes";
 import { requireAuthentication } from "../auth/auth.middleware";
 import { prisma } from "../database/client";
 
@@ -88,6 +89,9 @@ app.use(
 );
 
 app.use(express.json({ limit: "1mb" }));
+
+app.use("/healthz", healthRouter);
+app.use("/readyz", healthRouter);
 
 app.use("/api/v1/auth", authRouter);
 
