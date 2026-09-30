@@ -99,7 +99,7 @@ async function run(): Promise<void> {
     });
 
     const conversation = researchToSales.message
-        ? await communication.getConversation(researchToSales.message.conversationId)
+        ? await communication.getConversation(researchToSales.message.conversationId, { ownership: { scope: "SYSTEM" } })
         : null;
 
     console.log("");
