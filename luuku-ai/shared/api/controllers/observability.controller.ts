@@ -1,5 +1,6 @@
 import type { Request, Response } from "express";
-import { getCompanyObservabilitySummary, listCompanyObservabilityEvents } from "../../observability/durable-events.js";
+import { getCompanyObservabilityDashboard, getCompanyObservabilitySummary, listCompanyObservabilityEvents } from "../../observability/durable-events.js";
+import { evaluateCompanyObservabilityAlerts } from "../../observability/alerts.js";
 
 function companyIdOf(response: Response): string | undefined {
     return (response.locals.apiRequestContext as { companyId?: string } | undefined)?.companyId;
@@ -68,4 +69,28 @@ export async function getObservabilitySummary(request: Request, response: Respon
         return;
     }
     response.json(await getCompanyObservabilitySummary(companyId, from, to));
+}
+
+export async function getObservabilityDashboard(request: Request, response: Response): Promise<void> {
+    const companyId = companyIdOf(response);
+    if (!companyId) {
+        response.status(403).json({ error: "COMPANY_CONTEXT_REQUIRED" });
+        return;
+    }
+    const to = parseDate(request.query.to) ?? new Date();
+    const from = parseDate(request.query.from) ?? new Date(to.getTime() - 24 * 60 * 60 * 1000);
+    if (from > to) {
+        response.status(400).json({ error: "INVALID_TIME_RANGE" });
+        return;
+    }
+
+    const [dashboard, alerts] = await Promise.all([
+        getCompanyObservabilityDashboard(companyId, from, to),
+        evaluateCompanyObservabilityAlerts(companyId, to),
+    ]);
+
+    response.json({
+        ...dashboard,
+        alerts,
+    });
 }
