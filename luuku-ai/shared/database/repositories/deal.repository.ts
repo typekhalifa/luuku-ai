@@ -1,7 +1,7 @@
 import { prisma } from "../client";
 import { Deal } from "../../domain/deal";
 import { DealMapper } from "../mappers/deal.mapper";
-export class DealRepository extends BaseRepository<Deal> {
+export class DealRepository {
     async findAll(companyId: string): Promise<Deal[]> {
         const deals = await prisma.deal.findMany({
             where: { companyId },
