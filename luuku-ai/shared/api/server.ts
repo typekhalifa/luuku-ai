@@ -13,6 +13,7 @@ import { authRouter } from "./routes/auth.routes";
 import { healthRouter } from "./routes/health.routes";
 import { metricsRouter } from "./routes/metrics.routes";
 import { observabilityRouter } from "./routes/observability.routes";
+import { observabilityAlertsRouter } from "./routes/observability-alerts.routes";
 import { requireAuthentication } from "../auth/auth.middleware";
 import { prisma } from "../database/client";
 import { logStructured, recordHttpRequest } from "../observability";
@@ -196,6 +197,7 @@ app.use((request, response, next) => {
 
 app.use("/metrics", metricsRouter);
 app.use("/api/v1/observability", observabilityRouter);
+app.use("/api/v1/observability/alerts", observabilityAlertsRouter);
 app.use("/api/v1/dashboard", dashboardRouter);
 app.use("/api/v1/events", eventsRouter);
 app.use("/api/v1/agents", agentsRouter);
