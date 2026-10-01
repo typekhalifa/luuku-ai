@@ -16,10 +16,6 @@ import {
 } from "../../../shared/crm/validator";
 
 import {
-    requestContactEnrichment
-} from "../../../shared/crm/enrichment";
-
-import {
     activityService
 } from "../../../shared/database/services/activity.service";
 
@@ -323,6 +319,12 @@ export async function executeSalesWorkflow(
                 verified: false
             };
         }
+
+        const { requestContactEnrichment } =
+                await import("../../../shared/crm/enrichment.js");
+
+        const { requestContactEnrichment } =
+                await import("../../../shared/crm/enrichment.js");
 
         const enrichment =
             await requestContactEnrichment({
