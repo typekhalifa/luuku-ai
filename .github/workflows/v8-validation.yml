@@ -61,6 +61,9 @@ jobs:
       - name: V8.11 durable observability validation
         run: npx tsx luuku-ai/shared/observability/demo/v8-11-durable-observability-demo.ts
 
+      - name: V8.11 alert evaluation validation
+        run: npx tsx luuku-ai/shared/observability/demo/v8-11-alert-evaluation-demo.ts
+
       - name: V8-K validation
         run: npx tsx luuku-ai/os/executive/demo/v8-k-long-horizon-planning-demo.ts
 
