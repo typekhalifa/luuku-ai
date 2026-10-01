@@ -452,6 +452,9 @@ export async function executeSalesWorkflow(
         console.log("✓ Real email communication required");
         console.log("");
 
+        const { executeEmailTask } =
+            await import("../../communication/email/execute.js");
+
         return executeEmailTask(
             task,
             activeContact
