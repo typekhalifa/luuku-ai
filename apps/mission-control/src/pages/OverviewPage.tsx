@@ -73,6 +73,8 @@ export default function OverviewPage() {
 
         {data?.communication && <CommunicationObservability data={data.communication} />}
 
+        <OperationalObservability />
+
         <section className="grid gap-6 xl:grid-cols-2">
           <RevenueChart />
           <AgentActivityChart />
