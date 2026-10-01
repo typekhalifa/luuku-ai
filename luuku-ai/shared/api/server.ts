@@ -101,7 +101,7 @@ app.use((request, response, next) => {
                 status: String(response.statusCode),
                 actorType: context.userId ? "USER" : "SERVICE",
                 actorId: context.userId,
-                metadata: { method: request.method, route },
+                metadata: { method: request.method, route, statusCode: response.statusCode, durationMs: Math.round(durationMs * 100) / 100 },
             }).catch((error) => {
                 logStructured("ERROR", "observability.event.persist_failed", { requestId, traceId, error: error instanceof Error ? error.message : String(error) });
             });
