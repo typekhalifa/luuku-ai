@@ -49,6 +49,8 @@ V8-L   Institutional Memory        🟢 LOCKED
 V8-M   Exception Management        🟢 PASS
 V8-N   Autonomous Company Loop     🟡 HARDENED / VALIDATION GATE
 V8-O   Durable Execution/Recovery  🟢 PASS
+V8.9   Production Deployment       🟢 FOUNDATION
+V8.10  Production Observability   🟢 FOUNDATION
 ~~~
 
 ## V8-N and V8-O
@@ -72,11 +74,9 @@ Before new actuator development:
 
 See docs/ARCHITECTURE-AUDIT.md and docs/DEVELOPMENT-AND-VALIDATION.md.
 
-# Current Phase — V8.9 Production Deployment Foundation
+# V8.9 — Production Deployment Foundation
 
-The architecture has passed the current V8 CI validation gate, including backend typecheck, tenant isolation, API tenant authorization, production actuation checks and production container build validation.
-
-The deployment foundation now includes:
+The deployment foundation includes:
 
 - production Docker runtime;
 - startup-time Prisma migration deployment;
@@ -86,16 +86,38 @@ The deployment foundation now includes:
 - production environment/secret runbook in `docs/DEPLOYMENT.md`;
 - GitHub Actions using Node 24-based checkout/setup actions.
 
-The next release gates are:
+**Important:** this is deployment infrastructure, not a statement that Luuku is currently running in a live production environment.
+
+The remaining deployment gates are:
 
 1. Deploy the immutable production image to a managed container runtime.
 2. Provision managed PostgreSQL with backups.
 3. Configure production secrets through a managed secret store.
 4. Verify health, readiness, authentication and tenant-scoped smoke workflows.
-5. Establish production logs, metrics, tracing and alerting.
-6. Only then progressively activate additional real-world actuators.
 
-Production deployment does not by itself enable unrestricted autonomy. V6 remains the sole execution authority.
+# V8.10 — Production Observability Foundation
+
+The API now provides:
+
+- structured JSON request logs;
+- request/trace correlation through `x-request-id` and `x-trace-id`;
+- request/error/latency metrics;
+- Prometheus-compatible metrics at `/metrics`;
+- service-scoped JSON metrics at `/metrics/snapshot`;
+- health/readiness signals;
+- observability validation in V8 CI;
+- an operator runbook in `docs/OBSERVABILITY.md`.
+
+The metrics are intentionally process-local at this stage. A managed metrics backend must retain the time series externally.
+
+The next observability gates are:
+
+1. connect logs to a managed log platform;
+2. scrape metrics into a managed metrics backend;
+3. connect trace correlation to a distributed tracing backend;
+4. establish dashboards and baseline latency/error measurements;
+5. configure alerts for readiness, 5xx errors, latency, provider failures, recovery backlog and tenant/security failures;
+6. verify durable audit evidence across execution and communication boundaries.
 
 # Next Phase — REAL-WORLD ACTUATORS
 
@@ -113,6 +135,7 @@ Target surfaces:
 The first principle is reuse: existing communication, Sales, CRM, agent and execution infrastructure should be hardened and connected rather than duplicated.
 
 Each actuator must support, as appropriate:
+
 - explicit capability identity
 - authorization/policy checks
 - idempotency
@@ -121,6 +144,8 @@ Each actuator must support, as appropriate:
 - executed vs verified state
 - audit trail
 - bounded retries/recovery
+
+Actuator activation follows deployment, observability and governance gates. V6 remains the sole execution authority.
 
 # Following Phase — PRODUCTION
 
@@ -206,4 +231,4 @@ Potential future product capabilities include customer organizations, organizati
 
 Luuku AI is considered internally autonomous when its executive loop can continuously observe the company, make bounded decisions, coordinate work, execute through V6, interact with real systems through controlled actuators, recover from interruption, learn from verified outcomes and escalate decisions that require the founder.
 
-**Last reconciled:** September 2026
+**Last reconciled:** October 2026
