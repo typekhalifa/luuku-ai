@@ -39,6 +39,7 @@
     "dev:tenant-isolation": "tsx luuku-ai/shared/api/demo/v8-tenant-isolation-demo.ts",
     "dev:v8.11:observability": "tsx luuku-ai/shared/observability/demo/v8-11-durable-observability-demo.ts",
     "dev:v8.11:alerts": "tsx luuku-ai/shared/observability/demo/v8-11-alert-evaluation-demo.ts",
+    "dev:v8.11:dashboard": "tsx luuku-ai/shared/observability/demo/v8-11-operational-dashboard-demo.ts",
     "dev:auth:bootstrap": "tsx luuku-ai/scripts/bootstrap-auth.ts",
     "start": "node dist/backend/shared/api/server.js",
     "start:api": "npm run start",
