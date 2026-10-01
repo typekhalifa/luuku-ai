@@ -93,6 +93,24 @@ Luuku already persists durable evidence at the business/execution boundaries, in
 
 These records remain tenant-scoped where applicable. V8.10 does not introduce a second execution or audit authority.
 
+## Durable observability events
+
+V8.11 adds a tenant-scoped durable event ledger in PostgreSQL. It records operational lifecycle evidence without becoming a second execution authority.
+
+Each durable event can carry:
+
+- company ownership (`COMPANY`) or explicit system ownership (`SYSTEM`);
+- event type and source;
+- execution/workflow correlation IDs;
+- request/trace correlation IDs;
+- severity and status;
+- actor metadata;
+- non-secret metadata and occurrence time.
+
+Company-scoped reads fail closed when company context is absent. The API exposes read-only operational views at `/api/v1/observability/events` and `/api/v1/observability/summary`, using the authenticated company context rather than an arbitrary tenant identifier supplied by the caller.
+
+The durable ledger is audit/observability evidence only. V6 remains the sole execution authority.
+
 ## Alerting gates
 
 A production runtime should alert on at least:
@@ -105,6 +123,12 @@ A production runtime should alert on at least:
 6. authentication or tenant-isolation failures.
 
 Alert thresholds belong to the deployment environment and should be configured after baseline traffic is observed.
+
+## V8.11 operational integration
+
+The first integration records completed authenticated company requests as durable `http.request.completed` events, preserving request/trace correlation and status/severity without storing request bodies or credentials.
+
+The next integration step is to emit lifecycle events at existing execution/provider boundaries, then connect these durable signals to managed dashboards, tracing and alert evaluation.
 
 ## Next observability gate
 
