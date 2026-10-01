@@ -143,6 +143,16 @@ Default evaluation window and thresholds are intentionally conservative deployme
 
 This layer is an evaluation boundary, not an actuator. Notification delivery and managed alert routing remain deployment concerns.
 
+## Correlated execution traces
+
+V6 now emits provider lifecycle evidence alongside execution lifecycle evidence when a provider is present:
+
+- `execution.started`
+- `provider.succeeded` or `provider.failed`
+- `execution.succeeded` or `execution.failed`
+
+The shared `executionId` is the durable correlation key. The API exposes `GET /api/v1/observability/executions/:executionId/trace`, which returns only events owned by the authenticated company and orders them chronologically. This is an evidence view only; it does not replay, retry, or mutate execution.
+
 ## Next observability gate
 
 The next production step is to connect these signals to a managed log/metrics/tracing platform and define retention, dashboards, SLOs and alerts. The application-level correlation contract should remain stable when that backend is introduced.
