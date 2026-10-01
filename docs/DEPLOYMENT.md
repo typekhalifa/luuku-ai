@@ -107,10 +107,9 @@ Rotate secrets without placing them in the Docker image.
 ## Release process
 
 1. Merge validated code into `main`.
-2. GitHub Actions runs the Production Image workflow.
-3. The workflow validates Prisma, applies disposable CI migrations, typechecks the backend and builds the exact production Docker image.
-4. The image is published to GitHub Container Registry.
-5. The deployment platform pulls the immutable commit/SHA image.
+2. GitHub Actions runs the repository V8 validation workflow on the feature branch and on pull requests to main.
+3. The validation workflow validates Prisma, applies disposable CI migrations, typechecks the backend, builds Mission Control and builds the production Docker image.
+4. A deployment platform pulls the validated commit/image according to its configured release process.
 6. Configure production secrets.
 7. Start the runtime.
 8. The entrypoint applies pending migrations.
