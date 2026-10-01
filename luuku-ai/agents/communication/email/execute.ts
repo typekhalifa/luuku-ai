@@ -41,6 +41,23 @@ import {
     Contact
 } from "../../../shared/crm/types";
 
+import {
+    getOrCreateEmailConversation
+} from "../../../shared/communication/persistent-communication.service";
+
+import {
+    prismaCommunicationService
+} from "../../../shared/communication/prisma-communication-service";
+
+interface InboundReplyData {
+    subject: string;
+    body: string;
+    inReplyTo?: string;
+    references?: string;
+    from?: string;
+    conversationId?: string;
+}
+
 function buildEmailSubject(
     company: string
 ): string {
@@ -72,14 +89,87 @@ function buildEmailBody(
     ].join("\n");
 }
 
+function extractInboundReply(
+    task: AgentTask
+): InboundReplyData | undefined {
+    if (!/^INBOUND_REPLY=true$/im.test(task.description)) {
+        return undefined;
+    }
+
+    const subject =
+        task.description.match(
+            /^ORIGINAL_SUBJECT:\s*(.+)$/im
+        )?.[1]?.trim();
+
+    const inReplyTo =
+        task.description.match(
+            /^IN_REPLY_TO:\s*(.+)$/im
+        )?.[1]?.trim();
+
+    const references =
+        task.description.match(
+            /^REFERENCES:\s*(.+)$/im
+        )?.[1]?.trim();
+
+    const from =
+        task.description.match(
+            /^CONTACT_EMAIL:\s*(.+)$/im
+        )?.[1]?.trim();
+
+    const conversationId =
+        task.description.match(
+            /^CONVERSATION_ID:\s*(.+)$/im
+        )?.[1]?.trim();
+
+    const bodyMatch = task.description.match(
+        /REPLY_BODY_START\s*\n([\s\S]*?)\nREPLY_BODY_END/i
+    );
+
+    const body = bodyMatch?.[1]?.trim();
+
+    if (!body) {
+        return undefined;
+    }
+
+    return {
+        subject: subject
+            ? /^re:/i.test(subject)
+                ? subject
+                : `Re: ${subject}`
+            : "Re: Luuku AI",
+        body,
+        inReplyTo: inReplyTo || undefined,
+        references: references || undefined,
+        from: from || undefined,
+        conversationId: conversationId || undefined
+    };
+}
+
 export async function executeEmailTask(
     task: AgentTask,
     contact: Contact
 ): Promise<AgentResult> {
+    const companyId = typeof task.metadata?.companyId === "string"
+        ? task.metadata.companyId
+        : undefined;
+
+    if (!companyId) {
+        return {
+            success: false,
+            summary: "Sales email workflow blocked: tenant company context is required for communication.",
+            completedAt: new Date().toISOString(),
+            executionStatus: "blocked",
+            executed: false,
+            verified: false,
+            blockers: ["TENANT_CONTEXT_REQUIRED"],
+        };
+    }
+
     if (!contact.email) {
         return {
             success: false,
-            summary: "Sales email workflow stopped because the CRM contact has no email address.",
+            summary:
+                "Sales email workflow stopped because the CRM contact has no email address.",
             completedAt: new Date().toISOString(),
             executionStatus: "blocked",
             executed: false,
@@ -89,13 +179,15 @@ export async function executeEmailTask(
 
     const company =
         await companyService.findCompany(
-            contact.company
+            contact.company,
+            companyId,
         );
 
     if (!company) {
         return {
             success: false,
-            summary: `Sales email workflow stopped because company ${contact.company} could not be resolved in PostgreSQL.`,
+            summary:
+                `Sales email workflow stopped because company ${contact.company} could not be resolved in PostgreSQL.`,
             completedAt: new Date().toISOString(),
             executionStatus: "blocked",
             executed: false,
@@ -105,21 +197,51 @@ export async function executeEmailTask(
 
     registerCommunicationProviders();
 
+    const inboundReply =
+        extractInboundReply(task);
+
     const subject =
+        inboundReply?.subject ||
         buildEmailSubject(contact.company);
 
     const body =
+        inboundReply?.body ||
         buildEmailBody(contact);
+
+    const recipient =
+        inboundReply?.from ||
+        contact.email;
 
     const idempotencyKey =
         `sales-email/${task.id}`;
 
+    const isControlledTest =
+        task.description.includes("CONTROLLED_TEST_EMAIL=true");
+
+    const controlledTestConfirmed =
+        process.env.LUUKU_LIVE_EMAIL_CONFIRMATION ===
+        "SEND_TO_CONTROLLED_TEST_CONTACT";
+
+    const executionMode =
+        isControlledTest && controlledTestConfirmed
+            ? "live"
+            : process.env.EMAIL_MODE === "live"
+                ? "live"
+                : process.env.EMAIL_MODE === "sandbox"
+                    ? "sandbox"
+                    : "test";
+
     console.log("");
     console.log("========================================");
-    console.log("       REAL EMAIL EXECUTION");
+    console.log(
+        inboundReply
+            ? "       EMAIL REPLY EXECUTION"
+            : "       EMAIL EXECUTION"
+    );
     console.log("========================================");
     console.log("");
-    console.log(`To      : ${contact.email}`);
+    console.log(`Mode    : ${executionMode}`);
+    console.log(`To      : ${recipient}`);
     console.log(`Subject : ${subject}`);
     console.log(`Request : ${idempotencyKey}`);
     console.log("");
@@ -128,14 +250,29 @@ export async function executeEmailTask(
         await communicationRouter.execute({
             capability: "email.send",
             channel: "email",
-            recipientExternalId: contact.email,
+            recipientExternalId: recipient,
             subject,
             body,
             metadata: {
-                source: "sales-agent",
+                source: inboundReply
+                    ? "sales-agent-inbound-reply"
+                    : "sales-agent",
+                audience: "external",
+                // A controlled test may use the real provider only when the
+                // task explicitly marks itself as a controlled test and the
+                // operator has supplied the exact opt-in confirmation phrase.
+                executionMode,
+                crmContactId: contact.id,
+                companyId,
                 taskId: task.id,
                 idempotencyKey,
-                replyTo: process.env.RESEND_REPLY_TO || ""
+                replyTo: process.env.RESEND_REPLY_TO || "",
+                ...(inboundReply?.inReplyTo
+                    ? { inReplyTo: inboundReply.inReplyTo }
+                    : {}),
+                ...(inboundReply?.references
+                    ? { references: inboundReply.references }
+                    : {})
             }
         });
 
@@ -149,8 +286,12 @@ export async function executeEmailTask(
         console.log("      CRM ACTIVITY NOT LOGGED");
         console.log("========================================");
         console.log("");
-        console.log("Reason: Email was not verified as a real external execution.");
-        console.log(`Status: ${result.status} | executed=${result.executed} | verified=${result.verified}`);
+        console.log(
+            "Reason: Email was not verified as a real external execution."
+        );
+        console.log(
+            `Status: ${result.status} | executed=${result.executed} | verified=${result.verified}`
+        );
 
         return {
             success: false,
@@ -162,15 +303,66 @@ export async function executeEmailTask(
         };
     }
 
-    const deals =
-        await dealService.getCompanyDeals(
-            company.id
-        );
+    let conversationId =
+        inboundReply?.conversationId;
 
-    const activeDeal = deals[0];
+    if (!conversationId) {
+        const conversation =
+            await getOrCreateEmailConversation({
+                participantEmail: recipient,
+                subject,
+                companyId,
+                metadata: {
+                    source: inboundReply
+                        ? "sales-agent-inbound-reply"
+                        : "sales-agent",
+                    taskId: task.id,
+                    companyId,
+                }
+            });
+
+        conversationId = conversation.id;
+    }
+
     const providerEvidence = result.evidence;
     const externalId = providerEvidence?.externalId;
     const provider = providerEvidence?.provider;
+
+    await prismaCommunicationService.sendMessage({
+        conversationId,
+        channel: "email",
+        context: {
+            ownership: { scope: "COMPANY", companyId },
+        },
+        recipient: {
+            channel: "email",
+            externalId: recipient,
+            displayName: recipient
+        },
+        content: body,
+        metadata: {
+            provider,
+            externalId,
+            externalMessageId: externalId,
+            taskId: task.id,
+            idempotencyKey,
+            subject,
+            recipient,
+            inReplyTo: inboundReply?.inReplyTo,
+            references: inboundReply?.references,
+            verified: result.verified,
+            executionMode,
+            companyId,
+        }
+    });
+
+    const deals =
+        await dealService.getCompanyDeals(
+            company.id,
+            companyId,
+        );
+
+    const activeDeal = deals[0];
 
     const activity: Activity = {
         id: crypto.randomUUID(),
@@ -178,20 +370,28 @@ export async function executeEmailTask(
         contactId: contact.id,
         dealId: activeDeal?.id,
         type: "email",
-        title: "Sales Follow-up Email",
+        title: inboundReply
+            ? "Sales Agent Reply to Inbound Email"
+            : "Sales Follow-up Email",
         description: [
             result.summary,
+            inboundReply
+                ? "Triggered by AI-classified inbound prospect reply."
+                : "",
+            `ConversationId: ${conversationId}.`,
             provider && externalId
                 ? `Provider: ${provider}; externalId: ${externalId}; idempotencyKey: ${idempotencyKey}.`
                 : `IdempotencyKey: ${idempotencyKey}.`
-        ].join(" "),
-        outcome: "Sent",
+        ].filter(Boolean).join(" "),
+        outcome: inboundReply
+            ? "Reply sent and verified"
+            : "Sent",
         createdBy: "Sales Agent",
         completed: true,
         createdAt: new Date().toISOString()
     };
 
-    await activityService.createActivity(activity);
+    await activityService.createActivity(activity, companyId);
 
     console.log("");
     console.log("========================================");
@@ -202,7 +402,9 @@ export async function executeEmailTask(
 
     return {
         success: true,
-        summary: `Sales Agent sent and verified the follow-up email to ${contact.email}. ${result.summary}`,
+        summary: inboundReply
+            ? `Sales Agent sent and verified an inbound-reply response to ${recipient}. ${result.summary}`
+            : `Sales Agent sent and verified the follow-up email to ${recipient}. ${result.summary}`,
         completedAt: new Date().toISOString(),
         executionStatus: "verified",
         executed: true,

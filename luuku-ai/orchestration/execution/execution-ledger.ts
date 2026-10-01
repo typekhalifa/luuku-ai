@@ -1,62 +1,101 @@
-import { prisma } from "../../shared/database/client";
-import { AgentResult } from "../../shared/agents/interface";
+import { prisma } from "../../shared/database/client.js";
+import { AgentResult } from "../../shared/agents/interface.js";
+import { normalizeExecutionOwnership, assertValidExecutionOwnership, type ExecutionOwnership } from "../ownership.js";
+import { recordObservabilityEvent } from "../../shared/observability/durable-events.js";
 
 export interface ExecutionClaim {
     id: string;
     idempotencyKey: string;
-    status: "executing" | "completed";
+    status: "new" | "executing" | "completed";
     result?: AgentResult;
 }
 
-/**
- * Durable execution ledger for V6.4.
- *
- * The ledger gives every workflow step execution a stable idempotency key.
- * A future provider adapter can use the same key at its external side-effect
- * boundary. The in-memory runner guard remains useful for concurrency, but
- * this ledger survives process restarts.
- */
+/** Durable V6 execution ledger. */
 export class ExecutionLedger {
-    async begin(idempotencyKey: string, workflowId: string, stepId: string): Promise<ExecutionClaim> {
-        const existing = await prisma.communicationExecution.findUnique({
-            where: { idempotencyKey },
-        });
-
+    async begin(
+        idempotencyKey: string,
+        workflowId: string,
+        stepId: string,
+        ownership?: ExecutionOwnership,
+    ): Promise<ExecutionClaim> {
+        const normalizedOwnership = normalizeExecutionOwnership(ownership);
+        assertValidExecutionOwnership(normalizedOwnership);
+        const companyId = normalizedOwnership.scope === "COMPANY" ? normalizedOwnership.companyId : undefined;
+        const existing = await prisma.communicationExecution.findUnique({ where: { idempotencyKey } });
         if (existing) {
-            return {
-                id: existing.id,
-                idempotencyKey,
-                status: existing.executed ? "completed" : "executing",
-                result: existing.evidence ? {
-                    success: existing.executed && existing.verified,
-                    summary: "Recovered durable execution result.",
-                    completedAt: existing.updatedAt.toISOString(),
-                    executionStatus: existing.status as AgentResult["executionStatus"],
-                    executed: existing.executed,
-                    verified: existing.verified,
-                    evidence: existing.evidence as AgentResult["evidence"],
-                } : undefined,
-            };
+            const requestedScope = companyId ? "COMPANY" : "SYSTEM";
+            if (
+                existing.ownershipScope !== requestedScope ||
+                (requestedScope === "COMPANY" && existing.companyId !== companyId) ||
+                (requestedScope === "SYSTEM" && (existing.companyId || existing.spaceId))
+            ) {
+                throw new Error("COMMUNICATION_EXECUTION_OWNERSHIP_MISMATCH");
+            }
+            if (existing.executed) {
+                return {
+                    id: existing.id,
+                    idempotencyKey,
+                    status: "completed",
+                    result: {
+                        success: existing.verified,
+                        summary: "Recovered durable execution result.",
+                        completedAt: existing.updatedAt.toISOString(),
+                        executionStatus: existing.status as AgentResult["executionStatus"],
+                        executed: existing.executed,
+                        verified: existing.verified,
+                        evidence: existing.evidence as AgentResult["evidence"],
+                    },
+                };
+            }
+
+            // A previously failed execution with no recorded side effect is safe
+            // to retry. Reuse the durable idempotency identity rather than creating
+            // a second execution record for the same logical workflow step.
+            if (existing.status === "failed") {
+                await prisma.communicationExecution.update({
+                    where: { id: existing.id },
+                    data: { status: "executing", error: null },
+                });
+                return { id: existing.id, idempotencyKey, status: "new" };
+            }
+
+            return { id: existing.id, idempotencyKey, status: "executing" };
         }
 
         const record = await prisma.communicationExecution.create({
             data: {
+                ownershipScope: companyId ? "COMPANY" : "SYSTEM",
+                companyId: companyId ?? null,
                 taskId: stepId,
                 idempotencyKey,
                 capability: "workflow.step",
                 channel: "internal",
                 policyDecision: "allowed",
-                policyReason: "V6.4 durable execution ledger",
+                policyReason: "V6 durable execution ledger",
                 status: "executing",
-                conversationId: null,
                 recipient: { workflowId, stepId },
             },
         });
 
-        return { id: record.id, idempotencyKey, status: "executing" };
+        void recordObservabilityEvent({
+            eventType: "execution.started",
+            source: "v6.execution-ledger",
+            ownership: normalizedOwnership,
+            executionId: record.id,
+            workflowId,
+            status: "executing",
+            metadata: { stepId, capability: "workflow.step" },
+        }).catch(() => undefined);
+
+        return { id: record.id, idempotencyKey, status: "new" };
     }
 
     async complete(idempotencyKey: string, result: AgentResult): Promise<void> {
+        const existing = await prisma.communicationExecution.findUnique({ where: { idempotencyKey } });
+        if (!existing) {
+            throw new Error("COMMUNICATION_EXECUTION_NOT_FOUND");
+        }
+
         await prisma.communicationExecution.update({
             where: { idempotencyKey },
             data: {
@@ -65,10 +104,51 @@ export class ExecutionLedger {
                 verified: result.verified ?? false,
                 provider: result.evidence?.provider,
                 externalId: result.evidence?.externalId,
-                evidence: result.evidence,
+                evidence: result.evidence ? JSON.parse(JSON.stringify(result.evidence)) : null,
                 error: result.success ? null : result.summary,
             },
         });
+
+        const ownership: ExecutionOwnership = existing.ownershipScope === "COMPANY" && existing.companyId
+            ? { scope: "COMPANY", companyId: existing.companyId }
+            : { scope: "SYSTEM" };
+
+        const workflowId = typeof existing.recipient === "object" && existing.recipient !== null && "workflowId" in existing.recipient
+            ? String((existing.recipient as { workflowId?: unknown }).workflowId ?? "")
+            : undefined;
+        const executionStatus = result.executionStatus ?? (result.success ? "completed" : "failed");
+
+        void recordObservabilityEvent({
+            eventType: result.success ? "execution.succeeded" : "execution.failed",
+            source: "v6.execution-ledger",
+            ownership,
+            executionId: existing.id,
+            workflowId,
+            severity: result.success ? "INFO" : "ERROR",
+            status: executionStatus,
+            metadata: {
+                executed: result.executed ?? false,
+                verified: result.verified ?? false,
+                provider: result.evidence?.provider,
+            },
+        }).catch(() => undefined);
+
+        if (result.evidence?.provider) {
+            void recordObservabilityEvent({
+                eventType: result.success ? "provider.succeeded" : "provider.failed",
+                source: "v6.execution-ledger",
+                ownership,
+                executionId: existing.id,
+                workflowId,
+                severity: result.success ? "INFO" : "ERROR",
+                status: executionStatus,
+                metadata: {
+                    provider: result.evidence.provider,
+                    externalId: result.evidence.externalId,
+                    verified: result.verified ?? false,
+                },
+            }).catch(() => undefined);
+        }
     }
 }
 

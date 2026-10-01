@@ -10,10 +10,11 @@ import {
 
 async function main() {
     const recipient = process.argv[2];
+    const companyId = process.env.LUUKU_API_COMPANY_ID;
 
-    if (!recipient) {
+    if (!recipient || !companyId) {
         console.error(
-            "Usage: npx tsx luuku-ai/shared/communication/demo/real-email-demo.ts <recipient-email>"
+            "Usage: LUUKU_API_COMPANY_ID=<company-id> npx tsx luuku-ai/shared/communication/demo/real-email-demo.ts <recipient-email>"
         );
         process.exit(1);
     }
@@ -27,7 +28,13 @@ async function main() {
             recipientExternalId: recipient,
             subject: "Luuku AI — Real Communication Layer Test",
             body:
-                "This is a controlled test email sent through Luuku AI's provider-neutral communication layer."
+                "This is a controlled test email sent through Luuku AI's provider-neutral communication layer.",
+            metadata: {
+                audience: "external",
+                executionMode: "test",
+                source: "real-email-demo",
+                companyId,
+            },
         });
 
     console.log("");

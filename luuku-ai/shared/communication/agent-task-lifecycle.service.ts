@@ -22,12 +22,12 @@ export interface AgentTaskRecord {
     assignedAt?: string;
     startedAt?: string;
     completedAt?: string;
+    attemptCount: number;
+    lastAttemptAt?: string;
     error?: string;
     agentResult?: AgentResult;
     communicationMessageId?: string;
     conversationId?: string;
-    attemptCount: number;
-    lastAttemptAt?: string;
 }
 
 export class AgentTaskLifecycleService {
@@ -70,18 +70,11 @@ export class AgentTaskLifecycleService {
         record.status = "executing";
         record.startedAt = new Date().toISOString();
         record.attemptCount += 1;
-        record.lastAttemptAt = new Date().toISOString();
+        record.lastAttemptAt = record.startedAt;
 
-        try {
-            const result = await this.delegationService.delegate(request);
-            this.applyDelegationResult(record, result);
-        } catch (error) {
-            record.status = "failed";
-            record.completedAt = new Date().toISOString();
-            record.error =
-                error instanceof Error ? error.message : String(error);
-        }
+        const result = await this.delegationService.delegate(request);
 
+        this.applyDelegationResult(record, result);
         return record;
     }
 

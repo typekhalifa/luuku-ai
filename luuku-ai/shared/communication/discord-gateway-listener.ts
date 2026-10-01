@@ -48,25 +48,25 @@ export interface DiscordGatewayListenerOptions {
     onMessage: (message: DiscordInboundGatewayMessage) => Promise<void> | void;
 }
 
-/**
- * Minimal Discord Gateway listener for founder inbound messages.
- * Discord remains a transport adapter; executive logic belongs to onMessage.
- */
+const INITIAL_RECONNECT_DELAY_MS = 1_500;
+const MAX_RECONNECT_DELAY_MS = 15_000;
+const CONNECTION_TIMEOUT_MS = 15_000;
+
 export class DiscordGatewayListener {
     private socket: WebSocket | null = null;
     private heartbeatTimer: ReturnType<typeof setInterval> | null = null;
     private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+    private connectionTimeoutTimer: ReturnType<typeof setTimeout> | null = null;
     private stopped = false;
     private botUserId: string | null = null;
     private sequence: number | null = null;
     private startPromise: Promise<void> | null = null;
+    private reconnectAttempt = 0;
 
     constructor(private readonly options: DiscordGatewayListenerOptions) {}
 
     async start(): Promise<void> {
-        if (this.startPromise) {
-            return this.startPromise;
-        }
+        if (this.startPromise) return this.startPromise;
 
         this.stopped = false;
         this.startPromise = new Promise<void>((resolve, reject) => {
@@ -81,12 +81,35 @@ export class DiscordGatewayListener {
                     return;
                 }
 
+                this.clearConnectionTimeout();
+                this.clearHeartbeat();
+                this.sequence = null;
+
                 console.log("Connecting to Discord Gateway...");
 
-                const socket = new WebSocket(DISCORD_GATEWAY_URL);
+                let socket: WebSocket;
+                try {
+                    socket = new WebSocket(DISCORD_GATEWAY_URL);
+                } catch (error) {
+                    console.error("Discord Gateway connection creation failed:", error);
+                    this.scheduleReconnect(connect);
+                    return;
+                }
+
                 this.socket = socket;
 
+                this.connectionTimeoutTimer = setTimeout(() => {
+                    if (socket.readyState === WebSocket.CONNECTING) {
+                        console.error(
+                            `Discord Gateway connection timed out after ${CONNECTION_TIMEOUT_MS}ms.`,
+                        );
+                        socket.close(4000, "Connection timeout");
+                    }
+                }, CONNECTION_TIMEOUT_MS);
+
                 socket.addEventListener("open", () => {
+                    this.clearConnectionTimeout();
+                    this.reconnectAttempt = 0;
                     console.log("✓ Discord Gateway socket opened. Identifying bot...");
                 });
 
@@ -97,15 +120,28 @@ export class DiscordGatewayListener {
                 });
 
                 socket.addEventListener("error", (event) => {
-                    console.error("Discord Gateway socket error:", event);
+                    console.error("========================================");
+                    console.error("DISCORD GATEWAY SOCKET ERROR");
+                    console.error("========================================");
+                    console.error("Event type:", event.type);
+                    console.error("Socket readyState:", socket.readyState);
+                    console.error("Gateway URL:", DISCORD_GATEWAY_URL);
+                    console.error("Reconnect attempt:", this.reconnectAttempt + 1);
+                    const errorEvent = event as ErrorEvent;
+                    if (errorEvent.message) console.error("Error message:", errorEvent.message);
+                    console.error("Error object:", event);
                 });
 
                 socket.addEventListener("close", (event) => {
+                    this.clearConnectionTimeout();
                     this.clearHeartbeat();
-                    this.socket = null;
 
-                    console.log(
-                        `Discord Gateway connection closed (code ${event.code}, reason: ${event.reason || "none"}).`,
+                    if (this.socket === socket) {
+                        this.socket = null;
+                    }
+
+                    console.error(
+                        `Discord Gateway connection closed (code ${event.code}, reason: ${event.reason || "none"}, clean: ${event.wasClean}).`,
                     );
 
                     if (!this.stopped) {
@@ -128,6 +164,7 @@ export class DiscordGatewayListener {
     stop(): void {
         this.stopped = true;
         this.clearHeartbeat();
+        this.clearConnectionTimeout();
 
         if (this.reconnectTimer) {
             clearTimeout(this.reconnectTimer);
@@ -147,7 +184,6 @@ export class DiscordGatewayListener {
         markSettled: () => void,
     ): Promise<void> {
         let payload: DiscordGatewayPayload;
-
         try {
             payload = JSON.parse(raw) as DiscordGatewayPayload;
         } catch {
@@ -155,9 +191,7 @@ export class DiscordGatewayListener {
             return;
         }
 
-        if (typeof payload.s === "number") {
-            this.sequence = payload.s;
-        }
+        if (typeof payload.s === "number") this.sequence = payload.s;
 
         switch (payload.op) {
             case 10:
@@ -198,7 +232,6 @@ export class DiscordGatewayListener {
         }
 
         console.log("✓ Discord Gateway HELLO received. Identifying bot...");
-
         this.socket?.send(JSON.stringify({
             op: 2,
             d: {
@@ -225,38 +258,27 @@ export class DiscordGatewayListener {
         if (type === "READY") {
             const ready = data as DiscordReadyPayload;
             this.botUserId = ready.user?.id ?? null;
-
+            this.reconnectAttempt = 0;
             console.log(
                 `✓ Discord Gateway READY. Lex is now listening for founder messages${
                     this.botUserId ? ` as ${ready.user?.username ?? "Lex"}` : ""
                 }.`,
             );
-
             markSettled();
             resolve();
             return;
         }
 
-        if (type !== "MESSAGE_CREATE") {
-            return;
-        }
+        if (type !== "MESSAGE_CREATE") return;
 
         const message = data as DiscordMessageCreatePayload;
         const authorId = message.author?.id;
         const channelId = message.channel_id;
         const content = message.content?.trim();
 
-        if (!authorId || !channelId || !message.id || !content) {
-            return;
-        }
-
-        if (channelId !== this.options.channelId) {
-            return;
-        }
-
-        if (message.author?.bot || authorId === this.botUserId) {
-            return;
-        }
+        if (!authorId || !channelId || !message.id || !content) return;
+        if (channelId !== this.options.channelId) return;
+        if (message.author?.bot || authorId === this.botUserId) return;
 
         await this.options.onMessage({
             id: message.id,
@@ -272,14 +294,8 @@ export class DiscordGatewayListener {
     }
 
     private sendHeartbeat(): void {
-        if (!this.socket || this.socket.readyState !== WebSocket.OPEN) {
-            return;
-        }
-
-        this.socket.send(JSON.stringify({
-            op: 1,
-            d: this.sequence,
-        }));
+        if (!this.socket || this.socket.readyState !== WebSocket.OPEN) return;
+        this.socket.send(JSON.stringify({ op: 1, d: this.sequence }));
     }
 
     private clearHeartbeat(): void {
@@ -289,15 +305,30 @@ export class DiscordGatewayListener {
         }
     }
 
-    private scheduleReconnect(connect: () => void): void {
-        if (this.reconnectTimer || this.stopped) {
-            return;
+    private clearConnectionTimeout(): void {
+        if (this.connectionTimeoutTimer) {
+            clearTimeout(this.connectionTimeoutTimer);
+            this.connectionTimeoutTimer = null;
         }
+    }
+
+    private scheduleReconnect(connect: () => void): void {
+        if (this.reconnectTimer || this.stopped) return;
+
+        const delay = Math.min(
+            INITIAL_RECONNECT_DELAY_MS * 2 ** this.reconnectAttempt,
+            MAX_RECONNECT_DELAY_MS,
+        );
+        this.reconnectAttempt += 1;
+
+        console.log(
+            `Discord Gateway reconnect scheduled in ${delay}ms (attempt ${this.reconnectAttempt}).`,
+        );
 
         this.reconnectTimer = setTimeout(() => {
             this.reconnectTimer = null;
             connect();
-        }, 1_500);
+        }, delay);
     }
 }
 

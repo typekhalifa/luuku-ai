@@ -1,281 +1,244 @@
 # 🚀 LUUKU AI ROADMAP
 
-> **Vision**
->
 > Build an AI Systems Architecture platform that enables businesses to operate through autonomous AI agents working together as a coordinated company.
 
-This roadmap describes **strategic product milestones**. It is intentionally separate from the package engineering version (`package.json`).
+This document separates the historical strategic roadmap from the current engineering state.
 
----
+# Historical Product Roadmap
 
-# v0.1 — FOUNDATION ✅
+~~~text
+v0.1 Foundation
+    ↓
+v1.0 Mission Control
+    ↓
+v2.0 AI Core / Knowledge
+    ↓
+v3.0 Multi-Agent Collaboration
+    ↓
+v4.0 Company Operating System
+    ↓
+v5.0 Communication Layer
+    ↓
+v6.0 Autonomous Business
+    ↓
+v7.0 Luuku OS
+~~~
 
-- Project setup
-- React / web platform
-- Express backend
-- TypeScript
-- SDK
-- Applications
-- Controllers
-- Routes
-- Architecture
+These milestones describe how the product vision evolved. They are not the authoritative description of the current V8 backend implementation.
 
----
+# Current Engineering State
 
-# v1.0 — MISSION CONTROL ✅
+**Package:** v0.10.0 — Autonomous Architecture Baseline
 
-- Dashboard
-- Agents
-- Events
-- Workflow
+~~~text
+V6     Execution Foundation        🟢
+V7     Executive Brain             🟢
+V7.9   Safety + Production         🟢
+V8-A   Continuous Life             🟢
+V8-B   Autonomous Work Selection   🟢
+V8-C   Prioritization              🟢
+V8-D   Capacity                    🟢
+V8-E   Resource Economics          🟢
+V8-F   Tradeoff Economics          🟢
+V8-G   Learning                    🟢
+V8-H   Strategy Evolution           🟢
+V8-I   Company State Observation   🟢 PASS
+V8-J   Adaptive Intervention       🟢 PASS
+V8-K   Long-Horizon Planning       🟢 PASS
+V8-L   Institutional Memory        🟢 LOCKED
+V8-M   Exception Management        🟢 PASS
+V8-N   Autonomous Company Loop     🟡 HARDENED / VALIDATION GATE
+V8-O   Durable Execution/Recovery  🟢 PASS
+V8.9   Production Deployment       🟢 FOUNDATION
+V8.10  Production Observability   🟢 FOUNDATION
+V8.11  Durable Observability       🟢 FOUNDATION
+~~~
+
+## V8-N and V8-O
+
+V8-N composes executive capabilities into a bounded autonomous company loop. It does not execute work or grant approval.
+
+V8-O provides durable execution/recovery inspection and idempotency-oriented recovery boundaries around V6 execution. It does not create a second execution authority.
+
+## Immediate Next Phase — Architecture Reconciliation
+
+Before new actuator development:
+
+1. Audit backend capabilities.
+2. Audit existing agents and workflows.
+3. Audit communication and external execution paths.
+4. Audit persistence and durable composition.
+5. Audit Mission Control.
+6. Audit the public web application.
+7. Reconcile documentation with implementation.
+8. Complete V8 validation.
+
+See docs/ARCHITECTURE-AUDIT.md and docs/DEVELOPMENT-AND-VALIDATION.md.
+
+# V8.9 — Production Deployment Foundation
+
+The deployment foundation includes:
+
+- production Docker runtime;
+- startup-time Prisma migration deployment;
+- liveness endpoint at `/healthz`;
+- database-backed readiness endpoint at `/readyz`;
+- reproducible production image publication to GitHub Container Registry on `main`;
+- production environment/secret runbook in `docs/DEPLOYMENT.md`;
+- GitHub Actions using Node 24-based checkout/setup actions.
+
+**Important:** this is deployment infrastructure, not a statement that Luuku is currently running in a live production environment.
+
+The remaining deployment gates are:
+
+1. Deploy the immutable production image to a managed container runtime.
+2. Provision managed PostgreSQL with backups.
+3. Configure production secrets through a managed secret store.
+4. Verify health, readiness, authentication and tenant-scoped smoke workflows.
+
+# V8.10 — Production Observability Foundation
+
+The API now provides:
+
+- structured JSON request logs;
+- request/trace correlation through `x-request-id` and `x-trace-id`;
+- request/error/latency metrics;
+- Prometheus-compatible metrics at `/metrics`;
+- service-scoped JSON metrics at `/metrics/snapshot`;
+- health/readiness signals;
+- observability validation in V8 CI;
+- an operator runbook in `docs/OBSERVABILITY.md`.
+
+The metrics are intentionally process-local at this stage. A managed metrics backend must retain the time series externally.
+
+V8.11 now adds:
+
+- durable PostgreSQL observability events;
+- tenant-scoped event and summary queries;
+- request/trace correlation in durable request evidence;
+- fail-closed observability reads;
+- CI validation for durable persistence and tenant isolation.
+
+The next observability gates are:
+
+1. connect logs to a managed log platform;
+2. scrape metrics into a managed metrics backend;
+3. connect trace correlation to a distributed tracing backend;
+4. establish dashboards and baseline latency/error measurements;
+5. configure alerts for readiness, 5xx errors, latency, provider failures, recovery backlog and tenant/security failures;
+6. emit durable lifecycle evidence at existing execution/provider boundaries;
+7. verify durable audit evidence across execution and communication boundaries.
+
+# Next Phase — REAL-WORLD ACTUATORS
+
+Give the operating system controlled hands in the external world.
+
+Target surfaces:
+
+- Sales
 - CRM
-- Runtime
-
----
-
-# v2.0 — AI CORE / KNOWLEDGE 🚧
-
-Give agents reliable knowledge, memory, context, and AI capabilities.
-
-### Knowledge
-
-- Knowledge sources
-- Document loaders
-- Parsing and cleaning
-- Chunking
-- Embeddings
-- Vector database
-- Retrieval
-- Hybrid search
-- Reranking
-- Context builder
-
-### AI infrastructure
-
-- Model/provider abstraction
-- Tool calling
-- Prompt/context optimization
-- Caching
-- Memory
-- Guardrails
-- Evaluation
-
-The repository already contains evolving knowledge, embedding, context, conversation, provider, memory, and capability foundations. This milestone continues hardening them.
-
----
-
-# v3.0 — MULTI-AGENT COLLABORATION 🚧
-
-Allow specialized agents to work together instead of operating as isolated scripts.
-
-Initial roles include:
-
-- Executive AI
-- Research Agent
-- Sales Agent
-- Support Agent
-- Developer Agent
-- Marketing Agent
-- Finance Agent
-- Operations Agent
-
-Not every agent must exist before this milestone is useful. New agents should be addable without redesigning the platform.
-
-Each agent should progressively gain:
-
-- Memory
-- Tools
-- Permissions
-- Planning
-- Execution
-- Communication
-- Shared capabilities
-
----
-
-# v4.0 — COMPANY OPERATING SYSTEM 🚧
-
-Turn the agent collection into a coordinated organization.
-
-```text
-Executive AI
-     ↓
-Planner
-     ↓
-Router / Registry
-     ↓
-Orchestrator
-     ↓
-Queue
-     ↓
-Runtime
-     ↓
-Execution
-     ↓
-Events / Logs / State
-```
-
-Core capabilities:
-
-- Goal decomposition
-- Agent selection
-- Task delegation
-- Queueing
-- Runtime execution
-- Failure handling
-- Agent communication
-- Shared organizational state
-- Human approval
-- Monitoring
-
-The repository already contains substantial foundations for planner, router, registry, executor, task, queue, runtime, collaboration, events, capabilities, and organization state.
-
----
-
-# v5.0 — COMMUNICATION LAYER 🚀 NEXT
-
-## Objective
-
-Operate Luuku AI from anywhere.
-
-The communication layer is a reusable communication core connecting humans and external channels to the company operating system — not a collection of unrelated integrations.
-
-### Communication Core
-
-- Message
-- Conversation
-- Channel
-- Command
-- Notification
-- Approval
-- Delivery
-- Conversation/thread identity
-
-### Initial channels
-
-- WhatsApp
+- Email
 - Discord
-- Slack
-- Telegram
 - Voice
+- WhatsApp
 
-### Core flow
+The first principle is reuse: existing communication, Sales, CRM, agent and execution infrastructure should be hardened and connected rather than duplicated.
 
-```text
-Founder / External Channel
-          ↓
-   Communication Core
-          ↓
- Commands / Events / Approvals
-          ↓
-       Orchestrator
-          ↓
-      Agents + Runtime
-          ↓
-      Results / Events
-          ↓
-   Communication Core
-          ↓
-        Founder
-```
+Each actuator must support, as appropriate:
 
-### First working milestone
+- explicit capability identity
+- authorization/policy checks
+- idempotency
+- provider error handling
+- external evidence
+- executed vs verified state
+- audit trail
+- bounded retries/recovery
 
-```text
-Founder
-  ↓
-Communication API
-  ↓
-"What's happening today?"
-  ↓
-Executive AI
-  ↓
-Orchestrator
-  ↓
-Agents / Events / State
-  ↓
-Executive Summary
-  ↓
-Communication API
-  ↓
-Founder
-```
+Actuator activation follows deployment, observability and governance gates. V6 remains the sole execution authority.
 
-Once this core loop works reliably, WhatsApp/Discord/Slack/Telegram become channel adapters rather than separate brains.
+# Following Phase — PRODUCTION
 
----
+~~~text
+Security
+Tenancy / isolation
+Authentication
+Authorization
+Secret management
+Durable persistence
+Deployment
+Monitoring
+Logging
+Tracing
+Alerting
+Auditability
+Failure recovery
+~~~
 
-# v6.0 — AUTONOMOUS BUSINESS ⏳
+Production readiness means the autonomous loop can operate continuously without losing state, bypassing governance, or making external actions unverifiable.
 
-Move from assisted execution toward autonomous business workflows.
+# Following Phase — INTERNAL AUTONOMOUS LUUKU OS
 
-```text
-Research Agent finds opportunity
-          ↓
-Planner creates strategy
-          ↓
-Sales Agent prepares proposal
-          ↓
-Legal / Finance prepare documents
-          ↓
-Developer / Operations execute delivery
-          ↓
-Support handles onboarding
-```
+The internal finish line is:
 
-The Executive AI coordinates the workflow while the founder remains responsible for strategic decisions and consequential approvals.
+~~~text
+Objective
+   ↓
+Observe
+   ↓
+Reason
+   ↓
+Select
+   ↓
+Prioritize
+   ↓
+Plan
+   ↓
+Coordinate
+   ↓
+Execute through V6
+   ↓
+Actuate in real world
+   ↓
+Verify outcome
+   ↓
+Remember
+   ↓
+Learn
+   ↓
+Adapt
+   ↓
+Repeat
+~~~
 
----
+The founder should increasingly operate at the executive decision layer rather than manually assigning every task.
 
-# v7.0 — LUUKU OS ⏳
+# Final Phase — PRODUCTIZATION
 
-Turn Luuku AI into an operating system for AI-native businesses.
+Turn the proven internal operating system into customer-specific autonomous systems:
 
-Future capabilities may include:
+~~~text
+Luuku AI OS
+     ↓
+Organization boundary
+     ↓
+Tenant-isolated company
+     ↓
+Company state / objectives
+     ↓
+Agents / capabilities
+     ↓
+Workflows
+     ↓
+Actuators
+     ↓
+Observability / governance
+~~~
 
-- Multi-organization support
-- Enterprise memory
-- Knowledge graph
-- Agent marketplace
-- Live collaboration
-- AI operating console
-- Autonomous business operations
-- Client organization workspaces
+Potential future product capabilities include customer organizations, organization memory, knowledge systems, operating consoles, reusable agent/capability packages and autonomous business workflows.
 
----
+# Finish Line
 
-# ENGINEERING PRINCIPLES
+Luuku AI is considered internally autonomous when its executive loop can continuously observe the company, make bounded decisions, coordinate work, execute through V6, interact with real systems through controlled actuators, recover from interruption, learn from verified outcomes and escalate decisions that require the founder.
 
-- Build modular systems.
-- Keep responsibilities separated.
-- Prefer composition over duplication.
-- Prove behavior before optimizing.
-- Every feature should expose a clean API contract.
-- Core infrastructure should remain framework-agnostic whenever practical.
-- Agents should use shared platform services rather than coupling directly to storage.
-- Communication channels should remain adapters around the communication core.
-- Human approval should remain available for consequential actions.
-- Add new specialized agents without redesigning the operating system.
-
----
-
-# CURRENT STATE
-
-```text
-v0.1  Foundation                    ✅
-v1.0  Mission Control               ✅
-v2.0  AI Core / Knowledge           🚧
-v3.0  Multi-Agent Collaboration     🚧
-v4.0  Company Operating System      🚧
-v5.0  Communication Layer           🚀 NEXT
-v6.0  Autonomous Business           ⏳
-v7.0  Luuku OS                      ⏳
-```
-
-**Canonical engineering version:** `v0.10.0`
-
-**Next strategic milestone:** `v5.0 — Communication Layer`
-
----
-
-**Last Updated:** August 2026
+**Last reconciled:** October 2026

@@ -3,6 +3,7 @@ import { contactService } from "../database/services/contact.service";
 import { dealService } from "../database/services/deal.service";
 import { activityService } from "../database/services/activity.service";
 import { registerProspectWorkflow } from "./workflows/register-prospect.workflow";
+import type { ApiRequestContext } from "../api/request-context";
 
 export interface CRMOverview {
     companies: number;
@@ -73,12 +74,12 @@ export interface RegisterProspectResult {
 }
 
 export class CRMApplication {
-    async getOverview(): Promise<CRMOverview> {
+    async getOverview(context: ApiRequestContext): Promise<CRMOverview> {
         const [companies, contacts, deals, activities] = await Promise.all([
-            companyService.getCompanies(),
-            contactService.getContacts(),
-            dealService.getDeals(),
-            activityService.getActivities(),
+            companyService.getCompanies(context.companyId),
+            contactService.getContacts(context.companyId),
+            dealService.getDeals(context.companyId),
+            activityService.getActivities(context.companyId),
         ]);
 
         return {
@@ -91,7 +92,12 @@ export class CRMApplication {
 
     async registerProspect(
         request: RegisterProspectRequest,
+        context: ApiRequestContext,
     ): Promise<RegisterProspectResult> {
+        if (!context.companyId) {
+            throw new Error("TENANT_CONTEXT_REQUIRED");
+        }
+
         const result = await registerProspectWorkflow.execute({
             company: {
                 name: request.company.name,
@@ -117,7 +123,7 @@ export class CRMApplication {
                 source: request.contact.source,
                 lastVerifiedAt: request.contact.lastVerifiedAt,
             },
-        });
+        }, context?.companyId);
 
         return {
             success: result.success,

@@ -7,6 +7,7 @@ async function runDemo() {
 
     const inbound = await service.receiveMessage({
         channel: "internal",
+        context: { ownership: { scope: "SYSTEM" } },
         sender: {
             channel: "internal",
             externalId: "founder",
@@ -19,6 +20,7 @@ async function runDemo() {
     const outbound = await service.sendMessage({
         conversationId: inbound.conversationId,
         channel: "internal",
+        context: { ownership: { scope: "SYSTEM" } },
         recipient: {
             channel: "internal",
             externalId: "founder",
@@ -29,6 +31,7 @@ async function runDemo() {
 
     const conversation = await service.getConversation(
         inbound.conversationId,
+        { ownership: { scope: "SYSTEM" } },
     );
 
     if (!conversation) {

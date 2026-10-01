@@ -1,56 +1,68 @@
 import type { ExecutiveLearningRecord } from "./executive-memory.js";
 import type { ExecutiveTradeoffCandidate } from "./executive-tradeoff-engine.js";
 
-export interface ExecutiveLearningAdaptationDecision {
-    readonly candidateId: string;
-    readonly adjustedCandidate: ExecutiveTradeoffCandidate;
-    readonly relevantPatterns: readonly ExecutiveLearningRecord[];
-    readonly adjustments: Readonly<Record<string, number>>;
-    readonly reason: string;
+export interface ExecutiveLearningAdaptationAdjustments {
+    readonly valueAdjustment: number;
+    readonly riskAdjustment: number;
 }
 
-/** Applies bounded, deterministic learning signals to future economic decisions without creating execution authority. */
+export interface ExecutiveLearningAdaptationDecision {
+    readonly originalCandidate: ExecutiveTradeoffCandidate;
+    readonly adjustedCandidate: ExecutiveTradeoffCandidate;
+    readonly relevantLearning: readonly ExecutiveLearningRecord[];
+    readonly adjustments: ExecutiveLearningAdaptationAdjustments;
+    readonly reason: string;
+    readonly evidence: Readonly<Record<string, unknown>>;
+}
+
+/** Applies bounded historical learning to future economic estimates without creating execution authority. */
 export class ExecutiveLearningAdaptationEngine {
     adapt(
         candidate: ExecutiveTradeoffCandidate,
         learning: readonly ExecutiveLearningRecord[],
     ): ExecutiveLearningAdaptationDecision {
-        const relevantPatterns = learning.filter((record) =>
+        const relevantLearning = learning.filter((record) =>
             record.objectiveIds.includes(candidate.id),
         );
-        const repeatedFailure = relevantPatterns.some((record) => record.pattern === "REPEATED_FAILURE");
-        const failurePattern = relevantPatterns.some((record) => record.pattern === "FAILURE_PATTERN");
-        const successPattern = relevantPatterns.some((record) => record.pattern === "SUCCESS_PATTERN");
 
-        let objectiveValueAdjustment = 0;
+        const repeatedFailure = relevantLearning.find((record) => record.pattern === "REPEATED_FAILURE");
+        const failurePattern = relevantLearning.find((record) => record.pattern === "FAILURE_PATTERN");
+        const successPattern = relevantLearning.find((record) => record.pattern === "SUCCESS_PATTERN");
+
+        let valueAdjustment = 0;
         let riskAdjustment = 0;
+        let reason = "No relevant historical learning was found; preserve the baseline economic estimate.";
 
         if (repeatedFailure) {
             riskAdjustment = 20;
+            reason = repeatedFailure.lesson ?? "Repeated failure requires a materially more cautious approach.";
         } else if (failurePattern) {
             riskAdjustment = 10;
+            reason = failurePattern.lesson ?? "Historical failure increases future execution risk.";
         } else if (successPattern) {
-            objectiveValueAdjustment = 5;
+            valueAdjustment = 5;
+            reason = successPattern.lesson ?? "Historical success supports a modest increase in expected value.";
         }
 
         const adjustedCandidate: ExecutiveTradeoffCandidate = {
             ...candidate,
-            objectiveValue: Math.max(0, candidate.objectiveValue + objectiveValueAdjustment),
+            objectiveValue: Math.max(0, candidate.objectiveValue + valueAdjustment),
             risk: Math.max(0, candidate.risk + riskAdjustment),
         };
 
         return {
-            candidateId: candidate.id,
+            originalCandidate: candidate,
             adjustedCandidate,
-            relevantPatterns,
-            adjustments: { objectiveValueAdjustment, riskAdjustment },
-            reason: repeatedFailure
-                ? "Repeated failure increases economic risk for the approach."
-                : failurePattern
-                    ? "Historical failure increases economic risk for the approach."
-                    : successPattern
-                        ? "Historical success increases confidence in the approach."
-                        : "No relevant learning signal; preserve the original economic estimate.",
+            relevantLearning,
+            adjustments: { valueAdjustment, riskAdjustment },
+            reason,
+            evidence: {
+                source: "V8-G_LEARNING_ADAPTATION",
+                candidateId: candidate.id,
+                pattern: repeatedFailure?.pattern ?? failurePattern?.pattern ?? successPattern?.pattern ?? "NONE",
+                valueAdjustment,
+                riskAdjustment,
+            },
         };
     }
 }

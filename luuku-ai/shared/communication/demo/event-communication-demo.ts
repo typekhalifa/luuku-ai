@@ -29,6 +29,7 @@ async function runDemo() {
         source: "executive-ai",
         timestamp: new Date().toISOString(),
         payload: {
+            context: { ownership: { scope: "SYSTEM" } },
             conversationId,
             channel: "internal",
             recipient: {
@@ -45,6 +46,7 @@ async function runDemo() {
 
     const conversation = await communicationService.getConversation(
         conversationId,
+        { ownership: { scope: "SYSTEM" } },
     );
 
     if (!conversation) {

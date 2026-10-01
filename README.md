@@ -1,182 +1,203 @@
 # Luuku AI
 
-Luuku AI is a Rwanda-based AI systems architecture and consulting company focused on designing, building, and deploying practical AI systems for businesses, institutions, and the wider African ecosystem.
+Luuku AI is a Rwanda-based AI systems architecture company building an internal AI Operating System for autonomous business workflows, then productizing the proven architecture for other organizations.
 
-We are building Luuku AI from the inside out: first by creating our own internal AI Operating System, then by using those systems, workflows, and learnings to deliver AI solutions for clients.
+> **We are not building another chatbot. We are building the operating layer through which an AI-native company can observe, decide, coordinate, execute, learn and communicate.**
 
----
+## Current repository model
 
-## Vision
+~~~text
+E:\luuku-ai
+├── luuku-ai\
+│   └── Backend / AI Operating System
+│
+└── apps\
+    ├── mission-control\
+    │   └── Internal company dashboard / cockpit
+    │
+    └── web-new\
+        └── Public Luuku AI website
+~~~
 
-Build an AI Systems Architecture platform that enables businesses to operate through autonomous AI agents working together as a coordinated company.
+## Current engineering baseline
 
-Luuku AI is not being built around AI hype. It is being built around useful systems:
+**Package version:** v0.10.0 — Autonomous Architecture Baseline
 
-- AI workflow automation
-- internal knowledge assistants
-- AI copilots for operations and teams
-- retrieval and knowledge systems
-- AI infrastructure tailored to real operational workflows
-- autonomous multi-agent execution
+The package version is separate from the historical strategic roadmap.
 
----
+The current backend contains substantial V6-V8 executive and execution infrastructure, including durable execution, autonomous work selection, prioritization, capacity, resource economics, tradeoffs, learning, strategy evolution, company-state observation, adaptive intervention, long-horizon planning, institutional memory, exception management and autonomous-loop orchestration.
 
-## Current Mission
+## Current architecture
 
-Build and prove Luuku AI's internal AI Operating System before scaling the same architecture into client-facing systems.
+~~~text
+External Channels / Mission Control
+              ↓
+       Communication Core
+              ↓
+        Executive Brain
+              ↓
+ Observation → Objectives → Prioritization
+              ↓
+ Capacity → Economics → Strategy
+              ↓
+            Planning
+              ↓
+      Exception Management
+              ↓
+      Autonomous Company Loop
+              ↓
+   Durable Execution / Recovery
+              ↓
+        V6 Execution Authority
+              ↓
+      Agents / Capabilities
+              ↓
+       Queue / Runtime
+              ↓
+      Real-world actuators
+              ↓
+       External outcomes
+              ↓
+ Events / Evidence / Memory / Learning
+              ↓
+          Observation
+~~~
 
-The current codebase already contains the foundations for:
+### Execution authority
 
-- **Executive Assistant** — founder planning, prioritization, and execution tracking
-- **Executive AI** — executive-level coordination and decision support
-- **Research Agent** — business research and AI opportunity discovery
-- **Sales Agent** — sales workflow foundations
-- **Voice Agent** — communication/voice foundation
-- **Mission Control** — dashboards and operational visibility
-- **Knowledge Layer** — document loading and embedding foundations
-- **Orchestration Layer** — planning, routing, registry, task, and execution primitives
-- **Collaboration Layer** — agent messaging and event-driven coordination
-- **Organization Runtime** — queues, workers, runtime state, and monitoring
+**V6 remains the execution authority.**
 
-The goal is simple:
+V7/V8 layers can observe, reason, prioritize, plan, adapt, manage exceptions and orchestrate, but they do not create a second execution authority.
 
-> If Luuku AI wants to build AI systems for other organizations, it should first build and test AI systems inside Luuku AI itself.
+This boundary is fundamental to the architecture.
 
----
+## Existing backend capabilities
 
-## Current Engineering Version
+### Executive system
+- Executive AI
+- Executive Assistant
+- objective-driven cycles
+- company-state observation
+- autonomous work selection
+- prioritization
+- capacity and resource gates
+- economic tradeoffs
+- learning and strategy evolution
+- long-horizon planning
+- institutional memory
+- exception management
+- autonomous company loop
+- durable execution/recovery
 
-**v0.10.0 — Autonomous Architecture Baseline**
+### Agent system
+Current implementation areas include:
+- Executive AI
+- Executive Assistant
+- Research
+- Sales
+- Business workflows
+- Communication / Voice
+- Dashboard / Executive Dashboard
+- CRM, workflow and test agents
 
-This version label is the canonical repository/package version. Strategic roadmap milestones such as **v5.0 — Communication Layer** are tracked separately in `ROADMAP.md`.
+The architecture is extensible; new departments should be added when real workflows require them rather than simply increasing agent count.
 
----
+### Knowledge system
+The repository contains foundations for:
+- knowledge assets
+- document loading/parsing
+- chunking
+- embeddings
+- vector storage
+- retrieval
+- context construction
+- AI providers
+- conversation infrastructure
+- memory
+- capability/tool registration
 
-# Current System
+### Communication
+The communication layer is provider-neutral and includes:
+- messages
+- conversations
+- events
+- execution records
+- channel adapters
+- Discord infrastructure
+- Resend email integration
+- voice architecture
 
-## Agents
+WhatsApp, Slack and Telegram remain integration targets.
 
-```text
-luuku-ai/agents/
-├── executive-ai/
-├── executive-assistant/
-├── research-agent/
-├── sales-agent/
-├── business/
-├── communication/
-│   └── voice/
-├── dashboard/
-├── executive-dashboard/
-└── database / workflow / CRM test agents
-```
+### CRM and persistence
+The backend contains company, contact, deal, activity, workflow, queue and executive persistence models through Prisma/PostgreSQL.
 
-The agent set is intentionally incomplete. New specialized agents will be added as the underlying company operating system matures.
+## Validation
 
-## Core Architecture
+Known local validation during the V8 build includes:
+- Prisma client generation — PASS
+- backend typecheck — PASS
+- V8-K long-horizon planning — PASS
+- V8-M exception management — PASS
+- V8-O durable execution/recovery — PASS
 
-```text
-Founder / External Channel
-          ↓
-   Communication Layer
-          ↓
-     Executive AI
-          ↓
-       Planner
-          ↓
-        Router
-          ↓
-   Agent Registry
-          ↓
-    Orchestrator
-          ↓
-        Queue
-          ↓
-       Runtime
-          ↓
-      Execution
-          ↓
-   Events / State / Logs
-          ↓
- Communication Layer
-```
+V8-N has been hardened and remains a validation gate before being treated as release-complete.
 
-Shared infrastructure lives under `luuku-ai/shared/` and includes communication, AI providers, context, conversation, CRM, events, collaboration, organization state, runtime, scheduling, and other reusable services.
+The repository also contains a GitHub Actions V8 validation workflow covering backend typecheck and V8-K through V8-O demos.
 
-The orchestration layer lives under `luuku-ai/orchestration/` and contains planner, router, executor, registry, capability, and task primitives.
+## Strategic evolution
 
----
+The original product roadmap was:
 
-# Knowledge & AI Foundation
+~~~text
+v1 Mission Control
+v2 AI Core / Knowledge
+v3 Multi-Agent Collaboration
+v4 Company Operating System
+v5 Communication Layer
+v6 Autonomous Business
+v7 Luuku OS
+~~~
 
-The repository includes foundations for:
+That remains useful as historical/product evolution.
 
-- knowledge asset loading
-- document parsing
-- chunking and validation
-- embedding generation
-- shared AI/chat providers
-- context and conversation infrastructure
-- memory and organizational state
-- tool/capability registration
+The implementation has since expanded the internal architecture beyond those labels into explicit V6/V7/V7.9/V8 execution, governance and autonomy layers.
 
-These foundations continue to evolve toward the full AI Core described in the roadmap.
+## Next major phases
 
----
-
-# Communication Direction
-
-The next strategic milestone is **v5.0 — Communication Layer**.
-
-The communication layer is being designed as a core system, not as a collection of unrelated chat integrations.
-
-```text
-Communication Core
+~~~text
+CURRENT
+Architecture audit + documentation reconciliation
         ↓
- Commands / Notifications / Approvals
+V8 hardening + complete validation
         ↓
- Orchestrator / Agents / Runtime
+Production security / tenancy / deployment / monitoring
         ↓
- Results / Events / State
+REAL-WORLD ACTUATORS
+Sales / CRM / Email / Discord / Voice / WhatsApp
         ↓
- Communication Core
-```
+Continuous internal Luuku OS operation
+        ↓
+PRODUCTIZATION
+Luuku AI OS → customer autonomous systems
+~~~
 
-Initial channel targets include WhatsApp, Discord, Slack, Telegram, and voice. Channel adapters should remain replaceable while the communication core owns message, conversation, command, notification, approval, and delivery concepts.
+## Development principles
 
----
+- Preserve V6 as the sole execution authority.
+- Prefer composition over duplicated infrastructure.
+- Agents use shared platform services.
+- Communication channels remain adapters.
+- External execution must be distinguished from simulation/drafting.
+- Preserve idempotency and reality-integrity evidence.
+- Keep human approval available for consequential actions.
+- Prove behavior with deterministic demos before productionizing.
+- Update documentation whenever canonical architecture changes.
 
-# Long-Term Vision
+See:
+- ARCHITECTURE.md
+- ROADMAP.md
+- docs/ARCHITECTURE-AUDIT.md
+- docs/DEVELOPMENT-AND-VALIDATION.md
 
-```text
-v0.1  Foundation                    ✅
-v1.0  Mission Control               ✅
-v2.0  AI Core / Knowledge           🚧
-v3.0  Multi-Agent Collaboration     🚧
-v4.0  Company Operating System      🚧
-v5.0  Communication Layer           🚀 NEXT
-v6.0  Autonomous Business           ⏳
-v7.0  Luuku OS                      ⏳
-```
-
-The long-term objective is an AI Operating System where specialized agents collaborate through shared knowledge, memory, orchestration, communication, and execution infrastructure to run real business workflows autonomously.
-
----
-
-# Development Principles
-
-- Build modular systems.
-- Keep responsibilities separated.
-- Prefer composition over duplication.
-- Prove behavior before optimizing.
-- Keep core infrastructure framework-agnostic where practical.
-- Agents should use shared services rather than coupling directly to storage.
-- Communication channels should be adapters, not the business logic.
-- Human approval remains available for consequential decisions.
-
----
-
-**Repository:** `typekhalifa/luuku-ai`
-
-**Canonical engineering version:** `v0.10.0`
-
-**Next strategic milestone:** `v5.0 — Communication Layer`
+**Repository:** typekhalifa/luuku-ai

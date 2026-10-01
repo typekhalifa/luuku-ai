@@ -2,80 +2,83 @@
 
 ## Purpose
 
-The Communication Core is the provider-neutral execution boundary for external communication. Agents request a capability; adapters execute it; providers supply real-world evidence; CRM consumes only verified execution results.
+The Communication Core is the provider-neutral boundary between Luuku's operating system and external communication channels.
 
-```text
-Lex / Agent
-    ↓
-Communication Router
-    ↓
-Capability Adapter
-    ↓
+~~~text
+Executive / Agent
+       ↓
+Communication Core
+       ↓
+Channel / Capability Adapter
+       ↓
 External Provider
-    ↓
+       ↓
 Execution Result + Evidence
-    ↓
-Reality Integrity
-    ↓
-CRM / Lex
-```
+       ↓
+CRM / Memory / Executive State
+~~~
 
 ## Contract
 
-Every communication adapter implements:
+Communication adapters should expose provider-neutral capability and channel information, availability, execution and result semantics.
 
-- `capability`
-- `channel`
-- `isAvailable()`
-- `execute(request)`
+External results should distinguish:
+- status
+- executed
+- verified
+- summary
+- evidence
+- error
+- provider/external identifiers where available
+- idempotency information where applicable
 
-Every execution returns:
+## Current capabilities
 
-- `status`
-- `executed`
-- `verified`
-- `evidence` when available
-- `summary`
-- `error` when execution fails or is blocked
+The communication architecture includes targets for:
+- email.send
+- calendar.schedule
+- voice.call
+- whatsapp.send
+- telegram.send
+- discord.send
+- slack.send
 
-## Capabilities
+## Current implementation state
 
-Initial provider-neutral capabilities include:
+- Discord: adapter and gateway/listener infrastructure exists.
+- Email: Resend adapter exists with explicit sandbox/live controls and controlled-recipient safeguards.
+- Voice: agent and execution architecture exists; live provider activation remains a production integration step.
+- WhatsApp: target capability; production adapter not yet complete.
+- Slack: target capability; production adapter not yet complete.
+- Telegram: target capability; production adapter not yet complete.
 
-- `email.send`
-- `calendar.schedule`
-- `voice.call`
-- `whatsapp.send`
-- `telegram.send`
-- `discord.send`
-- `slack.send`
+## Reality integrity
 
-The router does not assume a provider. Providers are registered as adapters.
+A prepared message, generated transcript, simulation or queued action is not automatically external execution.
 
-## Reality rule
+~~~text
+prepared
+   ≠
+queued
+   ≠
+attempted
+   ≠
+executed
+   ≠
+verified
+~~~
 
-A prepared message, simulated call, queued action, or generated transcript is not external execution.
+CRM and executive state should only treat external communication as completed when the relevant execution and verification contract is satisfied.
 
-CRM-changing communication outcomes require the existing Reality Integrity contract:
+## Actuator direction
 
-```text
-executed === true
-AND
-verified === true
-AND
-status === completed | verified
-```
+Future real-world actuators must:
+- reuse the shared communication core;
+- preserve V6 execution authority;
+- enforce policy and approval boundaries;
+- support idempotency where the provider permits it;
+- persist provider evidence;
+- expose deterministic failure states;
+- avoid embedding business logic inside channel adapters.
 
-## Provider roadmap
-
-Phase C.1 — Core contract and router
-
-Phase C.2 — Real email provider
-
-Phase C.3 — Real calendar provider
-
-Phase C.4 — Real voice provider
-
-Phase C.5 — WhatsApp / Telegram / Slack adapters
-
-New providers must implement the shared adapter contract rather than adding provider-specific logic to Lex or business agents.
+The next actuator phase is therefore production hardening and activation of existing architecture, not a communication rewrite.

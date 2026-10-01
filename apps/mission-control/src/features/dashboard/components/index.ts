@@ -5,5 +5,6 @@ export { default as RecentEvents } from "./RecentEvents";
 export { default as SystemHealth } from "./SystemHealth";
 export { default as LiveAIFeed } from "./LiveAIFeed";
 export { default as ExecutiveInsights } from "./ExecutiveInsights";
+export { default as CommunicationObservability } from "./CommunicationObservability";
 
 export * from "./charts";

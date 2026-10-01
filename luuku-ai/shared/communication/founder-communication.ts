@@ -90,6 +90,7 @@ export class FounderCommunication {
     async getFounderConversation() {
         return this.communicationService.getConversation(
             this.conversationId,
+            { ownership: { scope: "SYSTEM" } },
         );
     }
 }

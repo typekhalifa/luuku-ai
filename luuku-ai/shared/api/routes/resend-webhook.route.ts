@@ -3,6 +3,7 @@ import { Router, Request, Response } from "express";
 import { Prisma } from "@prisma/client";
 
 import { prisma } from "../../database/client";
+import { processInboundResendEmail } from "../../communication/resend-inbound.service";
 
 const router = Router();
 
@@ -163,6 +164,45 @@ router.post(
                 .json({
                     error: "WEBHOOK_EVENT_METADATA_MISSING"
                 });
+        }
+
+        if (event.type === "email.received") {
+            try {
+                const result = await processInboundResendEmail(
+                    event,
+                    providerEventId
+                );
+
+                console.log(
+                    `[Resend webhook] email.received ${result.emailId}`,
+                    result.duplicate
+                        ? "duplicate"
+                        : `activity=${result.activityId || "unmatched"}`
+                );
+
+                return response
+                    .status(200)
+                    .json({
+                        received: true,
+                        duplicate: result.duplicate,
+                        type: event.type,
+                        emailId: result.emailId,
+                        activityId: result.activityId,
+                        contactId: result.contactId,
+                        dealId: result.dealId
+                    });
+            } catch (error) {
+                console.error(
+                    "Failed to process inbound Resend email:",
+                    error
+                );
+
+                return response
+                    .status(500)
+                    .json({
+                        error: "INBOUND_EMAIL_PROCESSING_FAILED"
+                    });
+            }
         }
 
         const data = event.data || {};

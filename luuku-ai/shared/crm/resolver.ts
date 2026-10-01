@@ -11,14 +11,15 @@ import {
 } from "../database/services/company.service";
 
 export async function resolveContact(
-
-    companyName: string
-
+    companyName: string,
+    preferredEmail: string | undefined,
+    companyId: string
 ): Promise<Contact | undefined> {
 
     const company =
         await companyService.findCompany(
-            companyName
+            companyName,
+            companyId
         );
 
     if (!company) {
@@ -27,11 +28,17 @@ export async function resolveContact(
 
     const contacts =
         await contactService.getCompanyContacts(
-            company.id
+            company.id,
+            companyId
         );
 
-    const contact =
-        contacts[0];
+    const contact = preferredEmail
+        ? contacts.find(
+            item =>
+                item.email?.toLowerCase() ===
+                preferredEmail.toLowerCase()
+        ) || contacts[0]
+        : contacts[0];
 
     if (!contact) {
         return undefined;

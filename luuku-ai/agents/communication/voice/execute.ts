@@ -6,8 +6,8 @@ import {
 } from "../../../shared/agents/interface";
 
 import {
-    placeVoiceCall
-} from "../../../shared/voice/call";
+    communicationRouter
+} from "../../../shared/communication/router";
 
 import {
     isVerifiedRealExecution
@@ -53,6 +53,10 @@ import {
     Contact
 } from "../../../shared/crm/types";
 
+import {
+    registerCommunicationProviders
+} from "../../../shared/communication/providers";
+
 export async function executeVoiceTask(
 
     task: AgentTask,
@@ -61,6 +65,22 @@ export async function executeVoiceTask(
 
 ): Promise<AgentResult> {
 
+    const companyId = typeof task.metadata?.companyId === "string"
+        ? task.metadata.companyId
+        : undefined;
+
+    if (!companyId) {
+        return {
+            success: false,
+            summary: "Sales voice workflow blocked: tenant company context is required for communication.",
+            completedAt: new Date().toISOString(),
+            executionStatus: "blocked",
+            executed: false,
+            verified: false,
+            blockers: ["TENANT_CONTEXT_REQUIRED"],
+        };
+    }
+
     if (!contact.phoneNumber) {
 
         throw new Error(
@@ -68,6 +88,8 @@ export async function executeVoiceTask(
         );
 
     }
+
+    registerCommunicationProviders();
 
     const brief =
         buildCommunicationBrief(
@@ -157,32 +179,37 @@ export async function executeVoiceTask(
     console.log("");
     console.log(transcript);
 
-    const result =
-        await placeVoiceCall({
-
-            contactName:
-                brief.contactName,
-
-            company:
-                brief.company,
-
-            phoneNumber:
-                contact.phoneNumber,
-
-            purpose:
-                brief.objective,
-
-            language:
-                contact.preferredLanguage,
-
-            tone:
-                brief.tone
-
+    const communicationResult =
+        await communicationRouter.execute({
+            capability: "voice.call",
+            channel: "voice",
+            recipient: contact.phoneNumber,
+            body: brief.objective,
+            metadata: {
+                contactName: brief.contactName,
+                company: brief.company,
+                purpose: brief.objective,
+                language: contact.preferredLanguage || "English",
+                tone: brief.tone,
+                audience: "external",
+                executionMode: "simulation",
+                taskId: task.id,
+                companyId,
+            },
         });
+
+    const result = {
+        ...communicationResult,
+        success:
+            communicationResult.executed &&
+            communicationResult.status !== "failed" &&
+            communicationResult.status !== "blocked",
+    };
 
     const company =
         await companyService.findCompany(
-            brief.company
+            brief.company,
+            companyId
         );
 
     if (!company) {
@@ -195,7 +222,8 @@ export async function executeVoiceTask(
 
     const deals =
         await dealService.getCompanyDeals(
-            company.id
+            company.id,
+            companyId
         );
 
     const activeDeal =
@@ -251,7 +279,8 @@ export async function executeVoiceTask(
         };
 
         await activityService.createActivity(
-            activity
+            activity,
+            companyId
         );
 
         console.log("");
@@ -302,7 +331,8 @@ export async function executeVoiceTask(
 
         result.executed,
 
-        result.verified
+        result.verified,
+        companyId
 
     );
 

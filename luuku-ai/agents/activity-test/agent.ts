@@ -14,7 +14,7 @@ async function main() {
     console.log("");
 
     const company =
-        await companyService.findCompany(
+        await companyService.findCompanySystem(
 
             "Luuku AI"
 
@@ -31,7 +31,7 @@ async function main() {
     }
 
     const activity =
-        await activityService.createActivity({
+        await activityService.createActivitySystem({
 
             id:
                 crypto.randomUUID(),
@@ -74,7 +74,7 @@ async function main() {
     console.log("");
 
     const activities =
-        await activityService.getCompanyActivities(
+        await activityService.getCompanyActivitiesSystem(
 
             company.id
 

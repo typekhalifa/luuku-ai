@@ -10,6 +10,9 @@ import {
 import { CommunicationConversation } from "./conversation";
 import { CommunicationMessage } from "./message";
 import { ChannelIdentity } from "./channel";
+import { CommunicationIdentityResolver } from "./identity-resolver";
+import { CommunicationContext } from "./communication-service";
+import { assertValidOwnership, ownershipPersistence, scopedThreadKey } from "./ownership";
 
 function asChannelIdentity(value: unknown): ChannelIdentity {
     if (!value || typeof value !== "object") {
@@ -79,11 +82,16 @@ function mergeParticipants(
 }
 
 export class PrismaCommunicationService implements CommunicationService {
+    private readonly identityResolver = new CommunicationIdentityResolver();
+
     async sendMessage(input: SendMessageInput): Promise<CommunicationMessage> {
+        assertValidOwnership(input.context.ownership);
+
         const conversation = await this.getOrCreateConversation(
             input.conversationId,
             input.channel,
             input.recipient,
+            input.context,
         );
 
         const externalMessageId =
@@ -91,61 +99,44 @@ export class PrismaCommunicationService implements CommunicationService {
                 ? input.metadata.externalMessageId
                 : undefined;
 
-        if (externalMessageId) {
-            const existingMessage = await prisma.communicationMessage.findFirst({
+        const message = await prisma.communicationMessage.create({
+            data: {
+                conversationId: conversation.id,
+                direction: "outbound",
+                role: "agent",
+                content: input.content,
+                sender: toChannelJson({
+                    channel: input.channel,
+                    displayName: "Luuku AI",
+                }),
+                externalMessageId,
+                metadata: toInputJson(input.metadata),
+            },
+        });
+
+        const idempotencyKey =
+            typeof input.metadata?.idempotencyKey === "string"
+                ? input.metadata.idempotencyKey
+                : undefined;
+
+        if (idempotencyKey) {
+            await prisma.communicationExecution.updateMany({
                 where: {
-                    conversationId: conversation.id,
-                    externalMessageId,
+                    idempotencyKey,
+                    ...this.executionOwnershipWhere(input.context.ownership),
                 },
-            });
-
-            if (existingMessage) {
-                return this.toDomainMessage(existingMessage);
-            }
-        }
-
-        try {
-            const message = await prisma.communicationMessage.create({
                 data: {
                     conversationId: conversation.id,
-                    direction: "outbound",
-                    role: "agent",
-                    content: input.content,
-                    sender: toChannelJson({
-                        channel: input.channel,
-                        displayName: "Luuku AI",
-                    }),
-                    externalMessageId,
-                    metadata: toInputJson(input.metadata),
                 },
             });
-
-            await prisma.communicationConversation.update({
-                where: { id: conversation.id },
-                data: { updatedAt: new Date() },
-            });
-
-            return this.toDomainMessage(message);
-        } catch (error) {
-            if (
-                externalMessageId &&
-                error instanceof Prisma.PrismaClientKnownRequestError &&
-                error.code === "P2002"
-            ) {
-                const existingMessage = await prisma.communicationMessage.findFirst({
-                    where: {
-                        conversationId: conversation.id,
-                        externalMessageId,
-                    },
-                });
-
-                if (existingMessage) {
-                    return this.toDomainMessage(existingMessage);
-                }
-            }
-
-            throw error;
         }
+
+        await prisma.communicationConversation.update({
+            where: { id: conversation.id },
+            data: { updatedAt: new Date() },
+        });
+
+        return this.toDomainMessage(message);
     }
 
     async receiveMessage(
@@ -171,52 +162,65 @@ export class PrismaCommunicationService implements CommunicationService {
             }
         }
 
-        try {
-            const message = await prisma.communicationMessage.create({
-                data: {
-                    conversationId: conversation.id,
-                    direction: "inbound",
-                    role: input.sender.channel === "internal" ? "founder" : "system",
-                    content: input.content,
-                    sender: toChannelJson(input.sender),
-                    externalMessageId,
-                    metadata: toInputJson(input.metadata),
-                },
-            });
+        const identityResolution = await this.identityResolver.resolve({
+            context: input.context,
+            channel: input.channel,
+            externalId: input.sender.externalId,
+            email: input.sender.channel === "email"
+                ? input.sender.externalId
+                : undefined,
+            phoneNumber:
+                input.sender.channel === "voice" || input.sender.channel === "whatsapp"
+                    ? input.sender.externalId
+                    : undefined,
+            conversationId: conversation.id,
+        });
 
-            await prisma.communicationConversation.update({
-                where: { id: conversation.id },
-                data: { updatedAt: new Date() },
-            });
+        const enrichedMetadata: Record<string, unknown> = {
+            ...(input.metadata ?? {}),
+            identityResolution,
+        };
 
-            return this.toDomainMessage(message);
-        } catch (error) {
-            if (
-                externalMessageId &&
-                error instanceof Prisma.PrismaClientKnownRequestError &&
-                error.code === "P2002"
-            ) {
-                const existingMessage = await prisma.communicationMessage.findFirst({
-                    where: {
-                        conversationId: conversation.id,
-                        externalMessageId,
-                    },
-                });
+        const message = await prisma.communicationMessage.create({
+            data: {
+                conversationId: conversation.id,
+                direction: "inbound",
+                role: input.sender.channel === "internal" ? "founder" : "system",
+                content: input.content,
+                sender: toChannelJson(input.sender),
+                externalMessageId,
+                metadata: toInputJson(enrichedMetadata),
+            },
+        });
 
-                if (existingMessage) {
-                    return this.toDomainMessage(existingMessage);
-                }
-            }
+        const existingConversationMetadata =
+            asMetadata(conversation.metadata) ?? {};
 
-            throw error;
-        }
+        await prisma.communicationConversation.update({
+            where: { id: conversation.id },
+            data: {
+                updatedAt: new Date(),
+                metadata: toInputJson({
+                    ...existingConversationMetadata,
+                    identityResolution,
+                }),
+            },
+        });
+
+        return this.toDomainMessage(message);
     }
 
     async getConversation(
         conversationId: string,
+        context: CommunicationContext,
     ): Promise<CommunicationConversation | null> {
-        const conversation = await prisma.communicationConversation.findUnique({
-            where: { id: conversationId },
+        assertValidOwnership(context.ownership);
+
+        const conversation = await prisma.communicationConversation.findFirst({
+            where: {
+                id: conversationId,
+                ...this.ownershipWhere(context.ownership),
+            },
             include: {
                 messages: {
                     orderBy: { timestamp: "asc" },
@@ -231,13 +235,57 @@ export class PrismaCommunicationService implements CommunicationService {
         return this.toDomainConversation(conversation);
     }
 
+    async updateConversationMetadata(
+        conversationId: string,
+        patch: Record<string, unknown>,
+        context: CommunicationContext,
+    ): Promise<void> {
+        assertValidOwnership(context.ownership);
+
+        const conversation = await prisma.communicationConversation.findFirst({
+            where: {
+                id: conversationId,
+                ...this.ownershipWhere(context.ownership),
+            },
+            select: { metadata: true },
+        });
+
+        if (!conversation) {
+            throw new Error(`Communication conversation ${conversationId} could not be loaded.`);
+        }
+
+        const existingMetadata = asMetadata(conversation.metadata) ?? {};
+
+        await prisma.communicationConversation.update({
+            where: { id: conversationId },
+            data: {
+                metadata: toInputJson({
+                    ...existingMetadata,
+                    ...patch,
+                }),
+                updatedAt: new Date(),
+            },
+        });
+    }
+
     private async getOrCreateInboundConversation(
         input: ReceiveMessageInput,
     ) {
+        assertValidOwnership(input.context.ownership);
+
         if (input.conversationId) {
-            const existing = await prisma.communicationConversation.findUnique({
+            const existingById = await prisma.communicationConversation.findUnique({
                 where: { id: input.conversationId },
             });
+
+            if (
+                existingById &&
+                !this.ownershipMatches(existingById, input.context.ownership)
+            ) {
+                throw new Error("COMMUNICATION_CONVERSATION_OWNERSHIP_MISMATCH");
+            }
+
+            const existing = existingById;
 
             if (existing) {
                 const currentParticipants = asParticipants(existing.participants);
@@ -261,8 +309,9 @@ export class PrismaCommunicationService implements CommunicationService {
         }
 
         if (input.externalConversationId) {
+            const threadKey = scopedThreadKey(input.context.ownership, input.externalConversationId);
             const existing = await prisma.communicationConversation.findUnique({
-                where: { threadKey: input.externalConversationId },
+                where: { threadKey },
             });
 
             if (existing) {
@@ -291,7 +340,10 @@ export class PrismaCommunicationService implements CommunicationService {
             data: {
                 id: crypto.randomUUID(),
                 channel: input.channel,
-                threadKey: input.externalConversationId,
+                threadKey: input.externalConversationId
+                    ? scopedThreadKey(input.context.ownership, input.externalConversationId)
+                    : undefined,
+                ...ownershipPersistence(input.context.ownership),
                 participants: toParticipantsJson([input.sender]),
                 metadata: toInputJson(input.metadata),
                 createdAt: now,
@@ -304,10 +356,20 @@ export class PrismaCommunicationService implements CommunicationService {
         conversationId: string,
         channel: SendMessageInput["channel"],
         participant: ChannelIdentity,
+        context: CommunicationContext,
     ) {
-        const existing = await prisma.communicationConversation.findUnique({
+        const existingById = await prisma.communicationConversation.findUnique({
             where: { id: conversationId },
         });
+
+        if (
+            existingById &&
+            !this.ownershipMatches(existingById, context.ownership)
+        ) {
+            throw new Error("COMMUNICATION_CONVERSATION_OWNERSHIP_MISMATCH");
+        }
+
+        const existing = existingById;
 
         if (existing) {
             const currentParticipants = asParticipants(existing.participants);
@@ -331,11 +393,69 @@ export class PrismaCommunicationService implements CommunicationService {
             data: {
                 id: conversationId,
                 channel,
+                ...ownershipPersistence(context.ownership),
                 participants: toParticipantsJson([participant]),
                 createdAt: now,
                 updatedAt: now,
             },
         });
+    }
+
+
+    private executionOwnershipWhere(
+        ownership: CommunicationConversation["ownership"],
+    ): Record<string, unknown> {
+        switch (ownership.scope) {
+            case "COMPANY":
+                return { ownershipScope: "COMPANY", companyId: ownership.companyId };
+            case "SPACE":
+                return { ownershipScope: "SPACE", spaceId: ownership.spaceId };
+            case "SYSTEM":
+                return { ownershipScope: "SYSTEM", companyId: null, spaceId: null };
+        }
+    }
+
+    private ownershipMatches(
+        conversation: {
+            ownershipScope: string | null;
+            companyId: string | null;
+            spaceId: string | null;
+        },
+        ownership: CommunicationConversation["ownership"],
+    ): boolean {
+        switch (ownership.scope) {
+            case "COMPANY":
+                return (
+                    conversation.ownershipScope === "COMPANY" &&
+                    conversation.companyId === ownership.companyId
+                );
+            case "SPACE":
+                return (
+                    conversation.ownershipScope === "SPACE" &&
+                    conversation.spaceId === ownership.spaceId
+                );
+            case "SYSTEM":
+                return (
+                    conversation.ownershipScope === "SYSTEM" &&
+                    !conversation.companyId &&
+                    !conversation.spaceId
+                );
+        }
+    }
+
+    private ownershipWhere(
+        ownership: CommunicationConversation["ownership"],
+    ): Record<string, unknown> {
+        assertValidOwnership(ownership);
+
+        switch (ownership.scope) {
+            case "COMPANY":
+                return { ownershipScope: "COMPANY", companyId: ownership.companyId };
+            case "SPACE":
+                return { ownershipScope: "SPACE", spaceId: ownership.spaceId };
+            case "SYSTEM":
+                return { ownershipScope: "SYSTEM", companyId: null, spaceId: null };
+        }
     }
 
     private toDomainMessage(
@@ -366,6 +486,9 @@ export class PrismaCommunicationService implements CommunicationService {
         conversation: {
             id: string;
             channel: string;
+            ownershipScope: string | null;
+            companyId: string | null;
+            spaceId: string | null;
             participants: Prisma.JsonValue;
             status: string;
             createdAt: Date;
@@ -383,9 +506,25 @@ export class PrismaCommunicationService implements CommunicationService {
             }>;
         },
     ): CommunicationConversation {
+        const ownership =
+            conversation.ownershipScope === "COMPANY" && conversation.companyId
+                ? { scope: "COMPANY" as const, companyId: conversation.companyId }
+                : conversation.ownershipScope === "SPACE" && conversation.spaceId
+                    ? { scope: "SPACE" as const, spaceId: conversation.spaceId }
+                    : conversation.ownershipScope === "SYSTEM" &&
+                        !conversation.companyId &&
+                        !conversation.spaceId
+                        ? { scope: "SYSTEM" as const }
+                        : null;
+
+        if (!ownership) {
+            throw new Error("COMMUNICATION_CONVERSATION_OWNERSHIP_UNRESOLVED");
+        }
+
         return {
             id: conversation.id,
             channel: conversation.channel as CommunicationConversation["channel"],
+            ownership,
             participants: asParticipants(conversation.participants),
             messages: conversation.messages.map((message) =>
                 this.toDomainMessage(message),

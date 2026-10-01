@@ -2,6 +2,7 @@ import {
     CommunicationService,
     ReceiveMessageInput,
     SendMessageInput,
+    CommunicationContext,
 } from "./communication-service";
 import { CommunicationConversation } from "./conversation";
 import { CommunicationMessage } from "./message";
@@ -17,7 +18,6 @@ export class ChannelCommunicationService implements CommunicationService {
     ) {}
 
     async sendMessage(input: SendMessageInput): Promise<CommunicationMessage> {
-        const message = await this.store.sendMessage(input);
         const adapter = this.adapters.get(input.channel);
 
         if (!adapter) {
@@ -34,7 +34,15 @@ export class ChannelCommunicationService implements CommunicationService {
         };
 
         await adapter.send(outbound);
-        return message;
+
+        return this.store.sendMessage({
+            ...input,
+            metadata: {
+                ...input.metadata,
+                deliveryStatus: "sent",
+                deliveredAt: new Date().toISOString(),
+            },
+        });
     }
 
     async receiveMessage(input: ReceiveMessageInput): Promise<CommunicationMessage> {
@@ -43,7 +51,8 @@ export class ChannelCommunicationService implements CommunicationService {
 
     async getConversation(
         conversationId: string,
+        context: CommunicationContext,
     ): Promise<CommunicationConversation | null> {
-        return this.store.getConversation(conversationId);
+        return this.store.getConversation(conversationId, context);
     }
 }

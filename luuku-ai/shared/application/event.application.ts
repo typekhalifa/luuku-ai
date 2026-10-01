@@ -2,10 +2,16 @@ import { eventHistory } from "../events/history/event-history";
 
 export class EventApplication {
 
-    async getEvents() {
+    async getEvents(companyId?: string) {
+        const events = eventHistory.getAll();
 
-        return eventHistory.getAll();
+        if (!companyId) {
+            return events;
+        }
 
+        return events.filter(
+            (event) => event.context.companyId === companyId,
+        );
     }
 
 }

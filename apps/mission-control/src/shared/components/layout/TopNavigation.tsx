@@ -2,9 +2,17 @@ import {
   Bell,
   Search,
   Settings,
+  LogOut,
 } from "lucide-react";
+import type { ReactNode } from "react";
+
+import { api } from "@/services/api";
 
 export default function TopNavigation() {
+  async function logout() {
+    await api<void>("/auth/logout", { method: "POST" }).catch(() => undefined);
+    window.location.reload();
+  }
   return (
     <header className="mb-8 flex items-center justify-between">
 
@@ -32,9 +40,13 @@ export default function TopNavigation() {
           <Settings size={18} />
         </IconButton>
 
-        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-violet-600 font-bold">
-          L
-        </div>
+        <button
+          onClick={logout}
+          title="Sign out"
+          className="flex h-12 w-12 items-center justify-center rounded-full border border-white/10 bg-[#111] text-white/70 transition hover:border-violet-500 hover:text-white"
+        >
+          <LogOut size={18} />
+        </button>
 
       </div>
 
@@ -45,7 +57,7 @@ export default function TopNavigation() {
 function IconButton({
   children,
 }: {
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   return (
     <button className="rounded-2xl border border-white/10 bg-[#111] p-4 transition hover:border-violet-500">

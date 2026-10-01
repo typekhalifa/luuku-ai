@@ -1,3 +1,6 @@
+import crypto from "node:crypto";
+import https from "node:https";
+
 import {
     CommunicationAdapter,
     CommunicationExecutionResult,
@@ -7,12 +10,19 @@ import {
 const RESEND_ENDPOINT =
     "https://api.resend.com/emails";
 
+const LIVE_TEST_CONFIRMATION =
+    "SEND_TO_CONTROLLED_TEST_CONTACT";
+
 function getConfig() {
     return {
         apiKey: process.env.RESEND_API_KEY,
         from: process.env.RESEND_FROM_EMAIL,
         mode: process.env.EMAIL_MODE || "test",
-        testRecipient: process.env.EMAIL_TEST_RECIPIENT
+        testRecipient:
+            process.env.EMAIL_TEST_RECIPIENT ||
+            process.env.LUUKU_TEST_CONTACT_EMAIL,
+        liveTestConfirmation:
+            process.env.LUUKU_LIVE_EMAIL_CONFIRMATION
     };
 }
 
@@ -57,13 +67,104 @@ export const resendEmailAdapter: CommunicationAdapter = {
         request: CommunicationRequest
     ): Promise<CommunicationExecutionResult> {
 
-        const { apiKey, from, mode, testRecipient } = getConfig();
+        const {
+            apiKey,
+            from,
+            mode,
+            testRecipient,
+            liveTestConfirmation
+        } = getConfig();
+
+        const executionMode =
+            metadataString(request, "executionMode");
+
+        if (executionMode === "sandbox") {
+            const recipient =
+                request.recipientExternalId ||
+                request.recipient;
+
+            if (!recipient) {
+                return blockedResult(
+                    request,
+                    "Sandbox email recipient is missing.",
+                    "EMAIL_RECIPIENT_MISSING"
+                );
+            }
+
+            if (!testRecipient) {
+                return blockedResult(
+                    request,
+                    "Sandbox email requires a configured controlled test recipient.",
+                    "SANDBOX_TEST_RECIPIENT_NOT_CONFIGURED"
+                );
+            }
+
+            if (
+                recipient.toLowerCase() !== testRecipient.toLowerCase()
+            ) {
+                return blockedResult(
+                    request,
+                    `Sandbox execution only permits the configured test recipient ${testRecipient}.`,
+                    "SANDBOX_RECIPIENT_MISMATCH"
+                );
+            }
+
+            if (!request.subject) {
+                return blockedResult(
+                    request,
+                    "Sandbox email subject is missing.",
+                    "EMAIL_SUBJECT_MISSING"
+                );
+            }
+
+            if (!request.body) {
+                return blockedResult(
+                    request,
+                    "Sandbox email body is missing.",
+                    "EMAIL_BODY_MISSING"
+                );
+            }
+
+            const sandboxId =
+                `sandbox-email-${crypto.randomUUID()}`;
+
+            return {
+                capability: request.capability,
+                channel: request.channel,
+                status: "verified",
+                executed: true,
+                verified: true,
+                evidence: {
+                    provider: "sandbox-email",
+                    externalId: sandboxId,
+                    details: {
+                        recipient,
+                        subject: request.subject,
+                        transport: "local-sandbox",
+                        networkRequestMade: false,
+                        providerAccepted: true,
+                        mode: "sandbox"
+                    }
+                },
+                summary:
+                    `Sandbox email execution verified for ${recipient}. No external network request was made.`
+            };
+        }
 
         if (!apiKey || !from) {
             return blockedResult(
                 request,
                 "Real email is not configured. Set RESEND_API_KEY and RESEND_FROM_EMAIL.",
                 "EMAIL_PROVIDER_NOT_CONFIGURED"
+            );
+        }
+
+        // Defense in depth: only an explicitly live request can reach Resend.
+        if (executionMode !== "live") {
+            return blockedResult(
+                request,
+                "External email delivery is disabled unless executionMode is explicitly live.",
+                "EMAIL_EXTERNAL_EXECUTION_DISABLED"
             );
         }
 
@@ -79,22 +180,36 @@ export const resendEmailAdapter: CommunicationAdapter = {
             );
         }
 
-        if (mode === "test") {
-            if (!testRecipient) {
-                return blockedResult(
-                    request,
-                    "Test email mode requires EMAIL_TEST_RECIPIENT.",
-                    "EMAIL_TEST_RECIPIENT_NOT_CONFIGURED"
-                );
-            }
+        // The first live test is intentionally restricted to the founder's
+        // controlled test inbox. A live provider call cannot be enabled for
+        // arbitrary CRM contacts by merely switching EMAIL_MODE to live.
+        if (!testRecipient) {
+            return blockedResult(
+                request,
+                "Live controlled email requires LUUKU_TEST_CONTACT_EMAIL or EMAIL_TEST_RECIPIENT.",
+                "LIVE_TEST_RECIPIENT_NOT_CONFIGURED"
+            );
+        }
 
-            if (recipient.toLowerCase() !== testRecipient.toLowerCase()) {
-                return blockedResult(
-                    request,
-                    `Test mode only permits delivery to ${testRecipient}.`,
-                    "EMAIL_TEST_RECIPIENT_BLOCKED"
-                );
-            }
+        if (
+            recipient.toLowerCase() !== testRecipient.toLowerCase()
+        ) {
+            return blockedResult(
+                request,
+                `Live controlled execution only permits the configured test recipient ${testRecipient}.`,
+                "LIVE_TEST_RECIPIENT_BLOCKED"
+            );
+        }
+
+        // Require an explicit opt-in phrase before making the first real
+        // network request. This prevents a stale environment setting from
+        // accidentally turning a demo into external communication.
+        if (liveTestConfirmation !== LIVE_TEST_CONFIRMATION) {
+            return blockedResult(
+                request,
+                `Live delivery to the controlled test contact requires LUUKU_LIVE_EMAIL_CONFIRMATION=${LIVE_TEST_CONFIRMATION}.`,
+                "LIVE_TEST_CONFIRMATION_REQUIRED"
+            );
         }
 
         if (!request.subject) {
@@ -121,6 +236,12 @@ export const resendEmailAdapter: CommunicationAdapter = {
             const replyTo =
                 metadataString(request, "replyTo");
 
+            const inReplyTo =
+                metadataString(request, "inReplyTo");
+
+            const references =
+                metadataString(request, "references");
+
             const idempotencyKey =
                 metadataString(request, "idempotencyKey") ||
                 metadataString(request, "taskId");
@@ -134,6 +255,16 @@ export const resendEmailAdapter: CommunicationAdapter = {
                 headers["Idempotency-Key"] = idempotencyKey;
             }
 
+            const emailHeaders: Record<string, string> = {};
+
+            if (inReplyTo) {
+                emailHeaders["In-Reply-To"] = inReplyTo;
+            }
+
+            if (references) {
+                emailHeaders["References"] = references;
+            }
+
             const tags = [
                 {
                     name: "luuku_source",
@@ -145,33 +276,79 @@ export const resendEmailAdapter: CommunicationAdapter = {
                 }
             ];
 
-            const response = await fetch(
-                RESEND_ENDPOINT,
-                {
+            const payloadBody = JSON.stringify({
+                from,
+                to: [recipient],
+                subject: request.subject,
+                html,
+                text: request.body,
+                tags,
+                ...(replyTo
+                    ? { reply_to: replyTo }
+                    : {}),
+                ...(Object.keys(emailHeaders).length
+                    ? { headers: emailHeaders }
+                    : {})
+            });
+
+            const response = await new Promise<{
+                statusCode: number;
+                body: string;
+            }>((resolve, reject) => {
+                const endpoint = new URL(RESEND_ENDPOINT);
+
+                const req = https.request({
+                    protocol: endpoint.protocol,
+                    hostname: endpoint.hostname,
+                    port: endpoint.port || 443,
+                    path: `${endpoint.pathname}${endpoint.search}`,
                     method: "POST",
-                    headers,
-                    body: JSON.stringify({
-                        from,
-                        to: [recipient],
-                        subject: request.subject,
-                        html,
-                        text: request.body,
-                        tags,
-                        ...(replyTo
-                            ? { reply_to: replyTo }
-                            : {})
-                    })
-                }
-            );
+                    headers: {
+                        ...headers,
+                        "Content-Length": Buffer.byteLength(payloadBody)
+                    },
+                    timeout: 15000
+                }, res => {
+                    const chunks: Buffer[] = [];
 
-            const payload =
-                await response.json() as {
-                    id?: string;
-                    message?: string;
-                    name?: string;
-                };
+                    res.on("data", chunk => {
+                        chunks.push(Buffer.isBuffer(chunk)
+                            ? chunk
+                            : Buffer.from(chunk));
+                    });
 
-            if (!response.ok || !payload.id) {
+                    res.on("end", () => {
+                        resolve({
+                            statusCode: res.statusCode || 0,
+                            body: Buffer.concat(chunks).toString("utf8")
+                        });
+                    });
+                });
+
+                req.on("timeout", () => {
+                    req.destroy(new Error("Resend request timed out."));
+                });
+
+                req.on("error", reject);
+                req.write(payloadBody);
+                req.end();
+            });
+
+            let payload: {
+                id?: string;
+                message?: string;
+                name?: string;
+            } = {};
+
+            try {
+                payload = response.body
+                    ? JSON.parse(response.body) as typeof payload
+                    : {};
+            } catch {
+                payload = {};
+            }
+
+            if (response.statusCode < 200 || response.statusCode >= 300 || !payload.id) {
                 return {
                     capability: request.capability,
                     channel: request.channel,
@@ -183,7 +360,7 @@ export const resendEmailAdapter: CommunicationAdapter = {
                     error:
                         payload.message ||
                         payload.name ||
-                        `RESEND_HTTP_${response.status}`
+                        `RESEND_HTTP_${response.statusCode}`
                 };
             }
 
@@ -201,7 +378,10 @@ export const resendEmailAdapter: CommunicationAdapter = {
                         from,
                         providerAccepted: true,
                         mode,
-                        idempotencyKey
+                        idempotencyKey,
+                        threadedReply: Boolean(inReplyTo),
+                        inReplyTo,
+                        references
                     }
                 },
                 summary:

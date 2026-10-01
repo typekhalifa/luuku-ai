@@ -48,6 +48,7 @@ registerAgent({
 
 const workflow: Workflow = {
     id: workflowId,
+    ownership: { scope: "SYSTEM" },
     goal: "Demonstrate bounded retry and terminal failure policy.",
     status: WorkflowStatus.READY,
     steps: [{
@@ -76,13 +77,13 @@ async function cleanup() {
 
 async function main() {
     await cleanup();
-    await new PrismaWorkflowStore().create(workflow);
+    await new PrismaWorkflowStore({ scope: "SYSTEM" }).create(workflow);
 
     const runtime = () => new AutonomousRuntime(
-        new QueueScheduler(new PrismaQueueStore()),
-        new PrismaQueueStore(),
+        new QueueScheduler(new PrismaQueueStore({ scope: "SYSTEM" })),
+        new PrismaQueueStore({ scope: "SYSTEM" }),
         new WorkflowOrchestrator(undefined, new SharedAgentWorkflowExecutor()),
-        new PrismaWorkflowStore(),
+        new PrismaWorkflowStore({ scope: "SYSTEM" }),
     );
 
     const t1 = new Date("2026-08-30T09:00:00.000Z");
@@ -91,7 +92,7 @@ async function main() {
     assert.deepEqual(first.failed, []);
     assert.equal(executions, 1);
 
-    const afterFirst = await new PrismaQueueStore().get(queueId);
+    const afterFirst = await new PrismaQueueStore({ scope: "SYSTEM" }).get(queueId);
     assert.equal(afterFirst?.status, "QUEUED");
     assert.equal(afterFirst?.attempts, 1);
 
@@ -100,7 +101,7 @@ async function main() {
     assert.deepEqual(second.retried, [queueId]);
     assert.equal(executions, 2);
 
-    const afterSecond = await new PrismaQueueStore().get(queueId);
+    const afterSecond = await new PrismaQueueStore({ scope: "SYSTEM" }).get(queueId);
     assert.equal(afterSecond?.status, "QUEUED");
     assert.equal(afterSecond?.attempts, 2);
 
@@ -111,7 +112,7 @@ async function main() {
     assert.equal(executions, 3);
 
     const finalQueue = await new PrismaQueueStore().get(queueId);
-    const finalWorkflow = await new PrismaWorkflowStore().get(workflowId);
+    const finalWorkflow = await new PrismaWorkflowStore({ scope: "SYSTEM" }).get(workflowId);
     assert.equal(finalQueue?.status, "COMPLETED");
     assert.equal(finalQueue?.attempts, 3);
     assert.equal(finalWorkflow?.steps.find((step) => step.id === stepId)?.status, "COMPLETED");

@@ -9,6 +9,7 @@ import { ExecutiveObjectiveInterventionEngine, type ObjectiveIntervention } from
 import { ExecutiveObjectiveProgressTrendScorer, type ObjectiveProgressTrendScore } from "./objective-progress-trend.js";
 import { ExecutiveObjectiveUrgencyScorer, type ObjectiveUrgencyScore } from "./objective-urgency.js";
 import type { ExecutiveState } from "./executive-state.js";
+import { normalizeExecutionOwnership, type ExecutionOwnership } from "../../orchestration/ownership.js";
 import { ExecutiveLearningEngine, InMemoryExecutiveMemoryStore, type ExecutiveLearningRecord, type ExecutiveMemoryStore } from "./executive-memory.js";
 import { MemoryAwareStrategyEngine, type MemoryAwareStrategyDecision } from "./memory-aware-strategy.js";
 import { ExecutiveAdaptiveInterventionPolicy, type AdaptiveInterventionDecision } from "./adaptive-intervention-policy.js";
@@ -17,6 +18,7 @@ import { ExecutiveCapacityGate, type ExecutiveCapacityDecision, type ExecutiveCa
 import { ExecutiveResourceBudget, type ExecutiveBudgetCandidate, type ExecutiveBudgetRequirement, type ExecutiveBudgetResult } from "./executive-resource-budget.js";
 import { ExecutiveTradeoffEngine, type ExecutiveTradeoffCandidate, type ExecutiveTradeoffResult } from "./executive-tradeoff-engine.js";
 import { ExecutiveLearningAdaptationEngine, type ExecutiveLearningAdaptationDecision } from "./executive-learning-adaptation.js";
+import { ExecutiveStrategyEvolutionEngine, type ExecutiveStrategyEvolutionDecision } from "./executive-strategy-evolution.js";
 
 export interface ObjectiveDrivenCycleResult {
     readonly objective: ExecutiveObjectiveRecord;
@@ -25,29 +27,33 @@ export interface ObjectiveDrivenCycleResult {
     readonly progressTrend: ObjectiveProgressTrendScore;
     readonly intervention: ObjectiveIntervention;
     readonly learning: readonly ExecutiveLearningRecord[];
+    readonly strategyEvolution: ExecutiveStrategyEvolutionDecision;
     readonly strategy: MemoryAwareStrategyDecision;
     readonly adaptiveIntervention: AdaptiveInterventionDecision;
     readonly intent: ExecutiveIntent;
     readonly plan?: ExecutionPlan;
     readonly capacity?: ExecutiveCapacityDecision;
     readonly budget?: ExecutiveBudgetResult;
-    readonly learningAdaptation?: ExecutiveLearningAdaptationDecision;
     readonly tradeoff?: ExecutiveTradeoffResult;
+    readonly learningAdaptation?: readonly ExecutiveLearningAdaptationDecision[];
 }
 
 export interface ObjectiveDrivenExecutiveCycleOptions {
+    readonly ownership?: ExecutionOwnership;
     readonly maxSelections?: number;
     readonly capacityGate?: ExecutiveCapacityGate;
     readonly resourceRequirements?: (candidate: ExecutiveWorkCandidate) => readonly ExecutiveCapacityRequirement[];
     readonly resourceBudget?: ExecutiveResourceBudget;
     readonly budgetRequirements?: (candidate: ExecutiveWorkCandidate) => readonly ExecutiveBudgetRequirement[];
-    readonly learningAdaptation?: ExecutiveLearningAdaptationEngine;
     readonly tradeoffEngine?: ExecutiveTradeoffEngine;
     readonly tradeoffInputs?: (candidate: ExecutiveWorkCandidate) => ExecutiveTradeoffCandidate;
+    readonly learningAdaptation?: ExecutiveLearningAdaptationEngine;
+    readonly strategyEvolution?: ExecutiveStrategyEvolutionEngine;
 }
 
-/** Connects objective assessment, V8-C arbitration, V8-D capacity, V8-E budgeting, V8-G learning adaptation, V8-F economics, planning, and V8-B execution preparation. */
+/** Connects objective assessment, V8-C arbitration, V8-D capacity gating, V8-E budget allocation, V8-F tradeoff economics, V8-G learning adaptation, V8-H strategy evolution, planning, and V8-B execution preparation. */
 export class ObjectiveDrivenExecutiveCycle {
+    private readonly ownership: ExecutionOwnership;
     private readonly objectiveEngine: ExecutiveObjectiveEngine;
     private readonly intentBridge = new ExecutiveObjectiveIntentBridge();
     private readonly interventionEngine = new ExecutiveObjectiveInterventionEngine();
@@ -57,16 +63,18 @@ export class ObjectiveDrivenExecutiveCycle {
     private readonly resourceRequirements: (candidate: ExecutiveWorkCandidate) => readonly ExecutiveCapacityRequirement[];
     private readonly resourceBudget?: ExecutiveResourceBudget;
     private readonly budgetRequirements: (candidate: ExecutiveWorkCandidate) => readonly ExecutiveBudgetRequirement[];
-    private readonly learningAdaptation?: ExecutiveLearningAdaptationEngine;
     private readonly tradeoffEngine?: ExecutiveTradeoffEngine;
     private readonly tradeoffInputs: (candidate: ExecutiveWorkCandidate) => ExecutiveTradeoffCandidate;
+    private readonly learningAdaptation?: ExecutiveLearningAdaptationEngine;
+    private readonly strategyEvolution: ExecutiveStrategyEvolutionEngine;
     private readonly urgencyScorer = new ExecutiveObjectiveUrgencyScorer();
     private readonly progressTrendScorer = new ExecutiveObjectiveProgressTrendScorer();
     private readonly learningEngine: ExecutiveLearningEngine;
     private readonly strategyEngine = new MemoryAwareStrategyEngine();
     private readonly adaptivePolicy = new ExecutiveAdaptiveInterventionPolicy();
 
-    constructor(objectiveStore: ExecutiveObjectiveStore, capabilityResolver: CapabilityResolver, memoryStore: ExecutiveMemoryStore = new InMemoryExecutiveMemoryStore(), options: ObjectiveDrivenExecutiveCycleOptions = {}) {
+    constructor(objectiveStore: ExecutiveObjectiveStore, capabilityResolver: CapabilityResolver, memoryStore: ExecutiveMemoryStore = new InMemoryExecutiveMemoryStore(), options: ObjectiveDrivenExecutiveCycleOptions = { ownership: { scope: "SYSTEM" } }) {
+        this.ownership = normalizeExecutionOwnership(options.ownership);
         this.objectiveEngine = new ExecutiveObjectiveEngine(objectiveStore);
         this.planBuilder = new ExecutiveIntentPlanBuilder(capabilityResolver);
         this.arbitrator = new ExecutiveWorkArbitrator({ maxSelections: options.maxSelections ?? 1 });
@@ -74,52 +82,36 @@ export class ObjectiveDrivenExecutiveCycle {
         this.resourceRequirements = options.resourceRequirements ?? (() => []);
         this.resourceBudget = options.resourceBudget;
         this.budgetRequirements = options.budgetRequirements ?? (() => []);
-        this.learningAdaptation = options.learningAdaptation;
         this.tradeoffEngine = options.tradeoffEngine;
-        this.tradeoffInputs = options.tradeoffInputs ?? ((candidate) => ({
-            id: candidate.objective.id,
-            objectiveValue: Math.max(0, candidate.assessment.attentionRequired ? 60 : 20),
-            urgency: candidate.urgency.score,
-            strategicImpact: candidate.progressTrend.interventionScore,
-            resourceCost: 0,
-            risk: 0,
-        }));
+        this.tradeoffInputs = options.tradeoffInputs ?? ((candidate) => ({ id: candidate.objective.id, objectiveValue: Math.max(0, candidate.assessment.attentionRequired ? 60 : 20), urgency: candidate.urgency.score, strategicImpact: candidate.progressTrend.interventionScore, resourceCost: 0, risk: 0 }));
+        this.learningAdaptation = options.learningAdaptation;
+        this.strategyEvolution = options.strategyEvolution ?? new ExecutiveStrategyEvolutionEngine(objectiveStore);
         this.learningEngine = new ExecutiveLearningEngine(memoryStore);
     }
 
     async run(state: ExecutiveState, capabilities: IntentPlanCapabilityMap, now = new Date()): Promise<readonly ObjectiveDrivenCycleResult[]> {
         const objectives = await this.objectiveEngine.listActive();
         const learning = await this.learningEngine.learn();
+        const strategyEvolution = await this.strategyEvolution.evolve(objectives, learning);
         const candidates: ExecutiveWorkCandidate[] = [];
         for (const objective of objectives) {
             const assessment = await this.objectiveEngine.assess(objective, state);
             candidates.push({ objective, assessment, urgency: this.urgencyScorer.score({ objective, assessment, now }), progressTrend: this.progressTrendScorer.score(objective) });
         }
-
         const arbitration: ExecutiveWorkArbitrationDecision = this.arbitrator.arbitrate(candidates);
         const capacity = this.capacityGate?.admit(arbitration.selected, this.resourceRequirements);
         const capacitySelected = capacity?.selected ?? arbitration.selected;
-        const budgetCandidates: ExecutiveBudgetCandidate[] = capacitySelected.map((candidate) => ({
-            id: candidate.objective.id,
-            priorityScore: candidate.urgency.score + candidate.progressTrend.interventionScore,
-            requirements: this.budgetRequirements(candidate),
-        }));
+        const budgetCandidates: ExecutiveBudgetCandidate[] = capacitySelected.map((candidate) => ({ id: candidate.objective.id, priorityScore: candidate.urgency.score + candidate.progressTrend.interventionScore, requirements: this.budgetRequirements(candidate) }));
         const budget = this.resourceBudget?.allocate(budgetCandidates);
         const budgetAllowedIds = budget ? new Set(budget.allocations.filter((item) => item.decision === "ALLOCATE").map((item) => item.candidateId)) : undefined;
         const budgetSelected = budgetAllowedIds ? capacitySelected.filter((candidate) => budgetAllowedIds.has(candidate.objective.id)) : capacitySelected;
-
-        const baselineTradeoffCandidates = budgetSelected.map(this.tradeoffInputs);
-        const learningAdaptations = this.learningAdaptation
-            ? baselineTradeoffCandidates.map((candidate) => this.learningAdaptation!.adapt(candidate, learning))
-            : [];
-        const tradeoffCandidates = learningAdaptations.length > 0
-            ? learningAdaptations.map((decision) => decision.adjustedCandidate)
-            : baselineTradeoffCandidates;
+        const rawTradeoffCandidates = budgetSelected.map(this.tradeoffInputs);
+        const learningAdaptation = this.learningAdaptation ? rawTradeoffCandidates.map((candidate) => this.learningAdaptation!.adapt(candidate, learning)) : undefined;
+        const tradeoffCandidates = learningAdaptation?.map((decision) => decision.adjustedCandidate) ?? rawTradeoffCandidates;
         const tradeoff = this.tradeoffEngine?.evaluate(tradeoffCandidates);
         const tradeoffAllowedIds = tradeoff ? new Set(tradeoff.allocations.filter((item) => item.decision === "SELECT").map((item) => item.candidateId)) : undefined;
         const selected = tradeoffAllowedIds ? budgetSelected.filter((candidate) => tradeoffAllowedIds.has(candidate.objective.id)) : budgetSelected;
         const results: ObjectiveDrivenCycleResult[] = [];
-
         for (const { objective, assessment, urgency, progressTrend } of selected) {
             const intervention = this.interventionEngine.assess({ objective, assessment, progressTrend });
             const strategicObjective = { objectiveId: objective.id, title: objective.title, priority: objective.priority, horizon: "MEDIUM_TERM" as const, strategicScore: urgency.score + progressTrend.interventionScore, dependencyIds: [], conflictIds: [] };
@@ -129,13 +121,12 @@ export class ObjectiveDrivenExecutiveCycle {
             const actionableIntervention = intervention.type !== "NO_INTERVENTION" && intervention.interventionRequired;
             const bridgedIntent = this.intentBridge.build({ objective, assessment, intervention: actionableIntervention ? adaptedIntervention : adaptiveIntervention.mode === "CONTINUE" ? undefined : adaptedIntervention });
             const intent: ExecutiveIntent = actionableIntervention ? { ...bridgedIntent, type: intervention.type === "RECOVER_FAILED_WORK" ? "RECOVER_FAILED_WORK" : "INTERVENE_OBJECTIVE" } : bridgedIntent;
-            const learningAdaptation = learningAdaptations.find((decision) => decision.originalCandidate.id === objective.id);
             if (!actionableIntervention) {
-                results.push({ objective, assessment, urgency, progressTrend, intervention, learning, strategy, adaptiveIntervention, intent, capacity, budget, learningAdaptation, tradeoff });
+                results.push({ objective, assessment, urgency, progressTrend, intervention, learning, strategyEvolution, strategy, adaptiveIntervention, intent, capacity, budget, tradeoff, learningAdaptation });
                 continue;
             }
-            const plan = this.planBuilder.build({ intent, capabilities });
-            results.push({ objective, assessment, urgency, progressTrend, intervention, learning, strategy, adaptiveIntervention, intent, plan, capacity, budget, learningAdaptation, tradeoff });
+            const plan = this.planBuilder.build({ intent, capabilities, ownership: this.ownership });
+            results.push({ objective, assessment, urgency, progressTrend, intervention, learning, strategyEvolution, strategy, adaptiveIntervention, intent, plan, capacity, budget, tradeoff, learningAdaptation });
         }
         return results;
     }

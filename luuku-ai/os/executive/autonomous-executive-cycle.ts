@@ -1,4 +1,5 @@
 import type { QueueStore } from "../../orchestration/queue/queue.js";
+import { normalizeExecutionOwnership, type ExecutionOwnership } from "../../orchestration/ownership.js";
 import { AutonomousRuntime, type AutonomousRuntimeCycleResult } from "../../orchestration/workflow/autonomous-runtime.js";
 import type { WorkflowStore } from "../../orchestration/workflow/workflow-store.js";
 import { SharedAgentWorkflowExecutor } from "../../orchestration/workflow/shared-agent-workflow-executor.js";
@@ -23,20 +24,20 @@ import type { ExecutiveWorkCandidate } from "./executive-work-arbitrator.js";
 import type { ExecutiveResourceBudget, ExecutiveBudgetRequirement } from "./executive-resource-budget.js";
 import type { ExecutiveTradeoffEngine, ExecutiveTradeoffCandidate } from "./executive-tradeoff-engine.js";
 import type { ExecutiveLearningAdaptationEngine } from "./executive-learning-adaptation.js";
-import {
-    ExecutiveCompanyStateObserver,
-    type CompanyStateObservationResult,
-    type CompanyStateObservationSource,
-    type CompanyStateSnapshot,
-} from "./v8-i-company-state-observation.js";
+import { ExecutiveInstitutionalMemory, type InstitutionalMemoryStore } from "./v8-l-institutional-memory.js";
+import { ExecutiveMemoryInstitutionalProjector, type InstitutionalMemoryProjectionResult } from "./v8-l-institutional-memory-projector.js";
+import { AutonomousCompanyLoopEngine, type AutonomousCompanyLoopCycle } from "./v8-n-autonomous-company-loop.js";
+import type { ExecutiveExceptionSignal } from "./v8-m-exception-management.js";
 
 export interface AutonomousExecutiveCycleOptions {
+    readonly ownership?: ExecutionOwnership;
     readonly capabilities: IntentPlanCapabilityMap;
     readonly policyRules: readonly AutonomyPolicyRule[];
     readonly executeRuntime?: boolean;
     readonly workflowExecutor?: WorkflowStepExecutor;
     readonly objectiveStore?: ExecutiveObjectiveStore;
     readonly memoryStore?: ExecutiveMemoryStore;
+    readonly institutionalMemoryStore?: InstitutionalMemoryStore;
     readonly shouldProcessIntent?: (intent: ExecutiveIntent) => boolean | Promise<boolean>;
     readonly maxObjectiveSelections?: number;
     readonly capacityGate?: ExecutiveCapacityGate;
@@ -46,7 +47,6 @@ export interface AutonomousExecutiveCycleOptions {
     readonly tradeoffEngine?: ExecutiveTradeoffEngine;
     readonly tradeoffInputs?: (candidate: ExecutiveWorkCandidate) => ExecutiveTradeoffCandidate;
     readonly learningAdaptation?: ExecutiveLearningAdaptationEngine;
-    readonly companyStateSources?: readonly CompanyStateObservationSource[];
 }
 
 export interface AutonomousExecutiveIntentResult {
@@ -61,17 +61,19 @@ export interface AutonomousExecutiveIntentResult {
 export interface AutonomousExecutiveCycleResult {
     readonly initialState: ExecutiveState;
     readonly initialObservation: ExecutiveObservationSnapshot;
-    readonly companyStateObservation?: CompanyStateObservationResult;
     readonly intents: ExecutiveIntentSnapshot;
     readonly objectiveResults: readonly ObjectiveDrivenCycleResult[];
     readonly intentResults: readonly AutonomousExecutiveIntentResult[];
     readonly runtime?: AutonomousRuntimeCycleResult;
     readonly feedback: ExecutionFeedbackSnapshot;
+    readonly institutionalMemoryProjection?: InstitutionalMemoryProjectionResult;
+    readonly companyLoop?: AutonomousCompanyLoopCycle;
     readonly finalState: ExecutiveState;
     readonly finalObservation: ExecutiveObservationSnapshot;
 }
 
 export class AutonomousExecutiveCycle {
+    private readonly ownership: ExecutionOwnership;
     private readonly stateSource: DurableExecutiveStateSource;
     private readonly feedbackSource: DurableExecutionFeedbackSource;
     private readonly feedbackProjector = new ExecutionFeedbackStateProjector();
@@ -85,186 +87,91 @@ export class AutonomousExecutiveCycle {
     private readonly runtime: AutonomousRuntime;
     private readonly objectiveCycle?: ObjectiveDrivenExecutiveCycle;
     private readonly memoryStore: ExecutiveMemoryStore;
-    private readonly companyStateObserver?: ExecutiveCompanyStateObserver;
-    private companyStateSnapshot?: CompanyStateSnapshot;
+    private readonly institutionalMemoryProjector?: ExecutiveMemoryInstitutionalProjector;
+    private readonly companyLoop = new AutonomousCompanyLoopEngine();
 
-    constructor(
-        private readonly workflowStore: WorkflowStore,
-        private readonly queueStore: QueueStore,
-        capabilityResolver: CapabilityResolver,
-        options: AutonomousExecutiveCycleOptions,
-    ) {
+    constructor(private readonly workflowStore: WorkflowStore, private readonly queueStore: QueueStore, capabilityResolver: CapabilityResolver, options: AutonomousExecutiveCycleOptions) {
+        this.ownership = normalizeExecutionOwnership(options.ownership);
         this.stateSource = new DurableExecutiveStateSource(workflowStore, queueStore);
         this.feedbackSource = new DurableExecutionFeedbackSource(workflowStore, queueStore);
         this.planBuilder = new ExecutiveIntentPlanBuilder(capabilityResolver);
         this.policy = new ExecutiveAutonomyPolicy(options.policyRules);
         this.submission = new DurableExecutiveSubmission(workflowStore);
         this.continuation = new ExecutiveRuntimeContinuation(workflowStore, queueStore);
-        this.runtime = new AutonomousRuntime(
-            new QueueScheduler(queueStore),
-            queueStore,
-            new WorkflowOrchestrator(undefined, options.workflowExecutor ?? new SharedAgentWorkflowExecutor()),
-            workflowStore,
-        );
+        this.runtime = new AutonomousRuntime(new QueueScheduler(queueStore), queueStore, new WorkflowOrchestrator(undefined, options.workflowExecutor ?? new SharedAgentWorkflowExecutor()), workflowStore);
         this.memoryStore = options.memoryStore ?? new InMemoryExecutiveMemoryStore();
-        this.companyStateObserver = options.companyStateSources && options.companyStateSources.length > 0
-            ? new ExecutiveCompanyStateObserver(options.companyStateSources)
-            : undefined;
-        this.objectiveCycle = options.objectiveStore
-            ? new ObjectiveDrivenExecutiveCycle(
-                options.objectiveStore,
-                capabilityResolver,
-                this.memoryStore,
-                {
-                    maxSelections: options.maxObjectiveSelections ?? 1,
-                    capacityGate: options.capacityGate,
-                    resourceRequirements: options.resourceRequirements,
-                    resourceBudget: options.resourceBudget,
-                    budgetRequirements: options.budgetRequirements,
-                    tradeoffEngine: options.tradeoffEngine,
-                    tradeoffInputs: options.tradeoffInputs,
-                    learningAdaptation: options.learningAdaptation,
-                },
-            )
-            : undefined;
+        this.institutionalMemoryProjector = options.institutionalMemoryStore ? new ExecutiveMemoryInstitutionalProjector(this.memoryStore, new ExecutiveInstitutionalMemory(options.institutionalMemoryStore)) : undefined;
+        this.objectiveCycle = options.objectiveStore ? new ObjectiveDrivenExecutiveCycle(options.objectiveStore, capabilityResolver, this.memoryStore, { ownership: options.ownership, maxSelections: options.maxObjectiveSelections ?? 1, capacityGate: options.capacityGate, resourceRequirements: options.resourceRequirements, resourceBudget: options.resourceBudget, budgetRequirements: options.budgetRequirements, tradeoffEngine: options.tradeoffEngine, tradeoffInputs: options.tradeoffInputs, learningAdaptation: options.learningAdaptation }) : undefined;
     }
 
-    async run(
-        options: AutonomousExecutiveCycleOptions,
-        now = new Date(),
-    ): Promise<AutonomousExecutiveCycleResult> {
+    async run(options: AutonomousExecutiveCycleOptions, now = new Date()): Promise<AutonomousExecutiveCycleResult> {
         const initialState = await this.stateSource.snapshot();
         const initialFeedback = await this.feedbackSource.snapshot();
         const stateWithFeedback = this.feedbackProjector.apply(initialState, initialFeedback);
         const initialObservation = this.observer.observe(stateWithFeedback);
-        const companyStateObservation = this.companyStateObserver
-            ? await this.companyStateObserver.observe(this.companyStateSnapshot)
-            : undefined;
-
-        if (companyStateObservation) {
-            this.companyStateSnapshot = companyStateObservation.snapshot;
-        }
-
         const observedIntents = this.intentProjector.derive(initialObservation);
-        const objectiveResults = this.objectiveCycle
-            ? await this.objectiveCycle.run(stateWithFeedback, options.capabilities, now)
-            : [];
-
-        const objectiveIntents = objectiveResults
-            .map((result) => result.intent)
-            .filter((intent) =>
-                (intent.type === "RECOVER_FAILED_WORK" || intent.type === "INTERVENE_OBJECTIVE")
-                && objectiveResults.some((result) => result.intent.id === intent.id && result.plan),
-            );
+        const objectiveResults = this.objectiveCycle ? await this.objectiveCycle.run(stateWithFeedback, options.capabilities, now) : [];
+        const objectiveIntents = objectiveResults.map((result) => result.intent).filter((intent) => (intent.type === "RECOVER_FAILED_WORK" || intent.type === "INTERVENE_OBJECTIVE") && objectiveResults.some((result) => result.intent.id === intent.id && result.plan));
         const objectiveIntentTypes = new Set(objectiveIntents.map((intent) => intent.type));
-        const intents: ExecutiveIntentSnapshot = {
-            ...observedIntents,
-            intents: [
-                ...objectiveIntents,
-                ...observedIntents.intents.filter((intent) => !objectiveIntentTypes.has(intent.type)),
-            ],
-        };
+        const intents: ExecutiveIntentSnapshot = { ...observedIntents, intents: [...objectiveIntents, ...observedIntents.intents.filter((intent) => !objectiveIntentTypes.has(intent.type))] };
         const intentResults: AutonomousExecutiveIntentResult[] = [];
+        const preExecutionSignals: ExecutiveExceptionSignal[] = [];
+        if (stateWithFeedback.failed > 0) preExecutionSignals.push({ type: "REPEATED_FAILURE", description: "Executive work remains failed before the cycle execution boundary.", detectedAt: now.toISOString(), evidence: { failed: stateWithFeedback.failed, failedWorkIds: [...(stateWithFeedback.failedWorkIds ?? [])] }, repeatedFailureCount: stateWithFeedback.failed });
+        if (stateWithFeedback.waitingApproval > 0) preExecutionSignals.push({ type: "APPROVAL_REQUIRED", description: "Executive work is waiting for founder approval before execution.", detectedAt: now.toISOString(), evidence: { waitingApproval: stateWithFeedback.waitingApproval, attention: [...stateWithFeedback.attention] } });
 
         for (const intent of intents.intents) {
             if (options.shouldProcessIntent && !(await options.shouldProcessIntent(intent))) continue;
-            if (intent.type === "NO_ACTION" || intent.type === "WAIT_FOR_FOUNDER_DECISION" || intent.type === "MONITOR_ACTIVE_WORK") {
-                intentResults.push({ intent });
-                continue;
-            }
-
+            if (intent.type === "NO_ACTION" || intent.type === "WAIT_FOR_FOUNDER_DECISION" || intent.type === "MONITOR_ACTIVE_WORK") { intentResults.push({ intent }); continue; }
             const objectivePlan = objectiveResults.find((result) => result.intent.id === intent.id)?.plan;
-            const plan = objectivePlan ?? this.planBuilder.build({ intent, capabilities: options.capabilities });
+            const plan = objectivePlan ?? this.planBuilder.build({ intent, capabilities: options.capabilities, ownership: this.ownership });
             const policy = this.policy.evaluate({ intent, plan });
             const decision = this.decisionProjector.decide(intent, plan, policy);
+            const gate = this.companyLoop.evaluateExecutionGate({ observedAt: now.toISOString(), exceptionSignals: preExecutionSignals, hasRunnableWork: true, hasStrategicPlan: objectiveResults.length > 0, interventionRequired: objectiveResults.some((result) => result.intervention.interventionRequired), executionApproved: decision.status === "ELIGIBLE" });
+            if (!gate.permitted) {
+                intentResults.push({ intent, planId: plan.id, policy, decision: { ...decision, status: "BLOCKED", reason: gate.reason ?? decision.reason, evidence: { ...decision.evidence, autonomousCompanyLoop: gate.reason ?? "Execution blocked by autonomous company loop." } } });
+                continue;
+            }
             const submission = await this.submission.submit(decision, plan);
-            const continuation = submission.status === "SUBMITTED" || submission.status === "ALREADY_SUBMITTED"
-                ? await this.continuation.continue(plan.id, now)
-                : undefined;
-
+            const continuation = submission.status === "SUBMITTED" || submission.status === "ALREADY_SUBMITTED" ? await this.continuation.continue(plan.id, now) : undefined;
             intentResults.push({ intent, planId: plan.id, policy, decision, submission, continuation });
         }
 
-        const executableWorkflowIds = [...new Set(
-            intentResults
-                .map((result) => result.submission?.workflow?.id)
-                .filter((id): id is string => id !== undefined),
-        )];
-
+        const executableWorkflowIds = [...new Set(intentResults.map((result) => result.submission?.workflow?.id).filter((id): id is string => id !== undefined))];
         let runtimeResult: AutonomousRuntimeCycleResult | undefined;
         if (options.executeRuntime && executableWorkflowIds.length > 0) {
-            runtimeResult = {
-                scheduled: [], recovered: [], claimed: [], executed: [], completed: [], retried: [], failed: [], blocked: [], reconciled: [], escalated: [],
-            };
-
+            runtimeResult = { scheduled: [], recovered: [], claimed: [], executed: [], completed: [], retried: [], failed: [], blocked: [], reconciled: [], escalated: [] };
             for (const workflowId of executableWorkflowIds) {
                 const result = await this.runtime.runPersistedCycle(workflowId, now);
-                runtimeResult = {
-                    scheduled: [...runtimeResult.scheduled, ...result.scheduled],
-                    recovered: [...runtimeResult.recovered, ...result.recovered],
-                    claimed: [...runtimeResult.claimed, ...result.claimed],
-                    executed: [...runtimeResult.executed, ...result.executed],
-                    completed: [...runtimeResult.completed, ...result.completed],
-                    retried: [...runtimeResult.retried, ...result.retried],
-                    failed: [...runtimeResult.failed, ...result.failed],
-                    blocked: [...runtimeResult.blocked, ...result.blocked],
-                    reconciled: [...runtimeResult.reconciled, ...result.reconciled],
-                    escalated: [...runtimeResult.escalated, ...result.escalated],
-                };
+                runtimeResult = { scheduled: [...runtimeResult.scheduled, ...result.scheduled], recovered: [...runtimeResult.recovered, ...result.recovered], claimed: [...runtimeResult.claimed, ...result.claimed], executed: [...runtimeResult.executed, ...result.executed], completed: [...runtimeResult.completed, ...result.completed], retried: [...runtimeResult.retried, ...result.retried], failed: [...runtimeResult.failed, ...result.failed], blocked: [...runtimeResult.blocked, ...result.blocked], reconciled: [...runtimeResult.reconciled, ...result.reconciled], escalated: [...runtimeResult.escalated, ...result.escalated] };
             }
-
             await this.recordRuntimeOutcome(runtimeResult, intentResults, objectiveResults, now);
         }
 
         const feedback = await this.feedbackSource.snapshot();
+        const institutionalMemoryProjection = this.institutionalMemoryProjector ? await this.institutionalMemoryProjector.project() : undefined;
         const finalState = this.feedbackProjector.apply(await this.stateSource.snapshot(), feedback);
         const finalObservation = this.observer.observe(finalState);
-
-        return { initialState: stateWithFeedback, initialObservation, companyStateObservation, intents, objectiveResults, intentResults, runtime: runtimeResult, feedback, finalState, finalObservation };
+        const exceptionSignals: ExecutiveExceptionSignal[] = [];
+        if (finalState.failed > 0) exceptionSignals.push({ type: "REPEATED_FAILURE", description: "Executive work remains failed after the cycle.", detectedAt: now.toISOString(), evidence: { failed: finalState.failed, failedWorkIds: [...(finalState.failedWorkIds ?? [])] }, repeatedFailureCount: finalState.failed });
+        if (finalState.waitingApproval > 0) exceptionSignals.push({ type: "APPROVAL_REQUIRED", description: "Executive work is waiting for founder approval.", detectedAt: now.toISOString(), evidence: { waitingApproval: finalState.waitingApproval, attention: [...finalState.attention] } });
+        const companyLoop = this.companyLoop.runCycle({ observedAt: now.toISOString(), exceptionSignals, hasRunnableWork: finalState.active > 0 || intents.intents.some((intent) => intent.type !== "NO_ACTION" && intent.type !== "MONITOR_ACTIVE_WORK" && intent.type !== "WAIT_FOR_FOUNDER_DECISION"), hasStrategicPlan: objectiveResults.length > 0, interventionRequired: objectiveResults.some((result) => result.intervention.interventionRequired), executionApproved: intentResults.some((result) => result.decision?.status === "ELIGIBLE") });
+        return { initialState: stateWithFeedback, initialObservation, intents, objectiveResults, intentResults, runtime: runtimeResult, feedback, institutionalMemoryProjection, companyLoop, finalState, finalObservation };
     }
 
-    private async recordRuntimeOutcome(
-        runtime: AutonomousRuntimeCycleResult,
-        intentResults: readonly AutonomousExecutiveIntentResult[],
-        objectiveResults: readonly ObjectiveDrivenCycleResult[],
-        now: Date,
-    ): Promise<void> {
-        const terminalQueueIds = new Set([
-            ...runtime.completed,
-            ...runtime.failed,
-            ...runtime.blocked,
-            ...runtime.reconciled,
-            ...runtime.escalated,
-        ]);
-
+    private async recordRuntimeOutcome(runtime: AutonomousRuntimeCycleResult, intentResults: readonly AutonomousExecutiveIntentResult[], objectiveResults: readonly ObjectiveDrivenCycleResult[], now: Date): Promise<void> {
+        const terminalQueueIds = new Set([...runtime.completed, ...runtime.failed, ...runtime.blocked, ...runtime.reconciled, ...runtime.escalated]);
         for (const result of intentResults) {
             const workflow = result.submission?.workflow;
             if (!workflow) continue;
-
             const terminalStep = workflow.steps.find((step) => terminalQueueIds.has(`${workflow.id}:${step.id}`));
             if (!terminalStep) continue;
-
             const workflowId = workflow.id;
             const success = runtime.completed.includes(`${workflow.id}:${terminalStep.id}`);
             const objectiveResult = objectiveResults.find((item) => item.intent.id === result.intent.id);
-            const outcome = success ? "Workflow completed." : "Workflow reached a non-success terminal outcome.";
             const id = `executive-memory:${workflowId}:outcome`;
             const existing = await this.memoryStore.list();
             if (existing.some((record) => record.id === id)) continue;
-
-            await this.memoryStore.save({
-                id,
-                objectiveId: objectiveResult?.objective.id,
-                workflowId,
-                eventType: success ? "ACTION_COMPLETED" : "ACTION_FAILED",
-                action: objectiveResult?.adaptiveIntervention.mode ?? result.intent.type,
-                outcome,
-                success,
-                lesson: success
-                    ? "The selected executive approach completed successfully."
-                    : "The selected executive approach produced a non-success outcome and should be reconsidered.",
-                createdAt: now,
-            });
+            await this.memoryStore.save({ id, ownership: this.ownership, objectiveId: objectiveResult?.objective.id, workflowId, eventType: success ? "ACTION_COMPLETED" : "ACTION_FAILED", action: objectiveResult?.adaptiveIntervention.mode ?? result.intent.type, outcome: success ? "Workflow completed." : "Workflow reached a non-success terminal outcome.", success, lesson: success ? "The selected executive approach completed successfully." : "The selected executive approach produced a non-success outcome and should be reconsidered.", createdAt: now });
         }
     }
 }

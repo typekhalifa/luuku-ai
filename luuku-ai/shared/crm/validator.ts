@@ -1,5 +1,10 @@
 import { Contact } from "./types";
 
+export type CRMCommunicationChannel =
+    | "email"
+    | "voice"
+    | undefined;
+
 export interface CRMValidationResult {
 
     ready: boolean;
@@ -10,40 +15,37 @@ export interface CRMValidationResult {
 
 export function validateContact(
 
-    contact: Contact
+    contact: Contact,
+    channel?: CRMCommunicationChannel
 
 ): CRMValidationResult {
 
     const reasons: string[] = [];
 
-    if (!contact.phoneNumber) {
-
+    // CRM readiness is channel-aware. An email action does not require a
+    // phone number, while a voice action does not require an email address.
+    if (
+        (!channel || channel === "voice") &&
+        !contact.phoneNumber
+    ) {
         reasons.push(
-
             "Missing phone number."
-
         );
-
     }
 
-    if (!contact.email) {
-
+    if (
+        (!channel || channel === "email") &&
+        !contact.email
+    ) {
         reasons.push(
-
             "Missing email address."
-
         );
-
     }
 
     if (!contact.verified) {
-
         reasons.push(
-
             "Contact is not verified."
-
         );
-
     }
 
     return {
@@ -55,5 +57,4 @@ export function validateContact(
         reasons
 
     };
-
 }

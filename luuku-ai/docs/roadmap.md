@@ -1,90 +1,61 @@
-# Luuku AI Roadmap
+# Luuku AI Internal Roadmap
 
-## Phase 1 — Foundation
-**Timeline:** June 2026 – December 2026
+This file records the internal evolution of the AI workforce. For the authoritative current architecture and V8 status, see the root ROADMAP.md and docs/ARCHITECTURE-AUDIT.md.
 
-### Goal
-Build Luuku AI’s internal foundation and first internal AI workforce.
+## Historical workforce plan
 
-### Key Outcomes
-- Establish Luuku AI brand and identity
-- Document company vision and architecture
-- Build first AI agents
-- Create internal knowledge base
-- Develop company operating system v1
+The original plan was:
+- Executive Assistant
+- Research
+- Sales
+- Proposal
+- Finance
+- Project Manager
+- Chief of Staff
 
-### AI Workforce v1
-- Executive Assistant Agent
-- Research Agent
-- Sales Agent
+This remains useful as historical intent.
 
-### Deliverables
-- Luuku AI repository
-- agent prompt system
-- internal documentation
-- simple command center
-- first agent workflows
+## Current reality
 
----
+The repository now contains a broader executive, agent, communication, orchestration, CRM, knowledge, memory and durable execution platform.
 
-## Phase 2 — Proof of Execution
-**Timeline:** January 2027 – December 2027
+Implemented agent areas include:
+- Executive AI
+- Executive Assistant
+- Research
+- Sales
+- Business research/sales workflows
+- Communication / Voice
+- dashboard and executive dashboard
+- development/test agents
 
-### Goal
-Use internal systems to support real client work and secure first AI consulting projects.
+## Current priority
 
-### Key Outcomes
-- 3–10 successful client projects
-- case studies
-- client testimonials
-- stronger architecture framework
-- improved internal AI workforce
+Do not add agents simply to make the organization look complete.
 
-### AI Workforce v2
-- Proposal Agent
-- Finance Agent
-- Project Manager Agent
-- Customer Success Agent
+First make the operating system capable of:
+1. observing company state;
+2. identifying objectives and work;
+3. selecting and prioritizing work;
+4. planning;
+5. coordinating the required capabilities;
+6. executing through V6;
+7. verifying outcomes;
+8. remembering and learning;
+9. recovering durable work;
+10. escalating consequential exceptions.
 
----
+## Next workforce expansion
 
-## Phase 3 — Productization
-**Timeline:** 2028 – 2029
+After the actuator and production foundations are stable, add specialized departments only where a real workflow needs them.
 
-### Goal
-Turn repeatable consulting solutions into products and platforms.
+Candidate departments:
+- Marketing
+- Support / Customer Success
+- Finance
+- Development
+- Operations
+- Legal
+- Proposal / Delivery
 
-### Potential Products
-- Luuku AI Operating System
-- AI knowledge assistant platform
-- AI workflow automation toolkit
-- internal business assistant suite
-
----
-
-## Phase 4 — Rwanda Leadership
-**Timeline:** 2030 – 2032
-
-### Goal
-Become one of Rwanda’s most recognized AI systems companies.
-
-### Focus
-- enterprise AI systems
-- public-sector opportunities
-- strategic partnerships
-- AI implementation at scale
-
----
-
-## Phase 5 — African Scale
-**Timeline:** 2033 – 2035
-
-### Goal
-Expand Luuku AI into a leading African AI systems and infrastructure company.
-
-### Focus
-- multi-country presence
-- enterprise AI platforms
-- AI operating systems
-- industry-specific AI deployments
-- research and innovation
+The architecture should allow these agents to be plugged into the existing registry/capability/orchestration system without redesigning the company OS.

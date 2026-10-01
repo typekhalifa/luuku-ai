@@ -6,11 +6,23 @@ import { PrismaQueueStore } from "../../queue/prisma-queue-store.js";
 import { QueueItemStatus } from "../../queue/queue.js";
 
 async function main() {
-    const queue = new PrismaQueueStore();
+    const queue = new PrismaQueueStore({ scope: "SYSTEM" });
     const workflowId = `v6.9-prisma-concurrent-claim-${Date.now()}`;
     const queueId = `${workflowId}:marketing`;
     const now = new Date();
 
+    await prisma.workflow.create({
+        data: {
+            id: workflowId,
+            ownershipScope: "SYSTEM",
+            companyId: null,
+            goal: "Concurrent claim safety demo",
+            status: "READY",
+            metadata: {},
+            createdAt: now,
+            updatedAt: now,
+        },
+    });
     await prisma.queueItem.deleteMany({ where: { workflowId } });
     await prisma.queueItem.create({
         data: {
@@ -54,6 +66,7 @@ async function main() {
     console.log("");
 
     await prisma.queueItem.deleteMany({ where: { workflowId } });
+    await prisma.workflow.delete({ where: { id: workflowId } });
 }
 
 main().catch(async (error) => {

@@ -1,4 +1,5 @@
 import type { QueueStore } from "../../orchestration/queue/queue.js";
+import { normalizeExecutionOwnership, type ExecutionOwnership } from "../../orchestration/ownership.js";
 import type { WorkflowStepExecutor } from "../../orchestration/workflow/workflow-orchestrator.js";
 import type { WorkflowStore } from "../../orchestration/workflow/workflow-store.js";
 import type { CapabilityResolver } from "../planning/capability-resolver.js";
@@ -10,6 +11,7 @@ import type { ExecutiveLoopCheckpointStore } from "./executive-loop-checkpoint.j
 import type { ExecutiveObjectiveStore } from "./objective-engine.js";
 import { PersistentExecutiveLoop, type PersistentExecutiveLoopOptions } from "./persistent-executive-loop.js";
 import { PersistentExecutiveService, type PersistentExecutiveServiceOptions } from "./persistent-executive-service.js";
+import type { InstitutionalMemoryStore } from "./v8-l-institutional-memory.js";
 
 /**
  * Explicit dependency boundary for the production executive.
@@ -18,17 +20,20 @@ import { PersistentExecutiveService, type PersistentExecutiveServiceOptions } fr
  * domain behavior. Durable implementations should be supplied by the caller.
  */
 export interface ExecutiveCompositionDependencies {
+    readonly ownership?: ExecutionOwnership;
     readonly workflowStore: WorkflowStore;
     readonly queueStore: QueueStore;
     readonly capabilityResolver: CapabilityResolver;
     readonly objectiveStore: ExecutiveObjectiveStore;
     readonly memoryStore: ExecutiveMemoryStore;
+    readonly institutionalMemoryStore?: InstitutionalMemoryStore;
     readonly checkpointStore: ExecutiveLoopCheckpointStore;
     readonly capabilities: IntentPlanCapabilityMap;
     readonly policyRules: readonly AutonomyPolicyRule[];
     readonly workflowExecutor?: WorkflowStepExecutor;
     readonly executeRuntime?: boolean;
     readonly maxCycles?: number;
+    readonly maxObjectiveSelections?: number;
     readonly intervalMs: number;
     readonly runImmediately?: boolean;
     readonly onError?: (error: unknown) => void | Promise<void>;
@@ -45,12 +50,15 @@ export function createExecutiveComposition(
     dependencies: ExecutiveCompositionDependencies,
 ): ExecutiveComposition {
     const cycleOptions: AutonomousExecutiveCycleOptions = {
+        ownership: normalizeExecutionOwnership(dependencies.ownership),
         capabilities: dependencies.capabilities,
         policyRules: dependencies.policyRules,
         executeRuntime: dependencies.executeRuntime,
         workflowExecutor: dependencies.workflowExecutor,
         objectiveStore: dependencies.objectiveStore,
         memoryStore: dependencies.memoryStore,
+        institutionalMemoryStore: dependencies.institutionalMemoryStore,
+        maxObjectiveSelections: dependencies.maxObjectiveSelections,
     };
 
     const cycle = new AutonomousExecutiveCycle(

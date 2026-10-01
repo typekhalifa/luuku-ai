@@ -21,6 +21,7 @@ const checkpointStore = {} as ExecutiveLoopCheckpointStore;
 const capabilities = {} as IntentPlanCapabilityMap;
 
 const composition = createExecutiveComposition({
+    ownership: { scope: "SYSTEM" },
     workflowStore,
     queueStore,
     capabilityResolver,

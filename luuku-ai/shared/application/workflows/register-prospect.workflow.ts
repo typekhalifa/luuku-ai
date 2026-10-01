@@ -1,5 +1,3 @@
-import crypto from "crypto";
-
 import { Company } from "../../domain/company";
 import { Contact } from "../../domain/contact";
 import { Deal } from "../../domain/deal";
@@ -43,7 +41,8 @@ export class RegisterProspectWorkflow {
 
     async execute(
 
-        request: RegisterProspectRequest
+        request: RegisterProspectRequest,
+        companyId: string
 
     ): Promise<RegisterProspectResult> {
 
@@ -53,20 +52,24 @@ export class RegisterProspectWorkflow {
         const companyCreated =
             await this.ensureCompany(
                 context,
-                request.company
+                request.company,
+                companyId
             );
 
         await this.ensurePrimaryContact(
             context,
-            request.contact
+            request.contact,
+            companyId
         );
 
         await this.ensureInitialDeal(
-            context
+            context,
+            companyId
         );
 
         await this.logInitialActivity(
-            context
+            context,
+            companyId
         );
 
         completeWorkflow(
@@ -145,43 +148,24 @@ export class RegisterProspectWorkflow {
 
         context: WorkflowContext,
 
-        company: RegisterProspectRequest["company"]
+        company: RegisterProspectRequest["company"],
+        companyId: string
 
     ): Promise<boolean> {
 
         const existing =
-            await companyService.findCompany(
-                company.name
+            await companyService.getCompany(
+                companyId,
+                companyId
             );
 
-        if (existing) {
-
-            context.company = existing;
-
-            return false;
-
+        if (!existing) {
+            throw new Error("COMPANY_NOT_FOUND_OR_UNAUTHORIZED");
         }
 
-        const now =
-            new Date().toISOString();
+        context.company = existing;
 
-        context.company =
-            await companyService.createCompany({
-
-                ...company,
-
-                id:
-                    crypto.randomUUID(),
-
-                createdAt:
-                    now,
-
-                updatedAt:
-                    now
-
-            });
-
-        return true;
+        return false;
 
     }
 
@@ -189,13 +173,15 @@ export class RegisterProspectWorkflow {
 
         context: WorkflowContext,
 
-        contact: RegisterProspectRequest["contact"]
+        contact: RegisterProspectRequest["contact"],
+        companyId: string
 
     ): Promise<void> {
 
         const existingContacts =
             await contactService.getCompanyContacts(
-                context.company!.id
+                context.company!.id,
+                companyId
             );
 
         const normalizedEmail =
@@ -262,7 +248,7 @@ export class RegisterProspectWorkflow {
                     updatedAt:
                         now
 
-                });
+                }, context.company!.id);
 
             return;
 
@@ -285,19 +271,21 @@ export class RegisterProspectWorkflow {
                 updatedAt:
                     now
 
-            });
+            }, context.company!.id);
 
     }
 
     private async ensureInitialDeal(
 
-        context: WorkflowContext
+        context: WorkflowContext,
+        companyId: string
 
     ): Promise<void> {
 
         const existingDeals =
             await dealService.getCompanyDeals(
-                context.company!.id
+                context.company!.id,
+                companyId
             );
 
         if (existingDeals.length > 0) {
@@ -351,19 +339,21 @@ export class RegisterProspectWorkflow {
                 updatedAt:
                     now
 
-            });
+            }, context.company!.id);
 
     }
 
     private async logInitialActivity(
 
-        context: WorkflowContext
+        context: WorkflowContext,
+        companyId: string
 
     ): Promise<void> {
 
         const existingActivities =
             await activityService.getCompanyActivities(
-                context.company!.id
+                context.company!.id,
+                companyId
             );
 
         const existingRegistration =
@@ -420,7 +410,7 @@ export class RegisterProspectWorkflow {
                 createdAt:
                     new Date().toISOString()
 
-            });
+            }, context.company!.id);
 
     }
 

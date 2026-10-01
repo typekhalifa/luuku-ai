@@ -12,10 +12,10 @@ const TEST_COMPANY = "Luuku Email Test";
 const TEST_RECIPIENT = process.env.EMAIL_TEST_RECIPIENT || "jeandh023@gmail.com";
 
 async function ensureTestContact() {
-    let company = await companyService.findCompany(TEST_COMPANY);
+    let company = await companyService.findCompanySystem(TEST_COMPANY);
 
     if (!company) {
-        company = await companyService.createCompany({
+        company = await companyService.createCompanySystem({
             id: crypto.randomUUID(),
             name: TEST_COMPANY,
             industry: "Artificial Intelligence",
@@ -32,14 +32,14 @@ async function ensureTestContact() {
         });
     }
 
-    const contacts = await contactService.getCompanyContacts(company.id);
+    const contacts = await contactService.getCompanyContactsSystem(company.id);
 
     let contact = contacts.find(
         (candidate) => candidate.email === TEST_RECIPIENT
     );
 
     if (!contact) {
-        contact = await contactService.createContact({
+        contact = await contactService.createContactSystem({
             id: crypto.randomUUID(),
             companyId: company.id,
             name: "Jean D'Amour",
@@ -86,7 +86,10 @@ async function main() {
         title: `Follow up: ${company.name} by email`,
         description:
             "Send the controlled Luuku AI real communication layer test email through the Sales Agent. This is a development-only test to the configured test recipient.",
-        priority: "high"
+        priority: "high",
+        metadata: {
+            companyId: company.id,
+        },
     };
 
     const agent = new SalesAgent();
