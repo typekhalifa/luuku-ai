@@ -128,7 +128,20 @@ Alert thresholds belong to the deployment environment and should be configured a
 
 The first integration records completed authenticated company requests as durable `http.request.completed` events, preserving request/trace correlation and status/severity without storing request bodies or credentials.
 
-The next integration step is to emit lifecycle events at existing execution/provider boundaries, then connect these durable signals to managed dashboards, tracing and alert evaluation.
+The next integration step is to emit lifecycle events at existing execution/provider boundaries, then connect these durable signals to managed dashboards and tracing. V8.11 also adds deterministic, read-only alert evaluation over the durable ledger.
+
+## Alert evaluation
+
+The application exposes `GET /api/v1/observability/alerts` using the authenticated company context. Evaluation is read-only: it queries recent company-owned durable events and returns alert conditions without sending notifications or taking execution actions.
+
+Default evaluation window and thresholds are intentionally conservative deployment defaults and can be overridden by the alert service caller. Current deterministic classes cover:
+
+- repeated HTTP 5xx responses;
+- repeated provider/execution failures;
+- authentication or tenant-isolation violations;
+- repeated workflow execution failures.
+
+This layer is an evaluation boundary, not an actuator. Notification delivery and managed alert routing remain deployment concerns.
 
 ## Next observability gate
 
