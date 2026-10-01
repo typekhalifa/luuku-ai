@@ -37,6 +37,7 @@
     "typecheck:backend": "tsc --noEmit -p luuku-ai/tsconfig.json",
     "clean:logs": "powershell -Command \"if (Test-Path logs) { Remove-Item logs\\*.md -Force -ErrorAction SilentlyContinue }\"",
     "dev:tenant-isolation": "tsx luuku-ai/shared/api/demo/v8-tenant-isolation-demo.ts",
+    "dev:v8.11:observability": "tsx luuku-ai/shared/observability/demo/v8-11-durable-observability-demo.ts",
     "dev:auth:bootstrap": "tsx luuku-ai/scripts/bootstrap-auth.ts",
     "start": "node dist/backend/shared/api/server.js",
     "start:api": "npm run start",
