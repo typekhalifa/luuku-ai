@@ -70,6 +70,7 @@ model Company {
   institutionalMemories ExecutiveInstitutionalMemory[]
   executiveCheckpoints ExecutiveLoopCheckpoint[]
   executiveEventInboxes ExecutiveEventInbox[]
+  observabilityEvents ObservabilityEvent[]
 }
 
 model Contact {
