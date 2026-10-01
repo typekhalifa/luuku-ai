@@ -55,6 +55,9 @@ jobs:
       - name: Backend typecheck
         run: npm run typecheck:backend
 
+      - name: V8.10 observability validation
+        run: npx tsx luuku-ai/shared/observability/demo/v8-observability-demo.ts
+
       - name: V8-K validation
         run: npx tsx luuku-ai/os/executive/demo/v8-k-long-horizon-planning-demo.ts
 
@@ -78,6 +81,7 @@ jobs:
 
       - name: Production actuator composition validation
         run: npx tsx luuku-ai/orchestration/execution/demo/production-actuator-demo.ts
+
       - name: V8 production actuation E2E validation
         run: npx tsx luuku-ai/orchestration/execution/demo/v8-production-actuation-e2e-demo.ts
 
@@ -101,8 +105,6 @@ jobs:
 
       - name: Production container build validation
         run: docker build --tag luuku-ai:ci .
-
-
 
   crm-tenant-isolation:
     runs-on: ubuntu-latest
