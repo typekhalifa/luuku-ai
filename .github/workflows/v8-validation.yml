@@ -55,6 +55,9 @@ jobs:
       - name: Backend typecheck
         run: npm run typecheck:backend
 
+      - name: Mission Control frontend build
+        run: npm run build --workspace=mission-control
+
       - name: V8.10 observability validation
         run: npx tsx luuku-ai/shared/observability/demo/v8-observability-demo.ts
 
