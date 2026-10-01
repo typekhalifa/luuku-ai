@@ -51,6 +51,7 @@ V8-N   Autonomous Company Loop     🟡 HARDENED / VALIDATION GATE
 V8-O   Durable Execution/Recovery  🟢 PASS
 V8.9   Production Deployment       🟢 FOUNDATION
 V8.10  Production Observability   🟢 FOUNDATION
+V8.11  Durable Observability       🟢 FOUNDATION
 ~~~
 
 ## V8-N and V8-O
@@ -110,6 +111,14 @@ The API now provides:
 
 The metrics are intentionally process-local at this stage. A managed metrics backend must retain the time series externally.
 
+V8.11 now adds:
+
+- durable PostgreSQL observability events;
+- tenant-scoped event and summary queries;
+- request/trace correlation in durable request evidence;
+- fail-closed observability reads;
+- CI validation for durable persistence and tenant isolation.
+
 The next observability gates are:
 
 1. connect logs to a managed log platform;
@@ -117,7 +126,8 @@ The next observability gates are:
 3. connect trace correlation to a distributed tracing backend;
 4. establish dashboards and baseline latency/error measurements;
 5. configure alerts for readiness, 5xx errors, latency, provider failures, recovery backlog and tenant/security failures;
-6. verify durable audit evidence across execution and communication boundaries.
+6. emit durable lifecycle evidence at existing execution/provider boundaries;
+7. verify durable audit evidence across execution and communication boundaries.
 
 # Next Phase — REAL-WORLD ACTUATORS
 
