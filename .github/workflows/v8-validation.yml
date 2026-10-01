@@ -11,6 +11,22 @@ on:
 jobs:
   backend-validation:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: luuku_ai
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d luuku_ai"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/luuku_ai
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -26,8 +42,9 @@ jobs:
 
       - name: Prisma schema validation
         run: npx prisma validate --schema prisma/schema.prisma
-        env:
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/luuku_ai
+
+      - name: Apply Prisma migrations
+        run: npx prisma migrate deploy --schema prisma/schema.prisma
 
       - name: Executive durable ownership isolation smoke test
         run: npx tsx luuku-ai/os/executive/demo/executive-ownership-isolation-demo.ts
