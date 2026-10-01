@@ -1,6 +1,9 @@
-import { Activity, AlertTriangle, Clock3, Server, Workflow } from "lucide-react";
+import { Activity, AlertTriangle, Clock3, Search, Server, Workflow } from "lucide-react";
+import { useState } from "react";
 import { Card } from "@/shared/components/ui";
 import { useObservability } from "../hooks/useObservability";
+import { getExecutionTrace } from "../api/observability.api";
+import type { ObservabilityTrace } from "../types/observability";
 
 function Metric({ label, value, detail, icon: Icon }: { label: string; value: string; detail: string; icon: typeof Activity }) {
   return (
@@ -27,6 +30,24 @@ export default function OperationalObservability() {
   }
 
   const alerts = data.alerts ?? [];
+  const [executionId, setExecutionId] = useState("");
+  const [trace, setTrace] = useState<ObservabilityTrace | null>(null);
+  const [traceLoading, setTraceLoading] = useState(false);
+  const [traceError, setTraceError] = useState("");
+
+  async function loadTrace() {
+    if (!executionId.trim()) return;
+    setTraceLoading(true);
+    setTraceError("");
+    try {
+      setTrace(await getExecutionTrace(executionId.trim()));
+    } catch {
+      setTrace(null);
+      setTraceError("Execution trace unavailable.");
+    } finally {
+      setTraceLoading(false);
+    }
+  }
 
   return (
     <Card className="p-6">
@@ -71,6 +92,46 @@ export default function OperationalObservability() {
             )}
           </div>
         </div>
+      </div>
+
+      <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+        <div className="flex items-center gap-2 text-xs uppercase tracking-[0.18em] text-white/40">
+          <Search size={14} /> Execution Trace
+        </div>
+        <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+          <input
+            value={executionId}
+            onChange={(event) => setExecutionId(event.target.value)}
+            placeholder="Paste execution ID"
+            className="min-w-0 flex-1 rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm outline-none focus:border-white/30"
+          />
+          <button
+            type="button"
+            onClick={loadTrace}
+            disabled={traceLoading || !executionId.trim()}
+            className="rounded-xl bg-white px-4 py-2 text-sm font-medium text-black disabled:opacity-40"
+          >
+            {traceLoading ? "Loading…" : "Inspect"}
+          </button>
+        </div>
+        {traceError && <p className="mt-3 text-sm text-red-300">{traceError}</p>}
+        {trace && (
+          <div className="mt-4 space-y-2">
+            {trace.events.length === 0 ? (
+              <p className="text-sm text-white/40">No durable events found for this execution.</p>
+            ) : (
+              trace.events.map((event) => (
+                <div key={event.id} className="flex flex-col gap-1 rounded-xl border border-white/10 px-3 py-2 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-sm font-medium">{event.eventType}</p>
+                    <p className="text-xs text-white/40">{event.source} · {new Date(event.occurredAt).toLocaleString()}</p>
+                  </div>
+                  <span className="text-xs uppercase tracking-wider text-white/50">{event.status ?? event.severity}</span>
+                </div>
+              ))
+            )}
+          </div>
+        )}
       </div>
     </Card>
   );
