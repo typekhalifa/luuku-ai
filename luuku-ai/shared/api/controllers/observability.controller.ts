@@ -33,6 +33,28 @@ export async function getObservabilityEvents(request: Request, response: Respons
     response.json({ events });
 }
 
+export async function getObservabilityTrace(request: Request, response: Response): Promise<void> {
+    const companyId = companyIdOf(response);
+    const executionId = typeof request.params.executionId === "string" ? request.params.executionId : "";
+    if (!companyId) {
+        response.status(403).json({ error: "COMPANY_CONTEXT_REQUIRED" });
+        return;
+    }
+    if (!executionId) {
+        response.status(400).json({ error: "EXECUTION_ID_REQUIRED" });
+        return;
+    }
+    const events = await listCompanyObservabilityEvents({
+        companyId,
+        executionId,
+        limit: 500,
+    });
+    response.json({
+        executionId,
+        events: [...events].sort((a, b) => a.occurredAt.getTime() - b.occurredAt.getTime()),
+    });
+}
+
 export async function getObservabilitySummary(request: Request, response: Response): Promise<void> {
     const companyId = companyIdOf(response);
     if (!companyId) {
