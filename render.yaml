@@ -41,8 +41,8 @@ services:
     name: luuku-mission-control
     rootDir: apps/mission-control
     runtime: static
-    buildCommand: npm ci --workspace=mission-control && npm run build --workspace=mission-control
-    staticPublishPath: apps/mission-control/dist
+    buildCommand: npm ci && npm run build
+    staticPublishPath: dist
     envVars:
       - key: VITE_API_BASE_URL
         sync: false
