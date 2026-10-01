@@ -57,6 +57,8 @@ jobs:
 
       - name: Mission Control frontend build
         run: npm run build --workspace=mission-control
+        env:
+          VITE_API_BASE_URL: https://api.ci.luuku.ai/api/v1
 
       - name: V8.10 observability validation
         run: npx tsx luuku-ai/shared/observability/demo/v8-observability-demo.ts
