@@ -73,6 +73,84 @@ export async function listCompanyObservabilityEvents(query: ObservabilityEventQu
     });
 }
 
+export async function getCompanyObservabilityDashboard(companyId: string, from: Date, to: Date) {
+    if (!companyId.trim()) throw new Error("COMPANY_CONTEXT_REQUIRED");
+
+    const where = {
+        ownershipScope: "COMPANY",
+        companyId,
+        occurredAt: { gte: from, lte: to },
+    };
+
+    const [
+        requests,
+        request5xx,
+        request4xx,
+        executionsStarted,
+        executionsSucceeded,
+        executionsFailed,
+        providersSucceeded,
+        providersFailed,
+        httpEvents,
+    ] = await Promise.all([
+        prisma.observabilityEvent.count({ where: { ...where, eventType: "http.request.completed" } }),
+        prisma.observabilityEvent.count({
+            where: { ...where, eventType: "http.request.completed", status: { startsWith: "5" } },
+        }),
+        prisma.observabilityEvent.count({
+            where: { ...where, eventType: "http.request.completed", status: { startsWith: "4" } },
+        }),
+        prisma.observabilityEvent.count({ where: { ...where, eventType: "execution.started" } }),
+        prisma.observabilityEvent.count({ where: { ...where, eventType: "execution.succeeded" } }),
+        prisma.observabilityEvent.count({ where: { ...where, eventType: "execution.failed" } }),
+        prisma.observabilityEvent.count({ where: { ...where, eventType: "provider.succeeded" } }),
+        prisma.observabilityEvent.count({ where: { ...where, eventType: "provider.failed" } }),
+        prisma.observabilityEvent.findMany({
+            where: { ...where, eventType: "http.request.completed" },
+            select: { metadata: true },
+            orderBy: { occurredAt: "desc" },
+            take: 5000,
+        }),
+    ]);
+
+    const durations = httpEvents
+        .map((event) => {
+            const metadata = event.metadata;
+            if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) return undefined;
+            const durationMs = (metadata as Record<string, unknown>).durationMs;
+            return typeof durationMs === "number" && Number.isFinite(durationMs) && durationMs >= 0
+                ? durationMs
+                : undefined;
+        })
+        .filter((duration): duration is number => duration !== undefined);
+
+    const totalRequestDurationMs = durations.reduce((sum, duration) => sum + duration, 0);
+
+    return {
+        companyId,
+        from: from.toISOString(),
+        to: to.toISOString(),
+        requests,
+        request4xx,
+        request5xx,
+        requestErrorRate: requests > 0 ? (request4xx + request5xx) / requests : 0,
+        latency: {
+            samples: durations.length,
+            averageMs: durations.length > 0 ? totalRequestDurationMs / durations.length : 0,
+            maxMs: durations.length > 0 ? Math.max(...durations) : 0,
+        },
+        executions: {
+            started: executionsStarted,
+            succeeded: executionsSucceeded,
+            failed: executionsFailed,
+        },
+        providers: {
+            succeeded: providersSucceeded,
+            failed: providersFailed,
+        },
+    };
+}
+
 export async function getCompanyObservabilitySummary(companyId: string, from: Date, to: Date) {
     if (!companyId.trim()) throw new Error("COMPANY_CONTEXT_REQUIRED");
     const where = { ownershipScope: "COMPANY", companyId, occurredAt: { gte: from, lte: to } };
