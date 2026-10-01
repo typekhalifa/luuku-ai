@@ -2,6 +2,7 @@ services:
   - type: web
     name: luuku-api
     runtime: docker
+    plan: free
     dockerfilePath: ./Dockerfile
     healthCheckPath: /readyz
     autoDeploy: true
@@ -11,7 +12,9 @@ services:
       - key: PORT
         value: "3000"
       - key: DATABASE_URL
-        sync: false
+        fromDatabase:
+          name: luuku-postgres
+          property: connectionString
       - key: CORS_ORIGINS
         sync: false
       - key: LUUKU_API_KEY
@@ -28,23 +31,8 @@ services:
         sync: false
       - key: VOICE_MODE
         value: simulation
-      - key: VOICE_ALLOWED_RECIPIENTS
-        sync: false
-      - key: ELEVENLABS_API_KEY
-        sync: false
-      - key: ELEVENLABS_AGENT_ID
-        sync: false
-      - key: ELEVENLABS_AGENT_PHONE_NUMBER_ID
-        sync: false
 
-  - type: web
-    name: luuku-mission-control
-    rootDir: apps/mission-control
-    runtime: static
-    buildCommand: npm ci && npm run build
-    staticPublishPath: dist
-    envVars:
-      - key: VITE_API_BASE_URL
-        sync: false
-      - key: VITE_WS_BASE_URL
-        sync: false
+databases:
+  - name: luuku-postgres
+    plan: free
+    postgresMajorVersion: "16"
