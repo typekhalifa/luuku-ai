@@ -323,9 +323,6 @@ export async function executeSalesWorkflow(
         const { requestContactEnrichment } =
                 await import("../../../shared/crm/enrichment.js");
 
-        const { requestContactEnrichment } =
-                await import("../../../shared/crm/enrichment.js");
-
         const enrichment =
             await requestContactEnrichment({
                 company: context.companyName,
