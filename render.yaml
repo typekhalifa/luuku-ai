@@ -1,0 +1,50 @@
+services:
+  - type: web
+    name: luuku-api
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /readyz
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: "3000"
+      - key: DATABASE_URL
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false
+      - key: LUUKU_API_KEY
+        sync: false
+      - key: LUUKU_API_COMPANY_ID
+        sync: false
+      - key: LUUKU_AUTH_BOOTSTRAP_EMAIL
+        sync: false
+      - key: LUUKU_AUTH_BOOTSTRAP_PASSWORD
+        sync: false
+      - key: LUUKU_AUTH_BOOTSTRAP_NAME
+        sync: false
+      - key: LUUKU_AUTH_BOOTSTRAP_COMPANY_ID
+        sync: false
+      - key: VOICE_MODE
+        value: simulation
+      - key: VOICE_ALLOWED_RECIPIENTS
+        sync: false
+      - key: ELEVENLABS_API_KEY
+        sync: false
+      - key: ELEVENLABS_AGENT_ID
+        sync: false
+      - key: ELEVENLABS_AGENT_PHONE_NUMBER_ID
+        sync: false
+
+  - type: web
+    name: luuku-mission-control
+    rootDir: apps/mission-control
+    runtime: static
+    buildCommand: npm ci --workspace=mission-control && npm run build --workspace=mission-control
+    staticPublishPath: apps/mission-control/dist
+    envVars:
+      - key: VITE_API_BASE_URL
+        sync: false
+      - key: VITE_WS_BASE_URL
+        sync: false
