@@ -12,9 +12,11 @@ import { resendWebhookRouter } from "./routes/resend-webhook.route";
 import { authRouter } from "./routes/auth.routes";
 import { healthRouter } from "./routes/health.routes";
 import { metricsRouter } from "./routes/metrics.routes";
+import { observabilityRouter } from "./routes/observability.routes";
 import { requireAuthentication } from "../auth/auth.middleware";
 import { prisma } from "../database/client";
 import { logStructured, recordHttpRequest } from "../observability";
+import { recordObservabilityEvent } from "../observability/durable-events.js";
 
 const app = express();
 
@@ -86,6 +88,23 @@ app.use((request, response, next) => {
             statusCode: response.statusCode,
             durationMs,
         });
+
+        if (context?.companyId) {
+            void recordObservabilityEvent({
+                eventType: "http.request.completed",
+                source: "api",
+                ownership: { scope: "COMPANY", companyId: context.companyId },
+                requestId,
+                traceId,
+                severity: response.statusCode >= 500 ? "ERROR" : response.statusCode >= 400 ? "WARN" : "INFO",
+                status: String(response.statusCode),
+                actorType: context.userId ? "USER" : "SERVICE",
+                actorId: context.userId,
+                metadata: { method: request.method, route },
+            }).catch((error) => {
+                logStructured("ERROR", "observability.event.persist_failed", { requestId, traceId, error: error instanceof Error ? error.message : String(error) });
+            });
+        }
 
         logStructured(
             response.statusCode >= 500
@@ -176,6 +195,7 @@ app.use((request, response, next) => {
 });
 
 app.use("/metrics", metricsRouter);
+app.use("/api/v1/observability", observabilityRouter);
 app.use("/api/v1/dashboard", dashboardRouter);
 app.use("/api/v1/events", eventsRouter);
 app.use("/api/v1/agents", agentsRouter);
