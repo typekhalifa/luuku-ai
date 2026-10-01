@@ -395,6 +395,35 @@ model ExecutiveInstitutionalMemory {
   @@index([lastConfirmedAt])
 }
 
+
+model ObservabilityEvent {
+  id             String    @id @default(uuid())
+  ownershipScope String    @default("SYSTEM")
+  companyId      String?
+  eventType      String
+  source         String
+  executionId    String?
+  workflowId     String?
+  requestId      String?
+  traceId        String?
+  severity       String    @default("INFO")
+  status         String?
+  actorType      String?
+  actorId        String?
+  metadata       Json?
+  occurredAt     DateTime  @default(now())
+  createdAt      DateTime  @default(now())
+  company        Company?  @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  @@index([companyId, occurredAt])
+  @@index([companyId, eventType, occurredAt])
+  @@index([executionId, occurredAt])
+  @@index([workflowId, occurredAt])
+  @@index([requestId])
+  @@index([traceId])
+  @@index([severity, occurredAt])
+  @@index([ownershipScope, occurredAt])
+}
+
 enum UserStatus {
   ACTIVE
   DISABLED
