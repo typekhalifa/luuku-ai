@@ -1,6 +1,7 @@
 import { prisma } from "../../shared/database/client.js";
 import { AgentResult } from "../../shared/agents/interface.js";
 import { normalizeExecutionOwnership, assertValidExecutionOwnership, type ExecutionOwnership } from "../ownership.js";
+import { recordObservabilityEvent } from "../../shared/observability/durable-events.js";
 
 export interface ExecutionClaim {
     id: string;
@@ -75,10 +76,26 @@ export class ExecutionLedger {
                 recipient: { workflowId, stepId },
             },
         });
+
+        void recordObservabilityEvent({
+            eventType: "execution.started",
+            source: "v6.execution-ledger",
+            ownership: normalizedOwnership,
+            executionId: record.id,
+            workflowId,
+            status: "executing",
+            metadata: { stepId, capability: "workflow.step" },
+        }).catch(() => undefined);
+
         return { id: record.id, idempotencyKey, status: "new" };
     }
 
     async complete(idempotencyKey: string, result: AgentResult): Promise<void> {
+        const existing = await prisma.communicationExecution.findUnique({ where: { idempotencyKey } });
+        if (!existing) {
+            throw new Error("COMMUNICATION_EXECUTION_NOT_FOUND");
+        }
+
         await prisma.communicationExecution.update({
             where: { idempotencyKey },
             data: {
@@ -91,6 +108,27 @@ export class ExecutionLedger {
                 error: result.success ? null : result.summary,
             },
         });
+
+        const ownership: ExecutionOwnership = existing.ownershipScope === "COMPANY" && existing.companyId
+            ? { scope: "COMPANY", companyId: existing.companyId }
+            : { scope: "SYSTEM" };
+
+        void recordObservabilityEvent({
+            eventType: result.success ? "execution.succeeded" : "execution.failed",
+            source: "v6.execution-ledger",
+            ownership,
+            executionId: existing.id,
+            workflowId: typeof existing.recipient === "object" && existing.recipient !== null && "workflowId" in existing.recipient
+                ? String((existing.recipient as { workflowId?: unknown }).workflowId ?? "")
+                : undefined,
+            severity: result.success ? "INFO" : "ERROR",
+            status: result.executionStatus ?? (result.success ? "completed" : "failed"),
+            metadata: {
+                executed: result.executed ?? false,
+                verified: result.verified ?? false,
+                provider: result.evidence?.provider,
+            },
+        }).catch(() => undefined);
     }
 }
 
