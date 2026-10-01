@@ -11,8 +11,10 @@ import { runtimeRouter } from "./routes/runtime.routes";
 import { resendWebhookRouter } from "./routes/resend-webhook.route";
 import { authRouter } from "./routes/auth.routes";
 import { healthRouter } from "./routes/health.routes";
+import { metricsRouter } from "./routes/metrics.routes";
 import { requireAuthentication } from "../auth/auth.middleware";
 import { prisma } from "../database/client";
+import { logStructured, recordHttpRequest } from "../observability";
 
 const app = express();
 
@@ -52,8 +54,11 @@ app.disable("x-powered-by");
 
 app.use((request, response, next) => {
     const requestId = request.header("x-request-id")?.trim() || randomUUID();
+    const traceId = request.header("x-trace-id")?.trim() || requestId;
+    const startedAt = process.hrtime.bigint();
 
     response.setHeader("x-request-id", requestId);
+    response.setHeader("x-trace-id", traceId);
     response.setHeader("x-content-type-options", "nosniff");
     response.setHeader("x-frame-options", "DENY");
     response.setHeader("referrer-policy", "no-referrer");
@@ -65,6 +70,42 @@ app.use((request, response, next) => {
             "max-age=31536000; includeSubDomains",
         );
     }
+
+    response.on("finish", () => {
+        const durationMs = Number(process.hrtime.bigint() - startedAt) / 1_000_000;
+        const route = request.route?.path
+            ? `${request.baseUrl}${request.route.path}`
+            : request.path;
+        const context = response.locals.apiRequestContext as
+            | { companyId?: string; userId?: string }
+            | undefined;
+
+        recordHttpRequest({
+            method: request.method,
+            route,
+            statusCode: response.statusCode,
+            durationMs,
+        });
+
+        logStructured(
+            response.statusCode >= 500
+                ? "ERROR"
+                : response.statusCode >= 400
+                    ? "WARN"
+                    : "INFO",
+            "http.request.completed",
+            {
+                requestId,
+                traceId,
+                companyId: context?.companyId,
+                userId: context?.userId,
+                method: request.method,
+                route,
+                statusCode: response.statusCode,
+                durationMs: Math.round(durationMs * 100) / 100,
+            },
+        );
+    });
 
     next();
 });
@@ -134,8 +175,7 @@ app.use((request, response, next) => {
     void requireAuthentication(request, response, next);
 });
 
-
-
+app.use("/metrics", metricsRouter);
 app.use("/api/v1/dashboard", dashboardRouter);
 app.use("/api/v1/events", eventsRouter);
 app.use("/api/v1/agents", agentsRouter);
@@ -144,11 +184,8 @@ app.use("/api/v1/crm", crmRouter);
 app.use("/api/v1/runtime", runtimeRouter);
 
 app.listen(port, () => {
-    console.log("");
-    console.log("==================================");
-    console.log(" LUUKU API");
-    console.log("==================================");
-    console.log("");
-    console.log(`Environment: ${environment}`);
-    console.log(`Running on port ${port}`);
+    logStructured("INFO", "api.started", {
+        environment,
+        port,
+    });
 });
