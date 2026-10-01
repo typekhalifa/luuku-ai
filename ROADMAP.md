@@ -72,6 +72,31 @@ Before new actuator development:
 
 See docs/ARCHITECTURE-AUDIT.md and docs/DEVELOPMENT-AND-VALIDATION.md.
 
+# Current Phase — V8.9 Production Deployment Foundation
+
+The architecture has passed the current V8 CI validation gate, including backend typecheck, tenant isolation, API tenant authorization, production actuation checks and production container build validation.
+
+The deployment foundation now includes:
+
+- production Docker runtime;
+- startup-time Prisma migration deployment;
+- liveness endpoint at `/healthz`;
+- database-backed readiness endpoint at `/readyz`;
+- reproducible production image publication to GitHub Container Registry on `main`;
+- production environment/secret runbook in `docs/DEPLOYMENT.md`;
+- GitHub Actions using Node 24-based checkout/setup actions.
+
+The next release gates are:
+
+1. Deploy the immutable production image to a managed container runtime.
+2. Provision managed PostgreSQL with backups.
+3. Configure production secrets through a managed secret store.
+4. Verify health, readiness, authentication and tenant-scoped smoke workflows.
+5. Establish production logs, metrics, tracing and alerting.
+6. Only then progressively activate additional real-world actuators.
+
+Production deployment does not by itself enable unrestricted autonomy. V6 remains the sole execution authority.
+
 # Next Phase — REAL-WORLD ACTUATORS
 
 Give the operating system controlled hands in the external world.
