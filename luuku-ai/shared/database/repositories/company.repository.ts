@@ -2,7 +2,7 @@ import { prisma } from "../client";
 
 import { Company } from "../../domain/company";
 import { CompanyMapper } from "../mappers/company.mapper";
-export class CompanyRepository extends BaseRepository<Company> {
+export class CompanyRepository {
     async findAll(companyId: string): Promise<Company[]> {
         const companies = await prisma.company.findMany({
             where: { id: companyId },
