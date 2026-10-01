@@ -113,22 +113,42 @@ export class ExecutionLedger {
             ? { scope: "COMPANY", companyId: existing.companyId }
             : { scope: "SYSTEM" };
 
+        const workflowId = typeof existing.recipient === "object" && existing.recipient !== null && "workflowId" in existing.recipient
+            ? String((existing.recipient as { workflowId?: unknown }).workflowId ?? "")
+            : undefined;
+        const executionStatus = result.executionStatus ?? (result.success ? "completed" : "failed");
+
         void recordObservabilityEvent({
             eventType: result.success ? "execution.succeeded" : "execution.failed",
             source: "v6.execution-ledger",
             ownership,
             executionId: existing.id,
-            workflowId: typeof existing.recipient === "object" && existing.recipient !== null && "workflowId" in existing.recipient
-                ? String((existing.recipient as { workflowId?: unknown }).workflowId ?? "")
-                : undefined,
+            workflowId,
             severity: result.success ? "INFO" : "ERROR",
-            status: result.executionStatus ?? (result.success ? "completed" : "failed"),
+            status: executionStatus,
             metadata: {
                 executed: result.executed ?? false,
                 verified: result.verified ?? false,
                 provider: result.evidence?.provider,
             },
         }).catch(() => undefined);
+
+        if (result.evidence?.provider) {
+            void recordObservabilityEvent({
+                eventType: result.success ? "provider.succeeded" : "provider.failed",
+                source: "v6.execution-ledger",
+                ownership,
+                executionId: existing.id,
+                workflowId,
+                severity: result.success ? "INFO" : "ERROR",
+                status: executionStatus,
+                metadata: {
+                    provider: result.evidence.provider,
+                    externalId: result.evidence.externalId,
+                    verified: result.verified ?? false,
+                },
+            }).catch(() => undefined);
+        }
     }
 }
 
