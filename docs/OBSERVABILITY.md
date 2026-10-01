@@ -153,6 +153,42 @@ V6 now emits provider lifecycle evidence alongside execution lifecycle evidence 
 
 The shared `executionId` is the durable correlation key. The API exposes `GET /api/v1/observability/executions/:executionId/trace`, which returns only events owned by the authenticated company and orders them chronologically. This is an evidence view only; it does not replay, retry, or mutate execution.
 
-## Next observability gate
+## Operational dashboard
 
-The next production step is to connect these signals to a managed log/metrics/tracing platform and define retention, dashboards, SLOs and alerts. The application-level correlation contract should remain stable when that backend is introduced.
+V8.11 exposes a tenant-scoped read-only dashboard at:
+
+`GET /api/v1/observability/dashboard`
+
+The dashboard aggregates the durable ledger into:
+
+- request volume and 4xx/5xx counts;
+- request error rate;
+- observed request latency samples, average and maximum;
+- execution started/succeeded/failed counts;
+- provider succeeded/failed counts;
+- deterministic alert conditions evaluated over the current alert window.
+
+The dashboard is an evidence view. It does not trigger retries, notifications, provider actions or execution decisions.
+
+## Correlated execution traces
+
+The execution trace endpoint is:
+
+`GET /api/v1/observability/executions/:executionId/trace`
+
+It returns tenant-owned durable events for the execution in chronological order. The trace can therefore connect an execution start, provider lifecycle evidence and terminal execution evidence without introducing a replay path.
+
+## Managed telemetry integration gate
+
+The next production step is to connect the application telemetry contracts to managed infrastructure:
+
+1. ship structured JSON logs to a managed log backend;
+2. scrape `/metrics` into a managed metrics backend with retention;
+3. preserve `x-request-id` and `x-trace-id` when connecting distributed tracing;
+4. build operational dashboards from retained telemetry and durable application evidence;
+5. establish baseline latency/error measurements and SLOs;
+6. configure alert routing for readiness, 5xx errors, latency, provider failures, recovery backlog and tenant/security failures.
+
+The application-level correlation and tenant-isolation contracts should remain stable when these backends are introduced.
+
+Managed telemetry must remain observational: it may report conditions, but V6 remains the sole execution authority.
