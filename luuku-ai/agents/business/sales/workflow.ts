@@ -4,14 +4,6 @@ import {
 } from "../../../shared/agents/interface";
 
 import {
-    executeVoiceTask
-} from "../../communication/voice/execute";
-
-import {
-    executeEmailTask
-} from "../../communication/email/execute";
-
-import {
     resolveTaskContext
 } from "../../../shared/context/resolver";
 
@@ -447,6 +439,9 @@ export async function executeSalesWorkflow(
         console.log("✓ Inbound email reply — email channel required");
         console.log("");
 
+        const { executeEmailTask } =
+            await import("../../communication/email/execute");
+
         return executeEmailTask(
             task,
             activeContact
@@ -466,6 +461,9 @@ export async function executeSalesWorkflow(
     if (requiresVoice) {
         console.log("✓ Communication required");
         console.log("");
+
+        const { executeVoiceTask } =
+            await import("../../communication/voice/execute");
 
         return executeVoiceTask(
             task,
