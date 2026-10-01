@@ -440,7 +440,7 @@ export async function executeSalesWorkflow(
         console.log("");
 
         const { executeEmailTask } =
-            await import("../../communication/email/execute");
+            await import("../../communication/email/execute.js");
 
         return executeEmailTask(
             task,
@@ -463,7 +463,7 @@ export async function executeSalesWorkflow(
         console.log("");
 
         const { executeVoiceTask } =
-            await import("../../communication/voice/execute");
+            await import("../../communication/voice/execute.js");
 
         return executeVoiceTask(
             task,
