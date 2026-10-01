@@ -29,6 +29,7 @@ import {
   LiveAIFeed,
   ExecutiveInsights,
   CommunicationObservability,
+  OperationalObservability,
 } from "@/features/dashboard";
 
 import { RuntimeAgents } from "@/features/core/runtime";
