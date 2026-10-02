@@ -84,16 +84,25 @@ export async function getObservabilityDashboard(request: Request, response: Resp
         return;
     }
 
-    const [dashboard, alerts, recentEvents] = await Promise.all([
+    const [dashboard, alerts, recentEventCandidates] = await Promise.all([
         getCompanyObservabilityDashboard(companyId, from, to),
         evaluateCompanyObservabilityAlerts(companyId, to),
         listCompanyObservabilityEvents({
             companyId,
             from,
             to,
-            limit: 12,
+            limit: 50,
         }),
     ]);
+
+    const recentEvents = recentEventCandidates
+        .filter((event) => {
+            if (event.eventType !== "http.request.completed") return true;
+            const metadata = event.metadata;
+            if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) return true;
+            return (metadata as Record<string, unknown>).route !== "/api/v1/observability/dashboard";
+        })
+        .slice(0, 12);
 
     response.json({
         ...dashboard,
