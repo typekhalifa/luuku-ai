@@ -1,9 +1,10 @@
 export interface ObservabilityAlert {
-  id: string;
+  code: string;
   severity: "WARN" | "ERROR";
   message: string;
-  value: number;
-  threshold: number;
+  count: number;
+  windowMinutes: number;
+  eventTypes: string[];
 }
 
 export interface ObservabilityDashboard {
@@ -29,6 +30,7 @@ export interface ObservabilityDashboard {
     failed: number;
   };
   alerts: ObservabilityAlert[];
+  recentEvents: ObservabilityTraceEvent[];
 }
 
 export interface ObservabilityTraceEvent {
