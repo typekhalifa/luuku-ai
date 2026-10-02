@@ -53,6 +53,7 @@ export class ApiClient {
   ): Promise<T> {
     const response = await fetch(`${this.baseUrl}${path}`, {
       ...init,
+      credentials: "include",
       headers: this.headers,
     });
 
