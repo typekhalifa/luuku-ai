@@ -71,7 +71,8 @@
     "framer-motion": "^12.42.2",
     "lucide-react": "^1.27.0",
     "openai": "^6.44.0",
-    "prisma": "^6.19.3"
+    "prisma": "^6.19.3",
+    "express": "^5.2.1"
   },
   "directories": {
     "doc": "docs"
