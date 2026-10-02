@@ -18,6 +18,7 @@ function sessionToken(request: Request): string | undefined {
 
 function recordSecurityEvent(
     request: Request,
+    response: Response,
     eventType: "security.authentication_failure" | "security.tenant_violation" | "security.authorization_failure",
     status: string,
     metadata: Record<string, unknown> = {},
@@ -48,7 +49,7 @@ export async function requireAuthentication(
     if (token) {
         const session = await getSession(token);
         if (!session) {
-            recordSecurityEvent(request, "security.authentication_failure", "401", {
+            recordSecurityEvent(request, response, "security.authentication_failure", "401", {
                 reason: "invalid_or_expired_session",
             });
             response.status(401).json({ error: "UNAUTHORIZED" });
@@ -59,7 +60,7 @@ export async function requireAuthentication(
         const membership = await getMembership(session.userId, requestedCompanyId);
 
         if (!membership) {
-            recordSecurityEvent(request, "security.tenant_violation", "403", {
+            recordSecurityEvent(request, response, "security.tenant_violation", "403", {
                 reason: "company_membership_missing",
                 requestedCompanyId: requestedCompanyId || null,
                 userId: session.userId,
@@ -79,7 +80,7 @@ export async function requireAuthentication(
         return;
     }
 
-    recordSecurityEvent(request, "security.authentication_failure", "401", {
+    recordSecurityEvent(request, response, "security.authentication_failure", "401", {
         reason: "session_missing",
     });
     response.status(401).json({ error: "UNAUTHORIZED" });
@@ -91,7 +92,7 @@ export function requirePermission(
     return (request: Request, response: Response, next: NextFunction): void => {
         const context = response.locals.apiRequestContext as AuthenticatedContext | undefined;
         if (!context) {
-            recordSecurityEvent(request, "security.authentication_failure", "401", {
+            recordSecurityEvent(request, response, "security.authentication_failure", "401", {
                 reason: "authenticated_context_missing",
                 permission,
             });
@@ -106,7 +107,7 @@ export function requirePermission(
         };
 
         if (!allowed[permission].includes(context.role)) {
-            recordSecurityEvent(request, "security.authorization_failure", "403", {
+            recordSecurityEvent(request, response, "security.authorization_failure", "403", {
                 reason: "insufficient_role",
                 permission,
                 role: context.role,
@@ -127,12 +128,12 @@ export function requireServiceRole(
     const context = response.locals.apiRequestContext as AuthenticatedContext | undefined;
     if (context?.role !== "SERVICE") {
         if (context?.companyId) {
-            recordSecurityEvent(request, "security.authorization_failure", "403", {
+            recordSecurityEvent(request, response, "security.authorization_failure", "403", {
                 reason: "service_scope_required",
                 role: context.role ?? null,
             }, { scope: "COMPANY", companyId: context.companyId });
         } else {
-            recordSecurityEvent(request, "security.authorization_failure", "403", {
+            recordSecurityEvent(request, response, "security.authorization_failure", "403", {
                 reason: "service_scope_required",
             });
         }
