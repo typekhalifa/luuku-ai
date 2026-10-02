@@ -2,6 +2,7 @@ import type { NextFunction, Request, Response } from "express";
 
 import { getMembership, getSession } from "./auth.service";
 import type { MembershipRole } from "./auth.service";
+import { recordObservabilityEvent } from "../observability/durable-events.js";
 
 export interface AuthenticatedContext {
     companyId: string;
@@ -15,6 +16,28 @@ function sessionToken(request: Request): string | undefined {
     return raw?.slice("luuku_session=".length) || undefined;
 }
 
+function recordSecurityEvent(
+    request: Request,
+    eventType: "security.authentication_failure" | "security.tenant_violation" | "security.authorization_failure",
+    status: string,
+    metadata: Record<string, unknown> = {},
+    ownership?: { scope: "COMPANY"; companyId: string },
+): void {
+    void recordObservabilityEvent({
+        eventType,
+        source: "auth.middleware",
+        ownership: ownership ?? { scope: "SYSTEM" },
+        requestId: request.header("x-request-id")?.trim(),
+        traceId: request.header("x-trace-id")?.trim(),
+        severity: "ERROR",
+        status,
+        actorType: "USER",
+        metadata,
+    }).catch(() => {
+        // Security telemetry must never turn an auth decision into a server error.
+    });
+}
+
 export async function requireAuthentication(
     request: Request,
     response: Response,
@@ -25,6 +48,9 @@ export async function requireAuthentication(
     if (token) {
         const session = await getSession(token);
         if (!session) {
+            recordSecurityEvent(request, "security.authentication_failure", "401", {
+                reason: "invalid_or_expired_session",
+            });
             response.status(401).json({ error: "UNAUTHORIZED" });
             return;
         }
@@ -33,6 +59,11 @@ export async function requireAuthentication(
         const membership = await getMembership(session.userId, requestedCompanyId);
 
         if (!membership) {
+            recordSecurityEvent(request, "security.tenant_violation", "403", {
+                reason: "company_membership_missing",
+                requestedCompanyId: requestedCompanyId || null,
+                userId: session.userId,
+            });
             response.status(403).json({ error: "COMPANY_ACCESS_FORBIDDEN" });
             return;
         }
@@ -48,15 +79,22 @@ export async function requireAuthentication(
         return;
     }
 
+    recordSecurityEvent(request, "security.authentication_failure", "401", {
+        reason: "session_missing",
+    });
     response.status(401).json({ error: "UNAUTHORIZED" });
 }
 
 export function requirePermission(
     permission: "read" | "operate" | "admin",
 ) {
-    return (_request: Request, response: Response, next: NextFunction): void => {
+    return (request: Request, response: Response, next: NextFunction): void => {
         const context = response.locals.apiRequestContext as AuthenticatedContext | undefined;
         if (!context) {
+            recordSecurityEvent(request, "security.authentication_failure", "401", {
+                reason: "authenticated_context_missing",
+                permission,
+            });
             response.status(401).json({ error: "UNAUTHORIZED" });
             return;
         }
@@ -68,6 +106,11 @@ export function requirePermission(
         };
 
         if (!allowed[permission].includes(context.role)) {
+            recordSecurityEvent(request, "security.authorization_failure", "403", {
+                reason: "insufficient_role",
+                permission,
+                role: context.role,
+            }, { scope: "COMPANY", companyId: context.companyId });
             response.status(403).json({ error: "FORBIDDEN" });
             return;
         }
@@ -77,12 +120,22 @@ export function requirePermission(
 }
 
 export function requireServiceRole(
-    _request: Request,
+    request: Request,
     response: Response,
     next: NextFunction,
 ): void {
     const context = response.locals.apiRequestContext as AuthenticatedContext | undefined;
     if (context?.role !== "SERVICE") {
+        if (context?.companyId) {
+            recordSecurityEvent(request, "security.authorization_failure", "403", {
+                reason: "service_scope_required",
+                role: context.role ?? null,
+            }, { scope: "COMPANY", companyId: context.companyId });
+        } else {
+            recordSecurityEvent(request, "security.authorization_failure", "403", {
+                reason: "service_scope_required",
+            });
+        }
         response.status(403).json({ error: "SERVICE_SCOPE_REQUIRED" });
         return;
     }
