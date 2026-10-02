@@ -35,17 +35,29 @@ async function main(): Promise<void> {
             })),
         });
 
+        await prisma.observabilityEvent.create({
+            data: {
+                companyId,
+                ownershipScope: "COMPANY",
+                eventType: "security.authorization_failure",
+                source: "v8.11-alert-demo",
+                severity: "ERROR",
+                status: "403",
+                metadata: { synthetic: true, reason: "insufficient_role" },
+            },
+        });
+
         const alerts = await evaluateCompanyObservabilityAlerts(
             companyId,
             new Date(),
-            { http5xxCount: 5 },
+            { http5xxCount: 5, securityViolationCount: 1 },
         );
 
         assert(alerts.some((alert) => alert.code === "HTTP_5XX_SPIKE"), "5xx threshold produces an alert");
-        assert(!alerts.some((alert) => alert.code === "SECURITY_VIOLATION"), "unrelated alert stays quiet");
+        assert(alerts.some((alert) => alert.code === "SECURITY_VIOLATION"), "authorization failures produce a security alert");
 
         console.log("✓ repeated 5xx responses trigger deterministic alert evaluation");
-        console.log("✓ unrelated alert classes remain quiet");
+        console.log("✓ authorization failures trigger tenant-scoped security alerts");
         console.log("✓ alert evaluation is read-only and produces no side effects");
         console.log("");
         console.log("V8.11 alert evaluation validation: PASS");
