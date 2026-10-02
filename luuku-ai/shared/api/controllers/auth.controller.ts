@@ -26,6 +26,20 @@ function sessionToken(request: Request): string | undefined {
     return request.header("cookie")?.split(";").map((part) => part.trim()).find((part) => part.startsWith("luuku_session="))?.slice("luuku_session=".length);
 }
 
+function isAllowedLogoutOrigin(request: Request): boolean {
+    const origin = request.header("origin");
+    if (!origin) {
+        return true;
+    }
+
+    const configuredOrigins = (process.env.CORS_ORIGINS || "")
+        .split(",")
+        .map((value) => value.trim())
+        .filter(Boolean);
+
+    return configuredOrigins.includes(origin);
+}
+
 export async function loginController(request: Request, response: Response): Promise<void> {
     const email = typeof request.body?.email === "string" ? request.body.email : "";
     const password = typeof request.body?.password === "string" ? request.body.password : "";
@@ -57,6 +71,11 @@ export async function loginController(request: Request, response: Response): Pro
 }
 
 export async function logoutController(request: Request, response: Response): Promise<void> {
+    if (!isAllowedLogoutOrigin(request)) {
+        response.status(403).json({ error: "FORBIDDEN_ORIGIN" });
+        return;
+    }
+
     const token = sessionToken(request);
     if (token) {
         await logout(token);
