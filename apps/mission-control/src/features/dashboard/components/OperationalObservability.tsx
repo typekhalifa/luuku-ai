@@ -20,6 +20,10 @@ function Metric({ label, value, detail, icon: Icon }: { label: string; value: st
 
 export default function OperationalObservability() {
   const { data, loading, error } = useObservability();
+  const [executionId, setExecutionId] = useState("");
+  const [trace, setTrace] = useState<ObservabilityTrace | null>(null);
+  const [traceLoading, setTraceLoading] = useState(false);
+  const [traceError, setTraceError] = useState("");
 
   if (loading) {
     return <Card className="p-6 text-white/50">Loading operational observability…</Card>;
@@ -30,10 +34,6 @@ export default function OperationalObservability() {
   }
 
   const alerts = data.alerts ?? [];
-  const [executionId, setExecutionId] = useState("");
-  const [trace, setTrace] = useState<ObservabilityTrace | null>(null);
-  const [traceLoading, setTraceLoading] = useState(false);
-  const [traceError, setTraceError] = useState("");
 
   async function loadTrace() {
     if (!executionId.trim()) return;
