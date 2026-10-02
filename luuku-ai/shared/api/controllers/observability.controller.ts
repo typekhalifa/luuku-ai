@@ -84,13 +84,20 @@ export async function getObservabilityDashboard(request: Request, response: Resp
         return;
     }
 
-    const [dashboard, alerts] = await Promise.all([
+    const [dashboard, alerts, recentEvents] = await Promise.all([
         getCompanyObservabilityDashboard(companyId, from, to),
         evaluateCompanyObservabilityAlerts(companyId, to),
+        listCompanyObservabilityEvents({
+            companyId,
+            from,
+            to,
+            limit: 12,
+        }),
     ]);
 
     response.json({
         ...dashboard,
         alerts,
+        recentEvents,
     });
 }
