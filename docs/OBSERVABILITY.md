@@ -111,6 +111,16 @@ Company-scoped reads fail closed when company context is absent. The API exposes
 
 The durable ledger is audit/observability evidence only. V6 remains the sole execution authority.
 
+## Security observability
+
+Authentication and authorization boundaries also emit durable security evidence:
+
+- `security.authentication_failure` for missing, invalid or expired browser sessions and failed credentials;
+- `security.tenant_violation` when an authenticated user cannot establish membership for the requested company;
+- `security.authorization_failure` when an authenticated principal lacks the required permission or service scope.
+
+Unauthenticated security events use explicit `SYSTEM` ownership because no trusted company context exists. Authorization failures after tenant resolution use the authenticated company ownership. Security telemetry is best-effort and never changes the authorization decision or response.
+
 ## Alerting gates
 
 A production runtime should alert on at least:

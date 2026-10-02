@@ -62,6 +62,7 @@ app.use((request, response, next) => {
 
     response.setHeader("x-request-id", requestId);
     response.setHeader("x-trace-id", traceId);
+    response.locals.observabilityCorrelation = { requestId, traceId };
     response.setHeader("x-content-type-options", "nosniff");
     response.setHeader("x-frame-options", "DENY");
     response.setHeader("referrer-policy", "no-referrer");
@@ -95,8 +96,8 @@ app.use((request, response, next) => {
                 eventType: "http.request.completed",
                 source: "api",
                 ownership: { scope: "COMPANY", companyId: context.companyId },
-                requestId,
-                traceId,
+                requestId: (response.locals.observabilityCorrelation as { requestId?: string } | undefined)?.requestId,
+                traceId: (response.locals.observabilityCorrelation as { traceId?: string } | undefined)?.traceId,
                 severity: response.statusCode >= 500 ? "ERROR" : response.statusCode >= 400 ? "WARN" : "INFO",
                 status: String(response.statusCode),
                 actorType: context.userId ? "USER" : "SERVICE",
@@ -164,6 +165,23 @@ app.use((request, response, next) => {
 
     if (suppliedKey) {
         if (!apiKeysMatch(suppliedKey)) {
+            void recordObservabilityEvent({
+                eventType: "security.authentication_failure",
+                source: "api.server",
+                ownership: { scope: "SYSTEM" },
+                requestId: (response.locals.observabilityCorrelation as { requestId?: string } | undefined)?.requestId,
+                traceId: (response.locals.observabilityCorrelation as { traceId?: string } | undefined)?.traceId,
+                severity: "ERROR",
+                status: "401",
+                actorType: "SERVICE",
+                metadata: { reason: "invalid_api_key" },
+            }).catch((error) => {
+                logStructured("ERROR", "observability.event.persist_failed", {
+                    requestId: (response.locals.observabilityCorrelation as { requestId?: string } | undefined)?.requestId,
+                    traceId: (response.locals.observabilityCorrelation as { traceId?: string } | undefined)?.traceId,
+                    error: error instanceof Error ? error.message : String(error),
+                });
+            });
             return response.status(401).json({ error: "UNAUTHORIZED" });
         }
 

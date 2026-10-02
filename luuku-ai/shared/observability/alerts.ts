@@ -1,4 +1,4 @@
-import { listCompanyObservabilityEvents } from "./durable-events.js";
+import { listCompanyObservabilityEvents, listSystemSecurityEvents } from "./durable-events.js";
 
 export type ObservabilityAlertSeverity = "WARN" | "ERROR";
 
@@ -43,6 +43,24 @@ export function normalizeObservabilityAlertThresholds(
     };
 }
 
+export async function evaluateSystemSecurityAlerts(
+    now = new Date(),
+    configuredThresholds: Partial<ObservabilityAlertThresholds> = {},
+): Promise<ObservabilityAlert[]> {
+    const thresholds = normalizeObservabilityAlertThresholds(configuredThresholds);
+    const from = new Date(now.getTime() - thresholds.windowMinutes * 60_000);
+    const events = await listSystemSecurityEvents(from, now);
+    if (events.length < thresholds.securityViolationCount) return [];
+    return [{
+        code: "SYSTEM_SECURITY_VIOLATION",
+        severity: "ERROR",
+        message: "Repeated system-scoped authentication or tenant security violations detected.",
+        count: events.length,
+        windowMinutes: thresholds.windowMinutes,
+        eventTypes: ["security.authentication_failure", "security.tenant_violation"],
+    }];
+}
+
 export async function evaluateCompanyObservabilityAlerts(
     companyId: string,
     now = new Date(),
@@ -80,7 +98,7 @@ export async function evaluateCompanyObservabilityAlerts(
             severity: "ERROR" as const,
             message: "Tenant or authentication security violations detected.",
             threshold: thresholds.securityViolationCount,
-            eventTypes: ["security.tenant_violation", "security.authentication_failure"],
+            eventTypes: ["security.tenant_violation", "security.authorization_failure"],
         },
         {
             code: "EXECUTION_FAILURE_SPIKE",

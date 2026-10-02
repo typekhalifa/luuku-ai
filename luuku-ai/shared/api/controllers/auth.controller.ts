@@ -21,6 +21,7 @@ function rateLimited(request: Request): boolean {
 }
 
 import { login, logout, getSession } from "../../auth/auth.service";
+import { recordObservabilityEvent } from "../../observability/durable-events.js";
 
 function sessionToken(request: Request): string | undefined {
     return request.header("cookie")?.split(";").map((part) => part.trim()).find((part) => part.startsWith("luuku_session="))?.slice("luuku_session=".length);
@@ -56,6 +57,19 @@ export async function loginController(request: Request, response: Response): Pro
 
     const result = await login(email, password);
     if (!result) {
+        void recordObservabilityEvent({
+            eventType: "security.authentication_failure",
+            source: "auth.controller",
+            ownership: { scope: "SYSTEM" },
+            requestId: (response.locals.observabilityCorrelation as { requestId?: string } | undefined)?.requestId,
+            traceId: (response.locals.observabilityCorrelation as { traceId?: string } | undefined)?.traceId,
+            severity: "ERROR",
+            status: "401",
+            actorType: "ANONYMOUS",
+            metadata: { reason: "invalid_credentials" },
+        }).catch(() => {
+            // Authentication telemetry must never change the login response.
+        });
         response.status(401).json({ error: "INVALID_CREDENTIALS" });
         return;
     }
@@ -93,12 +107,34 @@ export async function logoutController(request: Request, response: Response): Pr
 export async function meController(request: Request, response: Response): Promise<void> {
     const token = sessionToken(request);
     if (!token) {
+        void recordObservabilityEvent({
+            eventType: "security.authentication_failure",
+            source: "auth.controller",
+            ownership: { scope: "SYSTEM" },
+            requestId: (response.locals.observabilityCorrelation as { requestId?: string } | undefined)?.requestId,
+            traceId: (response.locals.observabilityCorrelation as { traceId?: string } | undefined)?.traceId,
+            severity: "ERROR",
+            status: "401",
+            actorType: "ANONYMOUS",
+            metadata: { reason: "session_missing", route: "/auth/me" },
+        }).catch(() => {});
         response.status(401).json({ error: "UNAUTHORIZED" });
         return;
     }
 
     const session = await getSession(token);
     if (!session) {
+        void recordObservabilityEvent({
+            eventType: "security.authentication_failure",
+            source: "auth.controller",
+            ownership: { scope: "SYSTEM" },
+            requestId: (response.locals.observabilityCorrelation as { requestId?: string } | undefined)?.requestId,
+            traceId: (response.locals.observabilityCorrelation as { traceId?: string } | undefined)?.traceId,
+            severity: "ERROR",
+            status: "401",
+            actorType: "ANONYMOUS",
+            metadata: { reason: "invalid_or_expired_session", route: "/auth/me" },
+        }).catch(() => {});
         response.status(401).json({ error: "UNAUTHORIZED" });
         return;
     }
