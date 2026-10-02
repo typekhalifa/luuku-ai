@@ -42,6 +42,18 @@ export async function recordObservabilityEvent(input: RecordObservabilityEventIn
     });
 }
 
+export async function listSystemSecurityEvents(from?: Date, to?: Date, limit = 500) {
+    return prisma.observabilityEvent.findMany({
+        where: {
+            ownershipScope: "SYSTEM",
+            eventType: { in: ["security.authentication_failure", "security.tenant_violation"] },
+            occurredAt: { gte: from, lte: to },
+        },
+        orderBy: { occurredAt: "desc" },
+        take: Math.min(Math.max(limit, 1), 500),
+    });
+}
+
 export interface ObservabilityEventQuery {
     companyId: string;
     executionId?: string;
