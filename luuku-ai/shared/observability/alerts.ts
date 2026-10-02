@@ -80,7 +80,7 @@ export async function evaluateCompanyObservabilityAlerts(
             severity: "ERROR" as const,
             message: "Tenant or authentication security violations detected.",
             threshold: thresholds.securityViolationCount,
-            eventTypes: ["security.tenant_violation", "security.authentication_failure"],
+            eventTypes: ["security.tenant_violation", "security.authentication_failure", "security.authorization_failure"],
         },
         {
             code: "EXECUTION_FAILURE_SPIKE",
