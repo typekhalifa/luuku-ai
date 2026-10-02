@@ -83,7 +83,7 @@ export default function OperationalObservability() {
             ) : (
               <div className="space-y-2">
                 {alerts.map((alert) => (
-                  <div key={alert.id} className="rounded-xl border border-red-400/20 bg-red-400/5 px-3 py-2 text-sm">
+                  <div key={alert.code} className="rounded-xl border border-red-400/20 bg-red-400/5 px-3 py-2 text-sm">
                     <span className="font-medium">{alert.message}</span>
                     <span className="ml-2 text-white/40">{alert.count} events / {alert.windowMinutes} min</span>
                   </div>
