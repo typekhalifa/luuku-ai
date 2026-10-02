@@ -169,16 +169,16 @@ app.use((request, response, next) => {
                 eventType: "security.authentication_failure",
                 source: "api.server",
                 ownership: { scope: "SYSTEM" },
-                requestId,
-                traceId,
+                requestId: (response.locals.observabilityCorrelation as { requestId?: string } | undefined)?.requestId,
+                traceId: (response.locals.observabilityCorrelation as { traceId?: string } | undefined)?.traceId,
                 severity: "ERROR",
                 status: "401",
                 actorType: "SERVICE",
                 metadata: { reason: "invalid_api_key" },
             }).catch((error) => {
                 logStructured("ERROR", "observability.event.persist_failed", {
-                    requestId,
-                    traceId,
+                    requestId: (response.locals.observabilityCorrelation as { requestId?: string } | undefined)?.requestId,
+                    traceId: (response.locals.observabilityCorrelation as { traceId?: string } | undefined)?.traceId,
                     error: error instanceof Error ? error.message : String(error),
                 });
             });
