@@ -35,12 +35,14 @@ export default function OperationalObservability() {
 
   const alerts = data.alerts ?? [];
 
-  async function loadTrace() {
-    if (!executionId.trim()) return;
+  async function loadTrace(requestedExecutionId = executionId) {
+    const id = requestedExecutionId.trim();
+    if (!id) return;
+    setExecutionId(id);
     setTraceLoading(true);
     setTraceError("");
     try {
-      setTrace(await getExecutionTrace(executionId.trim()));
+      setTrace(await getExecutionTrace(id));
     } catch {
       setTrace(null);
       setTraceError("Execution trace unavailable.");
@@ -64,7 +66,7 @@ export default function OperationalObservability() {
         <Metric label="Requests" value={String(data.requests)} detail={`${data.request5xx} server errors · ${data.request4xx} client errors`} icon={Activity} />
         <Metric label="Error rate" value={`${(data.requestErrorRate * 100).toFixed(2)}%`} detail="4xx + 5xx requests" icon={AlertTriangle} />
         <Metric label="Latency" value={`${Math.round(data.latency.averageMs)} ms`} detail={`${data.latency.samples} samples · max ${Math.round(data.latency.maxMs)} ms`} icon={Clock3} />
-        <Metric label="Executions" value={String(data.executions.succeeded)} detail={`${data.executions.failed} failed · ${data.executions.started} started`} icon={Workflow} />
+        <Metric label="Executions" value={String(data.executions.started)} detail={`${data.executions.succeeded} succeeded · ${data.executions.failed} failed`} icon={Workflow} />
       </div>
 
       <div className="mt-4 grid gap-4 sm:grid-cols-2">
