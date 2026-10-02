@@ -47,9 +47,10 @@ export async function loginController(request: Request, response: Response): Pro
     }
 
     const secure = process.env.NODE_ENV === "production";
+    const sameSite = secure ? "None" : "Lax";
     response.setHeader(
         "Set-Cookie",
-        `luuku_session=${result.token}; HttpOnly; Path=/; SameSite=Lax; Max-Age=604800${secure ? "; Secure" : ""}`,
+        `luuku_session=${result.token}; HttpOnly; Path=/; SameSite=${sameSite}; Max-Age=604800${secure ? "; Secure" : ""}`,
     );
 
     response.json(result.user);
@@ -61,9 +62,11 @@ export async function logoutController(request: Request, response: Response): Pr
         await logout(token);
     }
 
+    const secure = process.env.NODE_ENV === "production";
+    const sameSite = secure ? "None" : "Lax";
     response.setHeader(
         "Set-Cookie",
-        "luuku_session=; HttpOnly; Path=/; SameSite=Lax; Max-Age=0",
+        `luuku_session=; HttpOnly; Path=/; SameSite=${sameSite}; Max-Age=0${secure ? "; Secure" : ""}`,
     );
     response.status(204).end();
 }
