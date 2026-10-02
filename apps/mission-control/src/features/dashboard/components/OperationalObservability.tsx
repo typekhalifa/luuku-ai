@@ -85,12 +85,37 @@ export default function OperationalObservability() {
                 {alerts.map((alert) => (
                   <div key={alert.id} className="rounded-xl border border-red-400/20 bg-red-400/5 px-3 py-2 text-sm">
                     <span className="font-medium">{alert.message}</span>
-                    <span className="ml-2 text-white/40">{alert.value} / {alert.threshold}</span>
+                    <span className="ml-2 text-white/40">{alert.count} events / {alert.windowMinutes} min</span>
                   </div>
                 ))}
               </div>
             )}
           </div>
+        </div>
+      </div>
+
+      <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+        <div className="flex items-center gap-2 text-xs uppercase tracking-[0.18em] text-white/40">
+          <Activity size={14} /> Recent Backend Events
+        </div>
+        <div className="mt-3 space-y-2">
+          {data.recentEvents.length === 0 ? (
+            <p className="text-sm text-white/40">No durable events recorded in this window.</p>
+          ) : (
+            data.recentEvents.map((event) => (
+              <div key={event.id} className="flex flex-col gap-1 rounded-xl border border-white/10 px-3 py-2 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-sm font-medium">{event.eventType}</p>
+                  <p className="text-xs text-white/40">
+                    {event.source} · {new Date(event.occurredAt).toLocaleString()}
+                  </p>
+                </div>
+                <span className="text-xs uppercase tracking-wider text-white/50">
+                  {event.status ?? event.severity}
+                </span>
+              </div>
+            ))
+          )}
         </div>
       </div>
 
