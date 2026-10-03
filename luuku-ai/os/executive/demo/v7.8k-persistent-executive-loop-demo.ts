@@ -92,7 +92,10 @@ async function main() {
         capabilityResolver,
         { ...cycleOptions, workflowExecutor: controlledExecutor },
     );
-    const checkpointStore = new InMemoryExecutiveLoopCheckpointStore();
+    const checkpointStore = new InMemoryExecutiveLoopCheckpointStore({
+        scope: "COMPANY",
+        companyId: "company-v7.8k-checkpoint",
+    });
     const loop = new PersistentExecutiveLoop(cycle, checkpointStore);
 
     const first = await loop.run({ cycle: cycleOptions, maxCycles: 1 }, new Date("2026-09-03T05:00:10.000Z"));
@@ -108,6 +111,10 @@ async function main() {
     const checkpoint = await checkpointStore.load();
     assert.equal(checkpoint.cycleCount, 2);
     assert.equal(checkpoint.handledIntentKeys.length, 1);
+    assert.deepEqual(checkpoint.ownership, {
+        scope: "COMPANY",
+        companyId: "company-v7.8k-checkpoint",
+    });
 
     const workflows = await workflowStore.list();
     const queues = await queueStore.list();
