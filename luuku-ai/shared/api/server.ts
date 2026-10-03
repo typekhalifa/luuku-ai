@@ -18,6 +18,7 @@ import { requireAuthentication } from "../auth/auth.middleware";
 import { prisma } from "../database/client";
 import { logStructured, recordHttpRequest } from "../observability";
 import { recordObservabilityEvent } from "../observability/durable-events.js";
+import { productionExecutiveHost } from "../../os/executive/production-executive-host.js";
 
 const app = express();
 
@@ -223,9 +224,36 @@ app.use("/api/v1/workflow", workflowRouter);
 app.use("/api/v1/crm", crmRouter);
 app.use("/api/v1/runtime", runtimeRouter);
 
-app.listen(port, () => {
+const httpServer = app.listen(port, () => {
     logStructured("INFO", "api.started", {
         environment,
         port,
     });
+});
+
+void productionExecutiveHost.start().catch((error) => {
+    logStructured("ERROR", "executive.production.start_failed", {
+        error: error instanceof Error ? error.message : String(error),
+    });
+    process.exitCode = 1;
+});
+
+async function shutdown(signal: string): Promise<void> {
+    logStructured("INFO", "api.shutdown.started", { signal });
+    await productionExecutiveHost.stop();
+    await prisma.$disconnect();
+
+    await new Promise<void>((resolve) => {
+        httpServer.close(() => resolve());
+    });
+
+    logStructured("INFO", "api.shutdown.completed", { signal });
+}
+
+process.once("SIGTERM", () => {
+    void shutdown("SIGTERM");
+});
+
+process.once("SIGINT", () => {
+    void shutdown("SIGINT");
 });
