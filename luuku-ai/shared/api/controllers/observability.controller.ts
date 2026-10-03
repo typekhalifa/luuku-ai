@@ -98,6 +98,12 @@ export async function getObservabilityDashboard(request: Request, response: Resp
     const recentEvents = recentEventCandidates
         .filter((event) => {
             if (event.eventType !== "http.request.completed") return true;
+
+            // 304 responses are cache/polling noise for the operator activity feed.
+            // They remain counted in request/latency metrics, but should not crowd
+            // out meaningful backend execution/provider/security events.
+            if (event.status === "304") return false;
+
             const metadata = event.metadata;
             if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) return true;
             return (metadata as Record<string, unknown>).route !== "/api/v1/observability/dashboard";
