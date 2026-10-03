@@ -75,6 +75,9 @@ jobs:
       - name: V8.11 operational dashboard validation
         run: npx tsx luuku-ai/shared/observability/demo/v8-11-operational-dashboard-demo.ts
 
+      - name: V8.12 runtime observability attack validation
+        run: npm run dev:v8.12:runtime-attack
+
       - name: V8-K validation
         run: npx tsx luuku-ai/os/executive/demo/v8-k-long-horizon-planning-demo.ts
 
