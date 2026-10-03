@@ -5,7 +5,7 @@ import { listCompanyObservabilityEvents, getCompanyObservabilityDashboard } from
 import { ExecutionLedger, workflowStepIdempotencyKey } from "../../execution/execution-ledger.js";
 import { ProductionActuatorComposition, InMemoryProductionActuatorRegistry, type ProductionActuator } from "../../execution/production-actuator.js";
 import { V6ActuationBoundaryEngine } from "../../execution/v6-actuation-boundary.js";
-import { AutonomousRuntime } from "../autonomous-runtime.js";
+import { AutonomousRuntime } from "../../workflow/autonomous-runtime.js";
 import { WorkflowOrchestrator, type WorkflowStepExecutor } from "../../workflow/workflow-orchestrator.js";
 import { WorkflowStatus } from "../../workflow/workflow-status.js";
 import type { Workflow } from "../../workflow/workflow.js";
