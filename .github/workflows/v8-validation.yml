@@ -81,6 +81,9 @@ jobs:
       - name: V8.13 canonical V6 runtime proof
         run: npm run dev:v8.13:v6-runtime-proof
 
+      - name: V8.14 production runtime acceptance attack
+        run: npm run dev:v8.14:runtime-acceptance
+
       - name: V8-K validation
         run: npx tsx luuku-ai/os/executive/demo/v8-k-long-horizon-planning-demo.ts
 
