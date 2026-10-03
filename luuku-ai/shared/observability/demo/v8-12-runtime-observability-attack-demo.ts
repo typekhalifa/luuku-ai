@@ -52,6 +52,8 @@ async function main(): Promise<void> {
             country: "Rwanda",
             status: "prospect",
             confidence: 100,
+            verified: false,
+            source: "v8.12-runtime-attack",
         },
     });
 
