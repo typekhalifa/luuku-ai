@@ -78,6 +78,9 @@ jobs:
       - name: V8.12 runtime observability attack validation
         run: npm run dev:v8.12:runtime-attack
 
+      - name: V8.13 canonical V6 runtime proof
+        run: npm run dev:v8.13:v6-runtime-proof
+
       - name: V8-K validation
         run: npx tsx luuku-ai/os/executive/demo/v8-k-long-horizon-planning-demo.ts
 

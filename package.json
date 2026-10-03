@@ -47,7 +47,8 @@
     "db:deploy": "prisma migrate deploy --schema prisma/schema.prisma",
     "db:generate": "prisma generate --schema prisma/schema.prisma",
     "build:backend": "npm run db:generate && tsc -p luuku-ai/tsconfig.json",
-    "deployment:validate": "npm run build:backend"
+    "deployment:validate": "npm run build:backend",
+    "dev:v8.13:v6-runtime-proof": "tsx luuku-ai/orchestration/runtime/demo/v8-13-canonical-v6-runtime-proof-demo.ts"
   },
   "keywords": [
     "ai",
