@@ -13,7 +13,6 @@ export class RuntimeApplication {
             where: {
                 companyId,
                 status: "executing",
-                executed: false,
             },
             orderBy: { updatedAt: "desc" },
             select: {
