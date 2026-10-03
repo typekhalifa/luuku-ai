@@ -85,6 +85,7 @@ export class PersistentExecutiveLoop {
 
             checkpoint = {
                 version: checkpoint.version,
+                ownership: checkpoint.ownership,
                 handledIntentKeys,
                 cycleCount: checkpoint.cycleCount + 1,
                 updatedAt: new Date(),
