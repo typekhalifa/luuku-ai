@@ -163,8 +163,11 @@ export const resendEmailAdapter: CommunicationAdapter = {
             );
         }
 
-        // Defense in depth: only an explicitly live request can reach Resend.
-        if (executionMode !== "live") {
+        // Defense in depth: only an explicitly live request can reach Resend,
+        // and the process itself must also be configured for live delivery.
+        // Both gates are required so a request cannot override a test-mode
+        // deployment merely by setting executionMode=live in its payload.
+        if (executionMode !== "live" || mode !== "live") {
             return blockedResult(
                 request,
                 "External email delivery is disabled unless executionMode is explicitly live.",
