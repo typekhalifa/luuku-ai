@@ -6,29 +6,20 @@ export type ExecutionStatus =
     | "executing"
     | "completed"
     | "failed"
+    | "unknown"
     | "blocked"
     | "verified";
 
 export interface ExecutionEvidence {
-
     provider?: string;
-
     externalId?: string;
-
     reference?: string;
-
     details?: Record<string, unknown>;
-
 }
 
 export interface ExecutionResult {
-
     status: ExecutionStatus;
-
     executed: boolean;
-
     verified: boolean;
-
     evidence?: ExecutionEvidence;
-
 }
