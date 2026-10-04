@@ -78,6 +78,10 @@ export const resendEmailAdapter: CommunicationAdapter = {
         const executionMode =
             metadataString(request, "executionMode");
 
+        const idempotencyKey =
+            metadataString(request, "idempotencyKey") ||
+            metadataString(request, "taskId");
+
         if (executionMode === "sandbox") {
             const recipient =
                 request.recipientExternalId ||
@@ -241,10 +245,6 @@ export const resendEmailAdapter: CommunicationAdapter = {
 
             const references =
                 metadataString(request, "references");
-
-            const idempotencyKey =
-                metadataString(request, "idempotencyKey") ||
-                metadataString(request, "taskId");
 
             const headers: Record<string, string> = {
                 "Authorization": `Bearer ${apiKey}`,
