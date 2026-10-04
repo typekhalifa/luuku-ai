@@ -87,6 +87,9 @@ jobs:
       - name: V8.15 production runtime resilience attack
         run: npm run dev:v8.15:runtime-resilience
 
+      - name: Phase 5 actuator governance contract
+        run: npm run dev:v8.16:actuator-governance
+
       - name: V8-K validation
         run: npx tsx luuku-ai/os/executive/demo/v8-k-long-horizon-planning-demo.ts
 
