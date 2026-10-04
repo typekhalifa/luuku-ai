@@ -90,6 +90,9 @@ jobs:
       - name: Phase 5 actuator governance contract
         run: npm run dev:v8.16:actuator-governance
 
+      - name: Phase 5 communication unknown-outcome attack
+        run: npm run dev:v8.17:communication-unknown
+
       - name: V8-K validation
         run: npx tsx luuku-ai/os/executive/demo/v8-k-long-horizon-planning-demo.ts
 
