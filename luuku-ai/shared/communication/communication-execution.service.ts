@@ -44,6 +44,7 @@ function isTerminalStatus(
     return [
         "blocked",
         "failed",
+        "unknown",
         "completed",
         "verified",
     ].includes(status);
@@ -56,7 +57,8 @@ function isSafeToRetry(existing: {
 }): boolean {
     // Only an explicit failed result with no recorded side effect is retryable.
     // UNKNOWN is fail-closed: the provider may have accepted the action, so the
-    // durable idempotency identity must remain terminal until reconciled.\n    return existing.status === "failed" && !existing.executed && !existing.verified;
+    // durable idempotency identity must remain terminal until reconciled.
+    return existing.status === "failed" && !existing.executed && !existing.verified;
 }
 
 export interface CommunicationExecutionHandle {
