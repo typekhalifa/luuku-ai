@@ -246,11 +246,11 @@ export class CommunicationRouter {
             const result: CommunicationExecutionResult = {
                 capability: request.capability,
                 channel: request.channel,
-                status: "failed",
+                status: "unknown",
                 executed: false,
                 verified: false,
                 summary:
-                    "Communication adapter execution failed before completion.",
+                    "Communication adapter outcome is unknown; external execution may have occurred before the response was lost.",
                 error:
                     error instanceof Error
                         ? error.message
