@@ -50,7 +50,8 @@
     "deployment:validate": "npm run build:backend",
     "dev:v8.13:v6-runtime-proof": "tsx luuku-ai/orchestration/runtime/demo/v8-13-canonical-v6-runtime-proof-demo.ts",
     "dev:v8.14:runtime-acceptance": "tsx luuku-ai/orchestration/execution/demo/v8-14-production-runtime-acceptance-attack-demo.ts",
-    "dev:v8.15:runtime-resilience": "tsx luuku-ai/orchestration/execution/demo/v8-15-production-runtime-resilience-attack-demo.ts"
+    "dev:v8.15:runtime-resilience": "tsx luuku-ai/orchestration/execution/demo/v8-15-production-runtime-resilience-attack-demo.ts",
+    "dev:v8.16:actuator-governance": "tsx luuku-ai/orchestration/execution/demo/v8-16-actuator-governance-demo.ts"
   },
   "keywords": [
     "ai",
