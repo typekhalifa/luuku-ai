@@ -389,14 +389,28 @@ export const resendEmailAdapter: CommunicationAdapter = {
             };
 
         } catch (error) {
+            // Once the network request has been handed to the provider, a
+            // timeout/connection failure cannot prove that the provider did not
+            // accept the message. Fail closed as UNKNOWN and require durable
+            // reconciliation instead of permitting an automatic resend.
             return {
                 capability: request.capability,
                 channel: request.channel,
-                status: "failed",
+                status: "unknown",
                 executed: false,
                 verified: false,
+                evidence: {
+                    provider: "resend",
+                    details: {
+                        recipient,
+                        from,
+                        providerAccepted: "unknown",
+                        idempotencyKey,
+                        reconciliationRequired: true
+                    }
+                },
                 summary:
-                    "Outbound email failed before provider confirmation.",
+                    "Resend delivery outcome is unknown; the provider may have accepted the email.",
                 error:
                     error instanceof Error
                         ? error.message
