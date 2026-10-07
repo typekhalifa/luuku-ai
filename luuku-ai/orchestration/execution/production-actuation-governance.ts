@@ -239,7 +239,7 @@ export class GuardedProductionActuation {
         if (claim.status === "COMPLETED") {
             return {
                 ...claim.result,
-                outcome: claim.result.verified
+                outcome: claim.result.result?.verified
                     ? "VERIFIED"
                     : "EXECUTED",
                 idempotencyKey,
@@ -252,9 +252,9 @@ export class GuardedProductionActuation {
 
             return {
                 ...recovered,
-                outcome: recovered.verified
+                outcome: recovered.result?.verified
                     ? "VERIFIED"
-                    : recovered.executed
+                    : recovered.result?.executed
                         ? "EXECUTED"
                         : "FAILED",
                 idempotencyKey,
