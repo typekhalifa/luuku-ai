@@ -155,9 +155,9 @@ async function main(): Promise<void> {
         );
     }
 
-    if (second.outcome !== "VERIFIED") {
+    if (second.outcome !== "VERIFIED" || !second.replayed) {
         throw new Error(
-            `Expected second concurrent dispatch to resolve to VERIFIED; received ${second.outcome}.`,
+            "Concurrent loser did not recover the winner's verified result as a replay.",
         );
     }
 
