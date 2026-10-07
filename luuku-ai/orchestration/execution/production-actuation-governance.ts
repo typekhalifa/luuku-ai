@@ -26,9 +26,26 @@ export interface ActuationControl {
     reason?: string;
 }
 
+export type ActuationIdempotencyClaim =
+    | {
+        readonly status: "ACQUIRED";
+      }
+    | {
+        readonly status: "COMPLETED";
+        readonly result: ProductionActuationResult;
+      }
+    | {
+        readonly status: "IN_FLIGHT";
+        readonly completion: Promise<ProductionActuationResult>;
+      };
+
 export interface ActuationIdempotencyStore {
-    get(key: string): Promise<ProductionActuationResult | undefined> | ProductionActuationResult | undefined;
-    put(key: string, result: ProductionActuationResult): Promise<void> | void;
+    claim(key: string): Promise<ActuationIdempotencyClaim> | ActuationIdempotencyClaim;
+    complete(
+        key: string,
+        result: ProductionActuationResult,
+        persist: boolean,
+    ): Promise<void> | void;
 }
 
 export interface GuardedProductionActuationResult extends ProductionActuationResult {
@@ -39,13 +56,64 @@ export interface GuardedProductionActuationResult extends ProductionActuationRes
 
 export class InMemoryActuationIdempotencyStore implements ActuationIdempotencyStore {
     private readonly results = new Map<string, ProductionActuationResult>();
+    private readonly inFlight = new Map<
+        string,
+        {
+            readonly completion: Promise<ProductionActuationResult>;
+            readonly resolve: (result: ProductionActuationResult) => void;
+        }
+    >();
 
-    get(key: string): ProductionActuationResult | undefined {
-        return this.results.get(key);
+    claim(key: string): ActuationIdempotencyClaim {
+        const recovered = this.results.get(key);
+
+        if (recovered) {
+            return {
+                status: "COMPLETED",
+                result: recovered,
+            };
+        }
+
+        const existing = this.inFlight.get(key);
+
+        if (existing) {
+            return {
+                status: "IN_FLIGHT",
+                completion: existing.completion,
+            };
+        }
+
+        let resolve!: (result: ProductionActuationResult) => void;
+
+        const completion = new Promise<ProductionActuationResult>(resolver => {
+            resolve = resolver;
+        });
+
+        this.inFlight.set(key, {
+            completion,
+            resolve,
+        });
+
+        return { status: "ACQUIRED" };
     }
 
-    put(key: string, result: ProductionActuationResult): void {
-        this.results.set(key, result);
+    complete(
+        key: string,
+        result: ProductionActuationResult,
+        persist: boolean,
+    ): void {
+        if (persist) {
+            this.results.set(key, result);
+        }
+
+        const existing = this.inFlight.get(key);
+
+        if (!existing) {
+            return;
+        }
+
+        this.inFlight.delete(key);
+        existing.resolve(result);
     }
 }
 
@@ -166,14 +234,29 @@ export class GuardedProductionActuation {
             };
         }
 
-        const recovered = await this.idempotency.get(idempotencyKey);
+        const claim = await this.idempotency.claim(idempotencyKey);
 
-        if (recovered) {
+        if (claim.status === "COMPLETED") {
             return {
-                ...recovered,
-                outcome: recovered.result?.verified
+                ...claim.result,
+                outcome: claim.result.verified
                     ? "VERIFIED"
                     : "EXECUTED",
+                idempotencyKey,
+                replayed: true,
+            };
+        }
+
+        if (claim.status === "IN_FLIGHT") {
+            const recovered = await claim.completion;
+
+            return {
+                ...recovered,
+                outcome: recovered.verified
+                    ? "VERIFIED"
+                    : recovered.executed
+                        ? "EXECUTED"
+                        : "FAILED",
                 idempotencyKey,
                 replayed: true,
             };
@@ -196,17 +279,22 @@ export class GuardedProductionActuation {
             };
 
             // Only an action that crossed into execution is replay-safe.
-            // Blocked/failed results remain retryable by a future V6 run.
-            if (result.result?.executed) {
-                await this.idempotency.put(idempotencyKey, result);
-            }
+            // Failed/blocked results release the in-flight claim so a future
+            // V6 run can retry. Concurrent callers still receive this exact
+            // result and cannot enter the actuator while the winner runs.
+            await this.idempotency.complete(
+                idempotencyKey,
+                result,
+                Boolean(result.result?.executed),
+            );
 
             return guarded;
         } catch (error) {
             // An exception after entering the actuator is an UNKNOWN outcome:
             // the provider may have accepted the action before the process
-            // observed the failure. Automatic replay is therefore forbidden.
-            return {
+            // observed the failure. Do not persist UNKNOWN as a completed
+            // replay, but resolve concurrent waiters with the same safe result.
+            const unknown: ProductionActuationResult = {
                 allowed: true,
                 boundary: "V6_EXECUTION_AUTHORITY",
                 context: {
@@ -215,6 +303,12 @@ export class GuardedProductionActuation {
                     capability: step.capability,
                 },
                 reason: error instanceof Error ? error.message : String(error),
+            };
+
+            await this.idempotency.complete(idempotencyKey, unknown, false);
+
+            return {
+                ...unknown,
                 outcome: "UNKNOWN",
                 idempotencyKey,
             };
