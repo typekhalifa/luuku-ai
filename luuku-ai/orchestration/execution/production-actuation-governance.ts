@@ -37,14 +37,18 @@ export type ActuationIdempotencyClaim =
     | {
         readonly status: "IN_FLIGHT";
         readonly completion: Promise<ProductionActuationResult>;
+      }
+    | {
+        readonly status: "UNKNOWN";
+        readonly result: ProductionActuationResult;
       };
 
 export interface ActuationIdempotencyStore {
-    claim(key: string): Promise<ActuationIdempotencyClaim> | ActuationIdempotencyClaim;
+    claim(key: string, step?: WorkflowStep): Promise<ActuationIdempotencyClaim> | ActuationIdempotencyClaim;
     complete(
         key: string,
         result: ProductionActuationResult,
-        persist: boolean,
+        disposition: "COMPLETED" | "UNKNOWN" | "RELEASED",
     ): Promise<void> | void;
 }
 
@@ -56,6 +60,7 @@ export interface GuardedProductionActuationResult extends ProductionActuationRes
 
 export class InMemoryActuationIdempotencyStore implements ActuationIdempotencyStore {
     private readonly results = new Map<string, ProductionActuationResult>();
+    private readonly unknowns = new Map<string, ProductionActuationResult>();
     private readonly inFlight = new Map<
         string,
         {
@@ -65,6 +70,12 @@ export class InMemoryActuationIdempotencyStore implements ActuationIdempotencySt
     >();
 
     claim(key: string): ActuationIdempotencyClaim {
+        const unknown = this.unknowns.get(key);
+
+        if (unknown) {
+            return { status: "UNKNOWN", result: unknown };
+        }
+
         const recovered = this.results.get(key);
 
         if (recovered) {
@@ -100,10 +111,15 @@ export class InMemoryActuationIdempotencyStore implements ActuationIdempotencySt
     complete(
         key: string,
         result: ProductionActuationResult,
-        persist: boolean,
+        disposition: "COMPLETED" | "UNKNOWN" | "RELEASED",
     ): void {
-        if (persist) {
+        if (disposition === "COMPLETED") {
             this.results.set(key, result);
+        } else if (disposition === "UNKNOWN") {
+            this.unknowns.set(key, result);
+        } else {
+            this.results.delete(key);
+            this.unknowns.delete(key);
         }
 
         const existing = this.inFlight.get(key);
@@ -288,7 +304,7 @@ export class GuardedProductionActuation {
             };
         }
 
-        const claim = await this.idempotency.claim(idempotencyKey);
+        const claim = await this.idempotency.claim(idempotencyKey, step);
 
         if (claim.status === "COMPLETED") {
             return {
@@ -296,6 +312,15 @@ export class GuardedProductionActuation {
                 outcome: claim.result.result?.verified
                     ? "VERIFIED"
                     : "EXECUTED",
+                idempotencyKey,
+                replayed: true,
+            };
+        }
+
+        if (claim.status === "UNKNOWN") {
+            return {
+                ...claim.result,
+                outcome: "UNKNOWN",
                 idempotencyKey,
                 replayed: true,
             };
@@ -339,7 +364,9 @@ export class GuardedProductionActuation {
             await this.idempotency.complete(
                 idempotencyKey,
                 result,
-                Boolean(result.result?.executed),
+                result.result?.executed
+                    ? "COMPLETED"
+                    : "RELEASED",
             );
 
             return guarded;
@@ -359,7 +386,7 @@ export class GuardedProductionActuation {
                 reason: error instanceof Error ? error.message : String(error),
             };
 
-            await this.idempotency.complete(idempotencyKey, unknown, false);
+            await this.idempotency.complete(idempotencyKey, unknown, "UNKNOWN");
 
             return {
                 ...unknown,
