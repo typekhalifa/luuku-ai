@@ -58,7 +58,8 @@
     "dev:v8.20:cross-tenant-isolation": "tsx luuku-ai/orchestration/execution/demo/v8-20-cross-tenant-isolation-attack-demo.ts",
     "dev:v8.21:capability-escalation": "tsx luuku-ai/orchestration/execution/demo/v8-21-capability-escalation-attack-demo.ts",
     "dev:v8.22:recipient-substitution": "tsx luuku-ai/orchestration/execution/demo/v8-22-recipient-substitution-attack-demo.ts",
-    "dev:v8.23:provider-ledger-gap": "tsx luuku-ai/shared/communication/demo/phase5-provider-accepted-ledger-failure-demo.ts"
+    "dev:v8.23:provider-ledger-gap": "tsx luuku-ai/shared/communication/demo/phase5-provider-accepted-ledger-failure-demo.ts",
+    "dev:v8.24:durable-restart": "tsx luuku-ai/orchestration/execution/demo/v8-24-durable-idempotency-restart-attack-demo.ts"
   },
   "keywords": [
     "ai",
