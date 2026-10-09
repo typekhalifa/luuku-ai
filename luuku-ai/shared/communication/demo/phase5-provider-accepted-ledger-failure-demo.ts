@@ -74,6 +74,7 @@ async function main(): Promise<void> {
         body: "Synthetic test only; no external email is sent.",
         metadata: {
             companyId: "phase5-company",
+            audience: "internal",
             executionMode: "test",
             idempotencyKey: "phase5/provider-accepted-ledger-failure",
             source: "phase5-provider-accepted-ledger-failure",
