@@ -65,8 +65,8 @@ async function main(): Promise<void> {
         };
 
         // Persist a synthetic terminal result; never call email, SMS, or another provider.
-        await (acquired[0].status === "ACQUIRED" ? processA : processB)
-            .complete(concurrentKey, providerResult, "COMPLETED");
+        const winningStore = claims[0].status === "ACQUIRED" ? processA : processB;
+        await winningStore.complete(concurrentKey, providerResult, "COMPLETED");
 
         const restartedProcess = new PrismaActuationIdempotencyStore(db);
         const recovered = await restartedProcess.claim(concurrentKey);
@@ -94,7 +94,7 @@ async function main(): Promise<void> {
             tenantStoreB.claim(tenantBKey),
         ]);
         assert(tenantA.status === "ACQUIRED", `Tenant A claim failed: ${tenantA.status}.`);
-        assert(tenantB.status === "ACQUIRED", `Tenant B claim failed: ${tenantB.status}.");
+        assert(tenantB.status === "ACQUIRED", `Tenant B claim failed: ${tenantB.status}.`);
         console.log("Distinct tenant scopes remain isolated : PASS");
 
         await tenantStoreA.complete(tenantAKey, {
