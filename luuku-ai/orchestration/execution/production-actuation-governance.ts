@@ -323,7 +323,8 @@ export class GuardedProductionActuation {
                 ...claim.result,
                 outcome: "UNKNOWN",
                 idempotencyKey,
-                replayed: true,
+                // UNKNOWN is a fail-closed refusal to replay, not a replayed result.
+                replayed: false,
             };
         }
 
