@@ -4,6 +4,7 @@ import {
     ProductionActuatorComposition,
     type ProductionActuationResult,
 } from "./production-actuator.js";
+import { PrismaActuationIdempotencyStore } from "./prisma-actuation-idempotency-store.js";
 
 export type ProductionActuationOutcome =
     | "BLOCKED"
@@ -212,7 +213,7 @@ export class GuardedProductionActuation {
         private readonly composition: ProductionActuatorComposition,
         private readonly authorization: ActuationAuthorizationPolicy,
         private readonly control: ActuationControl,
-        private readonly idempotency: ActuationIdempotencyStore = new InMemoryActuationIdempotencyStore(),
+        private readonly idempotency: ActuationIdempotencyStore = new PrismaActuationIdempotencyStore(),
     ) {}
 
     async dispatch(step: WorkflowStep): Promise<GuardedProductionActuationResult> {
