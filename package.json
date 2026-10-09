@@ -56,7 +56,8 @@
     "dev:v8.18:controlled-real-email": "tsx luuku-ai/shared/communication/demo/phase5-controlled-real-email-demo.ts",
     "dev:v8.19:concurrent-idempotency": "tsx luuku-ai/orchestration/execution/demo/v8-19-concurrent-idempotency-attack-demo.ts",
     "dev:v8.20:cross-tenant-isolation": "tsx luuku-ai/orchestration/execution/demo/v8-20-cross-tenant-isolation-attack-demo.ts",
-    "dev:v8.21:capability-escalation": "tsx luuku-ai/orchestration/execution/demo/v8-21-capability-escalation-attack-demo.ts"
+    "dev:v8.21:capability-escalation": "tsx luuku-ai/orchestration/execution/demo/v8-21-capability-escalation-attack-demo.ts",
+    "dev:v8.22:recipient-substitution": "tsx luuku-ai/orchestration/execution/demo/v8-22-recipient-substitution-attack-demo.ts"
   },
   "keywords": [
     "ai",
