@@ -336,7 +336,9 @@ export class GuardedProductionActuation {
                     ? "VERIFIED"
                     : recovered.result?.executed
                         ? "EXECUTED"
-                        : "FAILED",
+                        : recovered.allowed && !recovered.result && recovered.reason
+                            ? "UNKNOWN"
+                            : "FAILED",
                 idempotencyKey,
                 replayed: true,
             };
