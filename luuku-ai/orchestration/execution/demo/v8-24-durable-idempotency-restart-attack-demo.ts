@@ -105,6 +105,10 @@ async function main(): Promise<void> {
             capability: step.capability,
         },
         result: {
+            success: true,
+            summary: "Synthetic durable actuation completed.",
+            completedAt: new Date().toISOString(),
+            executionStatus: "verified",
             verified: true,
             executed: true,
             evidence: {
