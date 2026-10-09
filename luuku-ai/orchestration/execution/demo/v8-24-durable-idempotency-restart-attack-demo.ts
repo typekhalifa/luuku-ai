@@ -100,7 +100,7 @@ async function main(): Promise<void> {
         allowed: true,
         boundary: "V6_EXECUTION_AUTHORITY",
         context: {
-            workflowId: step.workflowId,
+            workflowId: step.workflowId ?? "phase5-durable-restart",
             stepId: step.id,
             capability: step.capability,
         },
