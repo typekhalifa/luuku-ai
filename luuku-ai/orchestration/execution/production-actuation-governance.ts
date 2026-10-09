@@ -217,6 +217,8 @@ export class GuardedProductionActuation {
             };
         }
 
+        const authorizedCapability = step.capability?.trim();
+
         const authorization = await this.authorization.authorize(step);
 
         if (!authorization.allowed) {
@@ -229,6 +231,23 @@ export class GuardedProductionActuation {
                     capability: step.capability,
                 },
                 reason: authorization.reason ?? "Production actuation was not authorized.",
+                outcome: "BLOCKED",
+                idempotencyKey,
+            };
+        }
+
+        // Authorization applies to the exact capability observed before the
+        // asynchronous policy call. Reject mutation before selecting an actuator.
+        if (step.capability?.trim() !== authorizedCapability) {
+            return {
+                allowed: false,
+                boundary: "V6_EXECUTION_AUTHORITY",
+                context: {
+                    workflowId: step.workflowId ?? "",
+                    stepId: step.id,
+                    capability: step.capability,
+                },
+                reason: "Production actuation capability changed during authorization.",
                 outcome: "BLOCKED",
                 idempotencyKey,
             };
