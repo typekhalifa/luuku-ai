@@ -55,7 +55,9 @@ async function main(): Promise<void> {
                 externalId: string;
             };
         }> {
-            const companyId = currentStep.ownership?.companyId ?? "unknown";
+            const companyId = currentStep.ownership?.scope === "COMPANY"
+                ? currentStep.ownership.companyId
+                : "unknown";
             const externalId = `phase5-cross-tenant-${companyId}-${executionIds.length + 1}`;
 
             executionIds.push(externalId);
