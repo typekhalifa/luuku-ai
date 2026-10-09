@@ -1,3 +1,4 @@
+import "dotenv/config";
 import { randomUUID } from "node:crypto";
 import { PrismaClient } from "@prisma/client";
 import { PrismaActuationIdempotencyStore } from "../prisma-actuation-idempotency-store.js";
