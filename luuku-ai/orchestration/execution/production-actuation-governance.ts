@@ -218,6 +218,26 @@ export class GuardedProductionActuation {
         }
 
         const authorizedCapability = step.capability?.trim();
+        // Recipient and other actuator parameters live inside WorkflowStep.input.
+        // Snapshot the complete JSON payload before the asynchronous policy seam
+        // so a policy/extension cannot swap the destination after authorization.
+        let authorizedInputSnapshot: string;
+        try {
+            authorizedInputSnapshot = JSON.stringify(step.input ?? null);
+        } catch {
+            return {
+                allowed: false,
+                boundary: "V6_EXECUTION_AUTHORITY",
+                context: {
+                    workflowId: step.workflowId ?? "",
+                    stepId: step.id,
+                    capability: step.capability,
+                },
+                reason: "Production actuation input must be serializable before authorization.",
+                outcome: "BLOCKED",
+                idempotencyKey,
+            };
+        }
 
         const authorization = await this.authorization.authorize(step);
 
@@ -248,6 +268,21 @@ export class GuardedProductionActuation {
                     capability: step.capability,
                 },
                 reason: "Production actuation capability changed during authorization.",
+                outcome: "BLOCKED",
+                idempotencyKey,
+            };
+        }
+
+        if (JSON.stringify(step.input ?? null) !== authorizedInputSnapshot) {
+            return {
+                allowed: false,
+                boundary: "V6_EXECUTION_AUTHORITY",
+                context: {
+                    workflowId: step.workflowId ?? "",
+                    stepId: step.id,
+                    capability: step.capability,
+                },
+                reason: "Production actuation input changed during authorization.",
                 outcome: "BLOCKED",
                 idempotencyKey,
             };
