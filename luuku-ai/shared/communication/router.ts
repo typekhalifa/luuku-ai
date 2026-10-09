@@ -10,7 +10,8 @@ import {
 } from "./communication-policy";
 
 import {
-    communicationExecutionService
+    communicationExecutionService,
+    CommunicationExecutionService,
 } from "./communication-execution.service";
 
 import {
@@ -61,6 +62,13 @@ export class CommunicationRouter {
     private readonly adapters =
         new Map<CommunicationCapability, CommunicationAdapter>();
 
+    constructor(
+        private readonly executionService: Pick<
+            CommunicationExecutionService,
+            "start" | "markExecuting" | "complete"
+        > = communicationExecutionService,
+    ) {}
+
     register(
         adapter: CommunicationAdapter
     ): void {
@@ -100,7 +108,7 @@ export class CommunicationRouter {
             await communicationPolicy.evaluate(request);
 
         const execution =
-            await communicationExecutionService.start(
+            await this.executionService.start(
                 request,
                 policy
             );
@@ -154,7 +162,7 @@ export class CommunicationRouter {
                 reviewId: reviewRequest.id,
             };
 
-            await communicationExecutionService.complete(
+            await this.executionService.complete(
                 execution.id,
                 result
             );
@@ -173,7 +181,7 @@ export class CommunicationRouter {
                 error: policy.errorCode,
             };
 
-            await communicationExecutionService.complete(
+            await this.executionService.complete(
                 execution.id,
                 result
             );
@@ -199,7 +207,7 @@ export class CommunicationRouter {
                     "CAPABILITY_NOT_REGISTERED"
             };
 
-            await communicationExecutionService.complete(
+            await this.executionService.complete(
                 execution.id,
                 result
             );
@@ -220,7 +228,7 @@ export class CommunicationRouter {
                     "CAPABILITY_UNAVAILABLE"
             };
 
-            await communicationExecutionService.complete(
+            await this.executionService.complete(
                 execution.id,
                 result
             );
@@ -228,22 +236,18 @@ export class CommunicationRouter {
             return result;
         }
 
-        await communicationExecutionService.markExecuting(
+        await this.executionService.markExecuting(
             execution.id
         );
 
+        let result: CommunicationExecutionResult;
+
         try {
-            const result =
-                await adapter.execute(request);
-
-            await communicationExecutionService.complete(
-                execution.id,
-                result
-            );
-
-            return result;
+            result = await adapter.execute(request);
         } catch (error) {
-            const result: CommunicationExecutionResult = {
+            // An adapter/transport exception cannot prove that the provider did
+            // not accept the action. Persist UNKNOWN when possible.
+            result = {
                 capability: request.capability,
                 channel: request.channel,
                 status: "unknown",
@@ -257,12 +261,37 @@ export class CommunicationRouter {
                         : String(error),
             };
 
-            await communicationExecutionService.complete(
-                execution.id,
-                result
-            );
+            try {
+                await this.executionService.complete(execution.id, result);
+            } catch {
+                // The record remains executing. A subsequent attempt must fail
+                // closed rather than dispatching the provider a second time.
+            }
 
             return result;
+        }
+
+        try {
+            await this.executionService.complete(execution.id, result);
+            return result;
+        } catch (error) {
+            // The provider returned a result but local persistence failed. Do not
+            // turn this into a retryable provider failure or call the adapter
+            // again. The durable row remains executing and is reconciled later.
+            return {
+                capability: request.capability,
+                channel: request.channel,
+                status: "unknown",
+                executed: false,
+                verified: false,
+                evidence: result.evidence,
+                summary:
+                    "Provider returned a result but local execution-ledger persistence failed; external outcome requires reconciliation and must not be resent automatically.",
+                error:
+                    error instanceof Error
+                        ? error.message
+                        : String(error),
+            };
         }
     }
 }

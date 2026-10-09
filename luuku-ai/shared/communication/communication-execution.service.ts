@@ -121,7 +121,24 @@ export class CommunicationExecutionService {
                                       existing.policyReason,
                                   error: existing.error ?? undefined,
                               }
-                            : undefined,
+                            : existing.status === "executing"
+                                ? {
+                                      capability:
+                                          existing.capability as CommunicationExecutionResult["capability"],
+                                      channel:
+                                          existing.channel as CommunicationExecutionResult["channel"],
+                                      status: "unknown",
+                                      executed: false,
+                                      verified: false,
+                                      evidence:
+                                          existing.evidence
+                                              ? (existing.evidence as unknown as CommunicationExecutionResult["evidence"])
+                                              : undefined,
+                                      summary:
+                                          "A prior execution is still marked executing. Provider outcome requires reconciliation; automatic resend is blocked.",
+                                      error: "COMMUNICATION_EXECUTION_OUTCOME_UNKNOWN",
+                                  }
+                                : undefined,
                 };
             }
 
