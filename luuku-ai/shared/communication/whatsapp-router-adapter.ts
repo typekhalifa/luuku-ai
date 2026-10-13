@@ -95,6 +95,13 @@ export class WhatsAppRouterAdapter implements CommunicationAdapter {
                 "WHATSAPP_MESSAGE_BODY_MISSING",
             );
         }
+        if (request.metadata?.executionMode !== "live") {
+            return blockedResult(
+                request,
+                "WhatsApp delivery requires request-level executionMode=live consent.",
+                "WHATSAPP_REQUEST_LIVE_CONSENT_REQUIRED",
+            );
+        }
         if (this.runtimeConfig.whatsappMode !== "live") {
             return blockedResult(
                 request,
