@@ -63,7 +63,8 @@
     "dev:v8.25:real-db-idempotency": "tsx luuku-ai/orchestration/execution/demo/v8-25-real-postgres-idempotency-integration-demo.ts",
     "dev:v8.26:whatsapp-actuator": "tsx luuku-ai/shared/communication/demo/v8-26-whatsapp-actuator-contract-demo.ts",
     "dev:v8.27:whatsapp-governed-path": "tsx luuku-ai/shared/communication/demo/v8-27-whatsapp-governed-path-demo.ts",
-    "dev:v8.28:whatsapp-webhook": "tsx luuku-ai/shared/api/demo/v8-28-whatsapp-webhook-contract-demo.ts"
+    "dev:v8.28:whatsapp-webhook": "tsx luuku-ai/shared/api/demo/v8-28-whatsapp-webhook-contract-demo.ts",
+    "dev:v8.29:whatsapp-founder-roundtrip": "tsx luuku-ai/shared/communication/demo/v8-29-whatsapp-founder-roundtrip-demo.ts"
   },
   "keywords": [
     "ai",
