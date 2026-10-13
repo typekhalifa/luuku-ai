@@ -119,21 +119,39 @@ export class PrismaActuationIdempotencyStore implements ActuationIdempotencyStor
         result: ProductionActuationResult,
         disposition: "COMPLETED" | "UNKNOWN" | "RELEASED",
     ): Promise<void> {
-        if (disposition === "RELEASED") {
-            await this.db.productionActuationIdempotency.deleteMany({
-                where: { idempotencyKey: key, status: "IN_FLIGHT" },
-            });
-        } else {
-            await this.db.productionActuationIdempotency.update({
-                where: { idempotencyKey: key },
-                data: {
-                    status: disposition,
-                    result: jsonResult(result),
-                    lastError: disposition === "UNKNOWN"
-                        ? (result.reason ?? "External actuation outcome is unknown.")
-                        : null,
-                },
-            });
+        try {
+            if (disposition === "RELEASED") {
+                await this.db.productionActuationIdempotency.deleteMany({
+                    where: { idempotencyKey: key, status: "IN_FLIGHT" },
+                });
+            } else {
+                await this.db.productionActuationIdempotency.update({
+                    where: { idempotencyKey: key },
+                    data: {
+                        status: disposition,
+                        result: jsonResult(result),
+                        lastError: disposition === "UNKNOWN"
+                            ? (result.reason ?? "External actuation outcome is unknown.")
+                            : null,
+                    },
+                });
+            }
+        } catch (error) {
+            // The write may have committed even if the client received an error.
+            // Never tell concurrent waiters that execution succeeded; they must
+            // reconcile the durable row before any later attempt can proceed.
+            const local = this.localInFlight.get(key);
+            if (local) {
+                this.localInFlight.delete(key);
+                local.resolve({
+                    allowed: true,
+                    boundary: "V6_EXECUTION_AUTHORITY",
+                    context: result.context,
+                    reason:
+                        "Idempotency persistence failed or returned an ambiguous result. External outcome requires reconciliation; automatic retry is blocked.",
+                });
+            }
+            throw error;
         }
 
         const local = this.localInFlight.get(key);
