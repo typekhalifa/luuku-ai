@@ -86,7 +86,7 @@ async function main(): Promise<void> {
     assert(persistedSuccess?.status === "verified", "Successful WhatsApp result was not persisted by the real execution ledger.");
     assert(persistedSuccess?.externalId === "wamid.synthetic-governed-001", "Provider evidence was not persisted by the real execution ledger.");
 
-    const replay = await router.execute(request("governed-success-001"));
+    const replay = await router.execute(request(key("success")));
     assert(replay.status === "verified", "Idempotent replay should return the stored result.");
     assert(providerCalls === 1, "Idempotent replay dispatched the provider again.");
     const persistedReplay = await prisma.communicationExecution.findUnique({ where: { idempotencyKey: key("success") } });
@@ -101,7 +101,7 @@ async function main(): Promise<void> {
     const uncertain = await ambiguous.router.execute(request(key("unknown")));
     assert(uncertain.status === "unknown", "Ambiguous transport failure must be recorded as UNKNOWN.");
     assert(ambiguousProviderCalls === 1, "Expected exactly one ambiguous provider attempt.");
-    const uncertainReplay = await ambiguous.router.execute(request("governed-unknown-001"));
+    const uncertainReplay = await ambiguous.router.execute(request(key("unknown")));
     assert(uncertainReplay.status === "unknown", "UNKNOWN replay must remain fail-closed.");
     assert(ambiguousProviderCalls === 1, "UNKNOWN replay must not automatically resend.");
     const persistedUnknown = await prisma.communicationExecution.findUnique({ where: { idempotencyKey: key("unknown") } });
