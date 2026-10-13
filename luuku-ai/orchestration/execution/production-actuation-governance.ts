@@ -345,40 +345,12 @@ export class GuardedProductionActuation {
             };
         }
 
+        let result: ProductionActuationResult;
         try {
-            const result = await this.composition.dispatch(step);
-            const outcome = result.result?.verified
-                ? "VERIFIED"
-                : result.result?.executed
-                    ? "EXECUTED"
-                    : result.allowed
-                        ? "FAILED"
-                        : "BLOCKED";
-
-            const guarded: GuardedProductionActuationResult = {
-                ...result,
-                outcome,
-                idempotencyKey,
-            };
-
-            // Only an action that crossed into execution is replay-safe.
-            // Failed/blocked results release the in-flight claim so a future
-            // V6 run can retry. Concurrent callers still receive this exact
-            // result and cannot enter the actuator while the winner runs.
-            await this.idempotency.complete(
-                idempotencyKey,
-                result,
-                result.result?.executed
-                    ? "COMPLETED"
-                    : "RELEASED",
-            );
-
-            return guarded;
+            result = await this.composition.dispatch(step);
         } catch (error) {
-            // An exception after entering the actuator is an UNKNOWN outcome:
-            // the provider may have accepted the action before the process
-            // observed the failure. Do not persist UNKNOWN as a completed
-            // replay, but resolve concurrent waiters with the same safe result.
+            // An exception while dispatching may happen after external acceptance.
+            // Classify it as UNKNOWN and never automatically execute it again.
             const unknown: ProductionActuationResult = {
                 allowed: true,
                 boundary: "V6_EXECUTION_AUTHORITY",
@@ -390,13 +362,63 @@ export class GuardedProductionActuation {
                 reason: error instanceof Error ? error.message : String(error),
             };
 
-            await this.idempotency.complete(idempotencyKey, unknown, "UNKNOWN");
+            try {
+                await this.idempotency.complete(idempotencyKey, unknown, "UNKNOWN");
+            } catch (persistenceError) {
+                // The store fails closed for local waiters. Do not make a second
+                // write attempt: the first write may have committed ambiguously.
+                return {
+                    ...unknown,
+                    reason:
+                        `Actuation outcome is UNKNOWN and recording that state also failed: ${persistenceError instanceof Error ? persistenceError.message : String(persistenceError)}. Reconciliation is required; automatic retry is blocked.`,
+                    outcome: "UNKNOWN",
+                    idempotencyKey,
+                    replayed: false,
+                };
+            }
 
             return {
                 ...unknown,
                 outcome: "UNKNOWN",
                 idempotencyKey,
+                replayed: false,
             };
         }
+
+        const outcome = result.result?.verified
+            ? "VERIFIED"
+            : result.result?.executed
+                ? "EXECUTED"
+                : result.allowed
+                    ? "FAILED"
+                    : "BLOCKED";
+
+        // Persisting the result is a separate failure domain from execution.
+        // If this write throws, it may still have committed; preserve provider
+        // evidence in the returned value, but report UNKNOWN and never overwrite
+        // the possibly committed row with a second best-effort write.
+        try {
+            await this.idempotency.complete(
+                idempotencyKey,
+                result,
+                result.result?.executed ? "COMPLETED" : "RELEASED",
+            );
+        } catch (error) {
+            return {
+                ...result,
+                allowed: true,
+                reason:
+                    `Actuator returned a result, but durable idempotency persistence failed or was ambiguous: ${error instanceof Error ? error.message : String(error)}. Preserve external evidence and reconcile before any retry.`,
+                outcome: "UNKNOWN",
+                idempotencyKey,
+                replayed: false,
+            };
+        }
+
+        return {
+            ...result,
+            outcome,
+            idempotencyKey,
+        };
     }
 }
