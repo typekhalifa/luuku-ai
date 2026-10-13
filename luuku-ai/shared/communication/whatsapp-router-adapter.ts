@@ -1,5 +1,8 @@
 import { config } from "../config/env";
-import { WhatsAppCloudApiAdapter } from "./whatsapp-cloud-api-adapter";
+import {
+    normalizeWhatsAppPhoneNumber,
+    WhatsAppCloudApiAdapter,
+} from "./whatsapp-cloud-api-adapter";
 import {
     CommunicationAdapter,
     CommunicationExecutionResult,
@@ -74,6 +77,45 @@ export class WhatsAppRouterAdapter implements CommunicationAdapter {
                 request,
                 "WhatsApp message body is missing.",
                 "WHATSAPP_MESSAGE_BODY_MISSING",
+            );
+        }
+        if (config.whatsappMode !== "live") {
+            return blockedResult(
+                request,
+                "WhatsApp external delivery is disabled unless WHATSAPP_MODE=live.",
+                "WHATSAPP_EXTERNAL_EXECUTION_DISABLED",
+            );
+        }
+        if (config.whatsappLiveConfirmation !== "SEND_TO_CONTROLLED_TEST_CONTACT") {
+            return blockedResult(
+                request,
+                "Live WhatsApp delivery requires explicit controlled-test confirmation.",
+                "WHATSAPP_LIVE_CONFIRMATION_REQUIRED",
+            );
+        }
+        if (!config.whatsappTestRecipient.trim()) {
+            return blockedResult(
+                request,
+                "WhatsApp live delivery requires WHATSAPP_TEST_RECIPIENT.",
+                "WHATSAPP_TEST_RECIPIENT_MISSING",
+            );
+        }
+        try {
+            if (
+                normalizeWhatsAppPhoneNumber(recipient) !==
+                normalizeWhatsAppPhoneNumber(config.whatsappTestRecipient)
+            ) {
+                return blockedResult(
+                    request,
+                    "WhatsApp live delivery is restricted to the configured controlled test recipient.",
+                    "WHATSAPP_RECIPIENT_NOT_ALLOWLISTED",
+                );
+            }
+        } catch {
+            return blockedResult(
+                request,
+                "WhatsApp recipient must be a valid international E.164 phone number.",
+                "WHATSAPP_RECIPIENT_INVALID",
             );
         }
 
