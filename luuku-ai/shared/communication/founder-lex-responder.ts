@@ -158,26 +158,35 @@ export class FounderLexResponder {
             );
         }
 
-        await prismaCommunicationService.sendMessage({
-            conversationId: message.conversationId,
-            channel: delivery.channel,
-            recipient: {
+        const responseAlreadyRecorded = conversation.messages.some(
+            (item) =>
+                item.direction === "outbound" &&
+                item.metadata?.idempotencyKey === idempotencyKey,
+        );
+
+        if (!responseAlreadyRecorded) {
+            await prismaCommunicationService.sendMessage({
+                conversationId: message.conversationId,
                 channel: delivery.channel,
-                externalId: delivery.recipientExternalId,
-                displayName: "Founder",
-            },
-            content: response,
-            context: SYSTEM_COMMUNICATION_CONTEXT,
-            metadata: {
-                source: "founder-lex-responder",
-                executionStatus: execution.status,
-                verified: execution.verified,
-                idempotencyKey,
-                inboundMessageId: message.id,
-                responseId: randomUUID(),
-                responseType: structured.type,
-            },
-        });
+                recipient: {
+                    channel: delivery.channel,
+                    externalId: delivery.recipientExternalId,
+                    displayName: "Founder",
+                },
+                content: response,
+                context: SYSTEM_COMMUNICATION_CONTEXT,
+                metadata: {
+                    source: "founder-lex-responder",
+                    executionStatus: execution.status,
+                    verified: execution.verified,
+                    idempotencyKey,
+                    externalMessageId: execution.evidence?.externalId,
+                    inboundMessageId: message.id,
+                    responseId: randomUUID(),
+                    responseType: structured.type,
+                },
+            });
+        }
 
         return {
             response,
