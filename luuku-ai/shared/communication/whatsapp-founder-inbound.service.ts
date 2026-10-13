@@ -148,7 +148,7 @@ export class WhatsAppFounderInboundService {
             // Load the AI-backed responder only after the live gate and sender
             // allowlist pass; webhook verification tests must not require AI secrets.
             const responder = this.responder ??
-                (await import("./founder-lex-responder")).founderLexResponder;
+                (await import("./founder-lex-responder.js")).founderLexResponder;
             const result = await responder.respond(conversation, {
                 channel: "whatsapp",
                 recipientExternalId: message.sender,
