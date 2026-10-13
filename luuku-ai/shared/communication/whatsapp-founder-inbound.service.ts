@@ -84,7 +84,7 @@ export class WhatsAppFounderInboundService {
     constructor(
         private readonly communicationService: Pick<CommunicationService, "receiveMessage"> = prismaCommunicationService,
         private readonly responder: Pick<typeof founderLexResponder, "respond"> = founderLexResponder,
-        private readonly runtimeConfig: Pick<typeof config, "whatsappMode" | "whatsappTestRecipient"> = config,
+        private readonly runtimeConfig: Pick<typeof config, "whatsappMode" | "whatsappTestRecipient" | "whatsappAccessToken" | "whatsappPhoneNumberId" | "whatsappGraphApiVersion" | "whatsappLiveConfirmation"> = config,
     ) {}
 
     async processEvents(events: WhatsAppWebhookEvent[]): Promise<WhatsAppFounderInboundResult> {
@@ -96,7 +96,11 @@ export class WhatsAppFounderInboundService {
 
         if (
             this.runtimeConfig.whatsappMode !== "live" ||
-            !this.runtimeConfig.whatsappTestRecipient.trim()
+            !this.runtimeConfig.whatsappTestRecipient.trim() ||
+            !this.runtimeConfig.whatsappAccessToken.trim() ||
+            !this.runtimeConfig.whatsappPhoneNumberId.trim() ||
+            !this.runtimeConfig.whatsappGraphApiVersion.trim() ||
+            this.runtimeConfig.whatsappLiveConfirmation !== "SEND_TO_CONTROLLED_TEST_CONTACT"
         ) {
             return {
                 receivedTextMessages: textMessages,
