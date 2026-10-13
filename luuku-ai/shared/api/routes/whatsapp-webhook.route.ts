@@ -101,7 +101,7 @@ export function extractWhatsAppWebhookEvents(payload: unknown): WhatsAppWebhookE
                         messageId,
                         sender,
                         recipient: displayPhoneNumber,
-                        payload: { phoneNumberId, displayPhoneNumber, message },
+                        payload: { phoneNumberId, ...(displayPhoneNumber ? { displayPhoneNumber } : {}), message },
                     });
                 }
             }
@@ -128,7 +128,7 @@ export function extractWhatsAppWebhookEvents(payload: unknown): WhatsAppWebhookE
                         externalId: messageId,
                         messageId,
                         recipient: recipientId || undefined,
-                        payload: { phoneNumberId, displayPhoneNumber, status: statusRecord },
+                        payload: { phoneNumberId, ...(displayPhoneNumber ? { displayPhoneNumber } : {}), status: statusRecord },
                     });
                 }
             }
