@@ -110,6 +110,9 @@ jobs:
       - name: Phase 5.5 WhatsApp inbound webhook verification and deduplication
         run: npm run dev:v8.28:whatsapp-webhook
 
+      - name: Phase 5.6 controlled WhatsApp founder round-trip routing (no network)
+        run: npm run dev:v8.29:whatsapp-founder-roundtrip
+
       - name: V8-K validation
         run: npx tsx luuku-ai/os/executive/demo/v8-k-long-horizon-planning-demo.ts
 
