@@ -124,6 +124,19 @@ async function main(): Promise<void> {
     assert(uncertainReplay.status === "unknown", "UNKNOWN replay must remain fail-closed.");
     assert(ambiguousProviderCalls === 1, "UNKNOWN replay must not automatically resend.");
 
+    let rejectedProviderCalls = 0;
+    const rejected = makeRouter(async () => {
+        rejectedProviderCalls += 1;
+        return new Response(
+            JSON.stringify({ error: { message: "synthetic invalid payload", code: 100 } }),
+            { status: 400, statusText: "Bad Request" },
+        );
+    });
+    const rejection = await rejected.router.execute(request("governed-rejection-001"));
+    assert(rejection.status === "failed", "Explicit non-2xx provider rejection must be failed, not UNKNOWN.");
+    assert(rejection.error === "WHATSAPP_PROVIDER_REJECTED_400", "Unexpected explicit-rejection error code.");
+    assert(rejectedProviderCalls === 1, "Expected exactly one explicit provider rejection.");
+
     let blockedProviderCalls = 0;
     const blocked = makeRouter(async () => {
         blockedProviderCalls += 1;
@@ -139,6 +152,7 @@ async function main(): Promise<void> {
     console.log("Communication policy → execution ledger lifecycle → WhatsApp adapter → provider evidence: PASS");
     console.log("Idempotent replay returns stored result without another provider call: PASS");
     console.log("Ambiguous provider outcome persists UNKNOWN and blocks automatic replay: PASS");
+    console.log("Explicit HTTP provider rejection is recorded as failed: PASS");
     console.log("Missing external tenant context is blocked before provider dispatch: PASS");
     console.log("Real network requests made: 0");
     console.log("PHASE 5.5 GOVERNED WHATSAPP PATH: PASS");
