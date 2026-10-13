@@ -61,7 +61,8 @@
     "dev:v8.23:provider-ledger-gap": "tsx luuku-ai/shared/communication/demo/phase5-provider-accepted-ledger-failure-demo.ts",
     "dev:v8.24:durable-restart": "tsx luuku-ai/orchestration/execution/demo/v8-24-durable-idempotency-restart-attack-demo.ts",
     "dev:v8.25:real-db-idempotency": "tsx luuku-ai/orchestration/execution/demo/v8-25-real-postgres-idempotency-integration-demo.ts",
-    "dev:v8.26:whatsapp-actuator": "tsx luuku-ai/shared/communication/demo/v8-26-whatsapp-actuator-contract-demo.ts"
+    "dev:v8.26:whatsapp-actuator": "tsx luuku-ai/shared/communication/demo/v8-26-whatsapp-actuator-contract-demo.ts",
+    "dev:v8.27:whatsapp-governed-path": "tsx luuku-ai/shared/communication/demo/v8-27-whatsapp-governed-path-demo.ts"
   },
   "keywords": [
     "ai",
