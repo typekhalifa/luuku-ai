@@ -18,6 +18,16 @@ export type WhatsAppFetch = (
     init?: RequestInit,
 ) => Promise<Response>;
 
+export class WhatsAppApiRejectionError extends Error {
+    constructor(
+        readonly statusCode: number,
+        message: string,
+    ) {
+        super(message);
+        this.name = "WhatsAppApiRejectionError";
+    }
+}
+
 interface WhatsAppSendResponse {
     messages?: Array<{ id?: string }>;
     error?: {
@@ -113,7 +123,13 @@ export class WhatsAppCloudApiAdapter implements CommunicationChannelAdapter {
 
         if (!response.ok) {
             const body = await response.text();
-            throw new Error(`WhatsApp Cloud API request failed (${response.status} ${response.statusText}): ${body}`);
+            // An explicit HTTP rejection confirms the provider did not accept
+            // this request. Keep it distinct from transport/ambiguous failures,
+            // which must remain UNKNOWN and must not be automatically replayed.
+            throw new WhatsAppApiRejectionError(
+                response.status,
+                `WhatsApp Cloud API rejected the request (${response.status} ${response.statusText}): ${body}`,
+            );
         }
 
         let payload: WhatsAppSendResponse;
