@@ -1,14 +1,17 @@
-import { CommunicationExecutionService } from "../communication-execution.service";
+import { communicationExecutionService } from "../communication-execution.service";
+import { prisma } from "../database/client";
 import { CommunicationRouter } from "../router";
 import { WhatsAppCloudApiAdapter, type WhatsAppFetch } from "../whatsapp-cloud-api-adapter";
 import { WhatsAppRouterAdapter } from "../whatsapp-router-adapter";
-import type { CommunicationExecutionResult, CommunicationRequest } from "../types";
+import type { CommunicationRequest } from "../types";
 
 function assert(condition: unknown, message: string): asserts condition {
     if (!condition) throw new Error(message);
 }
 
 const controlledRecipient = "+250788123456";
+const runId = Date.now().toString() + "-" + process.pid;
+const key = (name: string) => "v8.27-whatsapp-" + runId + "-" + name;
 const runtimeConfig = {
     whatsappAccessToken: "synthetic-token",
     whatsappPhoneNumberId: "synthetic-phone-number-id",
@@ -38,31 +41,7 @@ function request(
     };
 }
 
-function makeLedger() {
-    let storedResult: CommunicationExecutionResult | undefined;
-    const events: string[] = [];
-    const service: Pick<CommunicationExecutionService, "start" | "markExecuting" | "complete"> = {
-        async start(_request, _policy) {
-            events.push("start");
-            if (storedResult) {
-                return { id: "synthetic-execution-1", reused: true, existingResult: storedResult };
-            }
-            return { id: "synthetic-execution-1", reused: false };
-        },
-        async markExecuting(id) {
-            assert(id === "synthetic-execution-1", "Unexpected execution ID marked executing.");
-            events.push("markExecuting");
-        },
-        async complete(id, result) {
-            assert(id === "synthetic-execution-1", "Unexpected execution ID completed.");
-            events.push("complete");
-            storedResult = result;
-        },
-    };
-    return { service, events };
-}
-
-function makeRouter(fetchImpl: WhatsAppFetch, ledger = makeLedger()) {
+function makeRouter(fetchImpl: WhatsAppFetch) {
     const cloudAdapter = new WhatsAppCloudApiAdapter({
         accessToken: runtimeConfig.whatsappAccessToken,
         phoneNumberId: runtimeConfig.whatsappPhoneNumberId,
@@ -72,9 +51,8 @@ function makeRouter(fetchImpl: WhatsAppFetch, ledger = makeLedger()) {
         liveConfirmation: runtimeConfig.whatsappLiveConfirmation,
     }, fetchImpl);
     const whatsapp = new WhatsAppRouterAdapter(runtimeConfig, cloudAdapter);
-    const router = new CommunicationRouter(ledger.service);
-    router.register(whatsapp);
-    return { router, ledger };
+    const router = new CommunicationRouter(communicationExecutionService);
+    return { router };
 }
 
 async function main(): Promise<void> {
@@ -87,29 +65,32 @@ async function main(): Promise<void> {
         );
     };
 
-    const { router, ledger } = makeRouter(fakeFetch);
+    const { router } = makeRouter(fakeFetch);
 
-    const testMode = await router.execute(request("governed-test-mode-001", "internal", "test"));
+    const testMode = await router.execute(request(key("test-mode"), "internal", "test"));
     assert(testMode.status === "blocked", "Request executionMode=test must be blocked.");
     assert(testMode.error === "WHATSAPP_REQUEST_LIVE_CONSENT_REQUIRED", "Unexpected test-mode block reason.");
     assert(providerCalls === 0, "Request executionMode=test must not reach the provider.");
 
-    const missingMode = await router.execute(request("governed-missing-mode-001", "internal", undefined));
+    const missingMode = await router.execute(request(key("missing-mode"), "internal", undefined));
     assert(missingMode.status === "blocked", "Missing request executionMode must be blocked.");
     assert(missingMode.error === "WHATSAPP_REQUEST_LIVE_CONSENT_REQUIRED", "Unexpected missing-mode block reason.");
     assert(providerCalls === 0, "Missing request executionMode must not reach the provider.");
 
-    const first = await router.execute(request("governed-success-001"));
+    const first = await router.execute(request(key("success")));
     assert(first.status === "verified" && first.executed && first.verified, "Expected governed success result.");
     assert(first.evidence?.provider === "whatsapp-cloud-api", "Provider evidence was not attached.");
     assert(first.evidence?.externalId === "wamid.synthetic-governed-001", "Provider message ID missing from evidence.");
     assert(providerCalls === 1, "Expected one fake provider call.");
-    assert(ledger.events.join(",") === "start,markExecuting,complete", "Router did not run the expected ledger lifecycle.");
+    const persistedSuccess = await prisma.communicationExecution.findUnique({ where: { idempotencyKey: key("success") } });
+    assert(persistedSuccess?.status === "verified", "Successful WhatsApp result was not persisted by the real execution ledger.");
+    assert(persistedSuccess?.externalId === "wamid.synthetic-governed-001", "Provider evidence was not persisted by the real execution ledger.");
 
     const replay = await router.execute(request("governed-success-001"));
     assert(replay.status === "verified", "Idempotent replay should return the stored result.");
     assert(providerCalls === 1, "Idempotent replay dispatched the provider again.");
-    assert(ledger.events.join(",") === "start,markExecuting,complete,start", "Replay unexpectedly advanced the ledger lifecycle.");
+    const persistedReplay = await prisma.communicationExecution.findUnique({ where: { idempotencyKey: key("success") } });
+    assert(persistedReplay?.status === "verified", "Replay changed the persisted terminal success state.");
 
     let ambiguousProviderCalls = 0;
     const ambiguousFetch: WhatsAppFetch = async () => {
@@ -117,12 +98,14 @@ async function main(): Promise<void> {
         throw new Error("synthetic socket reset after possible provider acceptance");
     };
     const ambiguous = makeRouter(ambiguousFetch);
-    const uncertain = await ambiguous.router.execute(request("governed-unknown-001"));
+    const uncertain = await ambiguous.router.execute(request(key("unknown")));
     assert(uncertain.status === "unknown", "Ambiguous transport failure must be recorded as UNKNOWN.");
     assert(ambiguousProviderCalls === 1, "Expected exactly one ambiguous provider attempt.");
     const uncertainReplay = await ambiguous.router.execute(request("governed-unknown-001"));
     assert(uncertainReplay.status === "unknown", "UNKNOWN replay must remain fail-closed.");
     assert(ambiguousProviderCalls === 1, "UNKNOWN replay must not automatically resend.");
+    const persistedUnknown = await prisma.communicationExecution.findUnique({ where: { idempotencyKey: key("unknown") } });
+    assert(persistedUnknown?.status === "unknown", "Ambiguous provider outcome was not persisted as UNKNOWN by the real ledger.");
 
     let rejectedProviderCalls = 0;
     const rejected = makeRouter(async () => {
@@ -132,7 +115,7 @@ async function main(): Promise<void> {
             { status: 400, statusText: "Bad Request" },
         );
     });
-    const rejection = await rejected.router.execute(request("governed-rejection-001"));
+    const rejection = await rejected.router.execute(request(key("rejection")));
     assert(rejection.status === "failed", "Explicit non-2xx provider rejection must be failed, not UNKNOWN.");
     assert(rejection.error === "WHATSAPP_PROVIDER_REJECTED_400", "Unexpected explicit-rejection error code.");
     assert(rejectedProviderCalls === 1, "Expected exactly one explicit provider rejection.");
@@ -142,19 +125,20 @@ async function main(): Promise<void> {
         blockedProviderCalls += 1;
         return new Response(JSON.stringify({ messages: [{ id: "should-not-exist" }] }), { status: 200 });
     });
-    const policyBlocked = await blocked.router.execute(request("governed-policy-block-001", "external"));
+    const policyBlocked = await blocked.router.execute(request(key("policy-block"), "external"));
     assert(policyBlocked.status === "blocked", "External communication without tenant company context must be blocked by policy.");
     assert(policyBlocked.error === "COMMUNICATION_TENANT_CONTEXT_REQUIRED", "Unexpected policy block reason.");
     assert(blockedProviderCalls === 0, "Policy-blocked request must never reach the provider.");
 
     console.log("PHASE 5.5 — GOVERNED WHATSAPP ROUTER PATH");
     console.log("Request-level live consent blocks test/missing executionMode with zero provider calls: PASS");
+    console.log("Real Prisma/PostgreSQL ledger persists provider evidence and terminal outcomes: PASS");
     console.log("Communication policy → execution ledger lifecycle → WhatsApp adapter → provider evidence: PASS");
     console.log("Idempotent replay returns stored result without another provider call: PASS");
     console.log("Ambiguous provider outcome persists UNKNOWN and blocks automatic replay: PASS");
     console.log("Explicit HTTP provider rejection is recorded as failed: PASS");
     console.log("Missing external tenant context is blocked before provider dispatch: PASS");
-    console.log("Real network requests made: 0");
+    console.log("Real WhatsApp network requests made: 0 (injected fake transport only)");
     console.log("PHASE 5.5 GOVERNED WHATSAPP PATH: PASS");
 }
 
