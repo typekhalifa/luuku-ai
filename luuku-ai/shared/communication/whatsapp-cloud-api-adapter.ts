@@ -67,6 +67,10 @@ export class WhatsAppCloudApiAdapter implements CommunicationChannelAdapter {
     }
 
     async send(message: OutboundChannelMessage): Promise<void> {
+        await this.sendAndGetMessageId(message);
+    }
+
+    async sendAndGetMessageId(message: OutboundChannelMessage): Promise<string> {
         if (this.config.mode !== "live") {
             throw new Error("WhatsApp external delivery is disabled unless WHATSAPP_MODE=live.");
         }
@@ -121,6 +125,7 @@ export class WhatsAppCloudApiAdapter implements CommunicationChannelAdapter {
         if (!payload.messages?.[0]?.id) {
             throw new Error("WhatsApp Cloud API response omitted the message ID; delivery outcome requires reconciliation.");
         }
+        return payload.messages[0].id;
     }
 
     async normalizeInbound(message: InboundChannelMessage): Promise<InboundChannelMessage> {
