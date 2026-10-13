@@ -9,6 +9,7 @@ import { workflowRouter } from "./routes/workflow.routes";
 import { crmRouter } from "./routes/crm.routes";
 import { runtimeRouter } from "./routes/runtime.routes";
 import { resendWebhookRouter } from "./routes/resend-webhook.route";
+import { whatsappWebhookRouter } from "./routes/whatsapp-webhook.route";
 import { authRouter } from "./routes/auth.routes";
 import { healthRouter } from "./routes/health.routes";
 import { metricsRouter } from "./routes/metrics.routes";
@@ -149,6 +150,15 @@ app.use(
         limit: "1mb"
     }),
     resendWebhookRouter
+);
+
+app.use(
+    "/api/v1/webhooks/whatsapp",
+    express.raw({
+        type: "application/json",
+        limit: "1mb"
+    }),
+    whatsappWebhookRouter
 );
 
 app.use(express.json({ limit: "1mb" }));
