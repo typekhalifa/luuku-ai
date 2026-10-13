@@ -2,7 +2,7 @@ import { config } from "../config/env";
 import type { WhatsAppWebhookEvent } from "../api/routes/whatsapp-webhook.route";
 import type { CommunicationService } from "./communication-service";
 import { prismaCommunicationService } from "./prisma-communication-service";
-import { founderLexResponder } from "./founder-lex-responder";
+import type { CommunicationMessage } from "./message";
 import { normalizeWhatsAppPhoneNumber } from "./whatsapp-cloud-api-adapter";
 
 export interface WhatsAppFounderTextMessage {
@@ -73,6 +73,17 @@ export function extractWhatsAppFounderTextMessages(
     return selected;
 }
 
+interface WhatsAppFounderLexResponder {
+    respond(
+        message: CommunicationMessage,
+        delivery: { channel: "whatsapp"; recipientExternalId: string },
+    ): Promise<{
+        executionStatus: string;
+        executed: boolean;
+        verified: boolean;
+    }>;
+}
+
 export interface WhatsAppFounderInboundResult {
     receivedMessages: number;
     authorizedMessages: number;
@@ -83,7 +94,7 @@ export interface WhatsAppFounderInboundResult {
 export class WhatsAppFounderInboundService {
     constructor(
         private readonly communicationService: Pick<CommunicationService, "receiveMessage"> = prismaCommunicationService,
-        private readonly responder: Pick<typeof founderLexResponder, "respond"> = founderLexResponder,
+        private readonly responder?: WhatsAppFounderLexResponder,
         private readonly runtimeConfig: Pick<typeof config, "whatsappMode" | "whatsappTestRecipient" | "whatsappAccessToken" | "whatsappPhoneNumberId" | "whatsappGraphApiVersion" | "whatsappLiveConfirmation"> = config,
     ) {}
 
@@ -134,7 +145,11 @@ export class WhatsAppFounderInboundService {
                 },
             });
 
-            const result = await this.responder.respond(conversation, {
+            // Load the AI-backed responder only after the live gate and sender
+            // allowlist pass; webhook verification tests must not require AI secrets.
+            const responder = this.responder ??
+                (await import("./founder-lex-responder")).founderLexResponder;
+            const result = await responder.respond(conversation, {
                 channel: "whatsapp",
                 recipientExternalId: message.sender,
             });
