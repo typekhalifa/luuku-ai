@@ -21,6 +21,7 @@ import { prisma } from "../database/client";
 import { logStructured, recordHttpRequest } from "../observability";
 import { recordObservabilityEvent } from "../observability/durable-events.js";
 import { productionExecutiveHost } from "../../os/executive/production-executive-host.js";
+import { registerCommunicationProviders } from "../communication/providers";
 
 const app = express();
 
@@ -234,6 +235,9 @@ app.use("/api/v1/agents", agentsRouter);
 app.use("/api/v1/workflow", workflowRouter);
 app.use("/api/v1/crm", crmRouter);
 app.use("/api/v1/runtime", runtimeRouter);
+
+// Register governed communication adapters before webhook requests can reach Lex.
+registerCommunicationProviders();
 
 const httpServer = app.listen(port, () => {
     logStructured("INFO", "api.started", {

@@ -10,11 +10,17 @@ import type { CommunicationContext } from "./communication-service";
 const SYSTEM_COMMUNICATION_CONTEXT: CommunicationContext = {
     ownership: { scope: "SYSTEM" },
 };
+
 import {
     LEX_RESPONSE_SCHEMA,
     LexStructuredResponse,
     renderLexDiscordResponse,
 } from "./lex-response";
+
+export interface FounderLexDelivery {
+    channel: "discord" | "whatsapp";
+    recipientExternalId?: string;
+}
 
 function recentConversation(messages: CommunicationMessage[]): string {
     return messages
@@ -27,6 +33,7 @@ function buildFounderPrompt(
     message: CommunicationMessage,
     conversationMessages: CommunicationMessage[],
     context: Awaited<ReturnType<typeof buildExecutiveContext>>,
+    channel: FounderLexDelivery["channel"],
 ): string {
     const companySnapshot = {
         systemHealth: context.systemHealth,
@@ -43,7 +50,7 @@ function buildFounderPrompt(
 
     return [
         "You are LEX, the executive principal of Luuku AI.",
-        "You are speaking directly with the founder through the company's internal Discord channel.",
+        `You are speaking directly with the founder through the company's internal ${channel} channel.`,
         "Think like an executive, but return a structured communication plan for the presentation layer.",
         "Use only facts supported by the company snapshot and conversation context.",
         "Do not invent metrics, completed work, agents, or capabilities.",
@@ -87,9 +94,15 @@ export interface FounderLexResponseResult {
 }
 
 export class FounderLexResponder {
-    async respond(message: CommunicationMessage): Promise<FounderLexResponseResult> {
+    async respond(
+        message: CommunicationMessage,
+        delivery: FounderLexDelivery = { channel: "discord" },
+    ): Promise<FounderLexResponseResult> {
         const conversation =
-            await prismaCommunicationService.getConversation(message.conversationId, SYSTEM_COMMUNICATION_CONTEXT);
+            await prismaCommunicationService.getConversation(
+                message.conversationId,
+                SYSTEM_COMMUNICATION_CONTEXT,
+            );
 
         if (!conversation) {
             throw new Error(
@@ -97,26 +110,45 @@ export class FounderLexResponder {
             );
         }
 
+        if (delivery.channel === "whatsapp" && !delivery.recipientExternalId?.trim()) {
+            throw new Error("WHATSAPP_FOUNDER_RECIPIENT_MISSING");
+        }
+
         const context = await buildExecutiveContext();
         const structured = await requestAIStructured<LexStructuredResponse>({
-            prompt: buildFounderPrompt(message, conversation.messages, context),
+            prompt: buildFounderPrompt(
+                message,
+                conversation.messages,
+                context,
+                delivery.channel,
+            ),
             schemaName: "lex_founder_response",
             schema: LEX_RESPONSE_SCHEMA,
         });
 
         const response = renderLexDiscordResponse(structured);
-        const idempotencyKey = `founder-lex-response:${message.id}`;
+        const providerMessageId =
+            typeof message.metadata?.providerMessageId === "string"
+                ? message.metadata.providerMessageId
+                : message.id;
+        const idempotencyKey = delivery.channel === "whatsapp"
+            ? `founder-lex-response:whatsapp:${providerMessageId}`
+            : `founder-lex-response:${message.id}`;
+        const capability = delivery.channel === "whatsapp"
+            ? "whatsapp.send" as const
+            : "discord.send" as const;
 
         const execution = await communicationRouter.execute({
-            capability: "discord.send",
-            channel: "discord",
+            capability,
+            channel: delivery.channel,
             target: "founder",
+            recipientExternalId: delivery.recipientExternalId,
             body: response,
             metadata: {
                 audience: "internal",
                 executionMode: "live",
                 conversationId: message.conversationId,
-                taskId: `founder-lex-response-${message.id}`,
+                taskId: `founder-lex-response-${delivery.channel}-${message.id}`,
                 idempotencyKey,
                 source: "founder-lex-responder",
                 inboundMessageId: message.id,
@@ -126,29 +158,39 @@ export class FounderLexResponder {
 
         if (!execution.executed || !execution.verified) {
             throw new Error(
-                `LEX Discord response was not verified: ${execution.summary}`,
+                `LEX ${delivery.channel} response was not verified: ${execution.summary}`,
             );
         }
 
-        await prismaCommunicationService.sendMessage({
-            conversationId: message.conversationId,
-            channel: "discord",
-            recipient: {
-                channel: "discord",
-                displayName: "Founder",
-            },
-            content: response,
-            context: SYSTEM_COMMUNICATION_CONTEXT,
-            metadata: {
-                source: "founder-lex-responder",
-                executionStatus: execution.status,
-                verified: execution.verified,
-                idempotencyKey,
-                inboundMessageId: message.id,
-                responseId: randomUUID(),
-                responseType: structured.type,
-            },
-        });
+        const responseAlreadyRecorded = conversation.messages.some(
+            (item) =>
+                item.direction === "outbound" &&
+                item.metadata?.idempotencyKey === idempotencyKey,
+        );
+
+        if (!responseAlreadyRecorded) {
+            await prismaCommunicationService.sendMessage({
+                conversationId: message.conversationId,
+                channel: delivery.channel,
+                recipient: {
+                    channel: delivery.channel,
+                    externalId: delivery.recipientExternalId,
+                    displayName: "Founder",
+                },
+                content: response,
+                context: SYSTEM_COMMUNICATION_CONTEXT,
+                metadata: {
+                    source: "founder-lex-responder",
+                    executionStatus: execution.status,
+                    verified: execution.verified,
+                    idempotencyKey,
+                    externalMessageId: execution.evidence?.externalId,
+                    inboundMessageId: message.id,
+                    responseId: randomUUID(),
+                    responseType: structured.type,
+                },
+            });
+        }
 
         return {
             response,

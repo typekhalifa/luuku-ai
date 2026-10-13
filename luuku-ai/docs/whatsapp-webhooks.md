@@ -20,7 +20,9 @@ The verify token is used only for Meta's GET handshake. The app secret validates
 
 Inbound messages are stored in `CommunicationEvent` using a stable provider event ID based on the business phone-number ID and WhatsApp message ID. Status updates use a stable SHA-256 identity derived from phone-number ID, message ID, status, timestamp, and recipient. The table's unique `providerEventId` constraint deduplicates Meta retries.
 
-The endpoint stores raw event payloads and message/status metadata. It does **not** yet create conversations, resolve contacts, trigger agents, or send replies. Until a reviewed phone-number-to-tenant mapping is available, events are stored as `SYSTEM`-scoped records; downstream tenant-specific processing must not assume they belong to a company.
+The endpoint stores raw event payloads and message/status metadata as `SYSTEM`-scoped records. For the controlled founder round trip, only plain-text messages whose sender exactly matches `WHATSAPP_TEST_RECIPIENT` are passed into a persistent SYSTEM-scoped founder conversation and routed to Lex. Lex replies through the governed `whatsapp.send` capability, with the same controlled-recipient allowlist and durable idempotency ledger. Other senders and non-text messages are captured but do not invoke Lex. This is intentionally not a general prospect-messaging path; tenant/contact resolution and broader recipient permissions require a separate reviewed change.
+
+Automatic replies are enabled only when `WHATSAPP_MODE=live`, the WhatsApp access token, phone-number ID, Graph API version, controlled recipient, and `LUUKU_WHATSAPP_LIVE_CONFIRMATION=SEND_TO_CONTROLLED_TEST_CONTACT` are all configured. In test mode or with incomplete live configuration, webhook events are stored but no reply is sent.
 
 ## Meta configuration
 
@@ -39,3 +41,11 @@ npm run dev:v8.28:whatsapp-webhook
 ```
 
 It verifies signature acceptance/rejection, stable event identities, durable persistence, and duplicate delivery handling. It makes no network requests and sends no WhatsApp messages.
+
+The controlled founder-routing contract test is separate:
+
+```powershell
+npm run dev:v8.29:whatsapp-founder-roundtrip
+```
+
+It validates allowlisted sender matching, text-only routing, the WhatsApp reply target, and the test-mode kill gate with fake dependencies. It makes no network requests and sends no WhatsApp messages.
