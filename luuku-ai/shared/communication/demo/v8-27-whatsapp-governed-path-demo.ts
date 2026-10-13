@@ -18,7 +18,11 @@ const runtimeConfig = {
     whatsappLiveConfirmation: "SEND_TO_CONTROLLED_TEST_CONTACT",
 };
 
-function request(idempotencyKey: string, audience: "internal" | "external" = "internal"): CommunicationRequest {
+function request(
+    idempotencyKey: string,
+    audience: "internal" | "external" = "internal",
+    executionMode: string | undefined = "live",
+): CommunicationRequest {
     return {
         capability: "whatsapp.send",
         channel: "whatsapp",
@@ -26,7 +30,7 @@ function request(idempotencyKey: string, audience: "internal" | "external" = "in
         body: "Governed-path synthetic test; no real message.",
         metadata: {
             audience,
-            executionMode: "live",
+            executionMode,
             companyId: audience === "external" ? undefined : undefined,
             idempotencyKey,
             conversationId: "phase5.5-governed-path",
@@ -84,6 +88,17 @@ async function main(): Promise<void> {
     };
 
     const { router, ledger } = makeRouter(fakeFetch);
+
+    const testMode = await router.execute(request("governed-test-mode-001", "internal", "test"));
+    assert(testMode.status === "blocked", "Request executionMode=test must be blocked.");
+    assert(testMode.error === "WHATSAPP_REQUEST_LIVE_CONSENT_REQUIRED", "Unexpected test-mode block reason.");
+    assert(providerCalls === 0, "Request executionMode=test must not reach the provider.");
+
+    const missingMode = await router.execute(request("governed-missing-mode-001", "internal", undefined));
+    assert(missingMode.status === "blocked", "Missing request executionMode must be blocked.");
+    assert(missingMode.error === "WHATSAPP_REQUEST_LIVE_CONSENT_REQUIRED", "Unexpected missing-mode block reason.");
+    assert(providerCalls === 0, "Missing request executionMode must not reach the provider.");
+
     const first = await router.execute(request("governed-success-001"));
     assert(first.status === "verified" && first.executed && first.verified, "Expected governed success result.");
     assert(first.evidence?.provider === "whatsapp-cloud-api", "Provider evidence was not attached.");
@@ -120,6 +135,7 @@ async function main(): Promise<void> {
     assert(blockedProviderCalls === 0, "Policy-blocked request must never reach the provider.");
 
     console.log("PHASE 5.5 — GOVERNED WHATSAPP ROUTER PATH");
+    console.log("Request-level live consent blocks test/missing executionMode with zero provider calls: PASS");
     console.log("Communication policy → execution ledger lifecycle → WhatsApp adapter → provider evidence: PASS");
     console.log("Idempotent replay returns stored result without another provider call: PASS");
     console.log("Ambiguous provider outcome persists UNKNOWN and blocks automatic replay: PASS");
