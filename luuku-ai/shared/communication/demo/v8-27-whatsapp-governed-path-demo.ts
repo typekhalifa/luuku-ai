@@ -110,15 +110,27 @@ async function main(): Promise<void> {
     let rejectedProviderCalls = 0;
     const rejected = makeRouter(async () => {
         rejectedProviderCalls += 1;
+        if (rejectedProviderCalls === 1) {
+            return new Response(
+                JSON.stringify({ error: { message: "synthetic invalid payload", code: 100 } }),
+                { status: 400, statusText: "Bad Request" },
+            );
+        }
         return new Response(
-            JSON.stringify({ error: { message: "synthetic invalid payload", code: 100 } }),
-            { status: 400, statusText: "Bad Request" },
+            JSON.stringify({ messaging_product: "whatsapp", messages: [{ id: "wamid.synthetic-retry-001" }] }),
+            { status: 200, headers: { "Content-Type": "application/json" } },
         );
     });
-    const rejection = await rejected.router.execute(request(key("rejection")));
+    const rejectionRequest = request(key("rejection"));
+    const rejection = await rejected.router.execute(rejectionRequest);
     assert(rejection.status === "failed", "Explicit non-2xx provider rejection must be failed, not UNKNOWN.");
     assert(rejection.error === "WHATSAPP_PROVIDER_REJECTED_400", "Unexpected explicit-rejection error code.");
-    assert(rejectedProviderCalls === 1, "Expected exactly one explicit provider rejection.");
+    const persistedRejection = await prisma.communicationExecution.findUnique({ where: { idempotencyKey: key("rejection") } });
+    assert(persistedRejection?.status === "failed", "Explicit rejection was not persisted as failed before retry.");
+    const safeRetry = await rejected.router.execute(rejectionRequest);
+    assert(safeRetry.status === "verified", "System-scoped explicit rejection should safely retry with the same idempotency key.");
+    assert(safeRetry.evidence?.externalId === "wamid.synthetic-retry-001", "Safe retry did not persist the accepted provider message ID.");
+    assert(rejectedProviderCalls === 2, "Expected one explicit rejection followed by one permitted retry.");
 
     let blockedProviderCalls = 0;
     const blocked = makeRouter(async () => {
@@ -136,7 +148,7 @@ async function main(): Promise<void> {
     console.log("Communication policy → execution ledger lifecycle → WhatsApp adapter → provider evidence: PASS");
     console.log("Idempotent replay returns stored result without another provider call: PASS");
     console.log("Ambiguous provider outcome persists UNKNOWN and blocks automatic replay: PASS");
-    console.log("Explicit HTTP provider rejection is recorded as failed: PASS");
+    console.log("Explicit HTTP rejection is failed and system-scoped retry succeeds with same key: PASS");
     console.log("Missing external tenant context is blocked before provider dispatch: PASS");
     console.log("Real WhatsApp network requests made: 0 (injected fake transport only)");
     console.log("PHASE 5.5 GOVERNED WHATSAPP PATH: PASS");
