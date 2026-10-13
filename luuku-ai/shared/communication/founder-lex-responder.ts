@@ -127,8 +127,12 @@ export class FounderLexResponder {
         });
 
         const response = renderLexDiscordResponse(structured);
+        const providerMessageId =
+            typeof message.metadata?.providerMessageId === "string"
+                ? message.metadata.providerMessageId
+                : message.id;
         const idempotencyKey = delivery.channel === "whatsapp"
-            ? `founder-lex-response:whatsapp:${message.id}`
+            ? `founder-lex-response:whatsapp:${providerMessageId}`
             : `founder-lex-response:${message.id}`;
         const capability = delivery.channel === "whatsapp"
             ? "whatsapp.send" as const
