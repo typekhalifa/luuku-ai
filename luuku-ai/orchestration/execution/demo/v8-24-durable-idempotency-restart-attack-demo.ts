@@ -168,6 +168,7 @@ async function main(): Promise<void> {
     async function verifyPersistenceFailure(
         mode: "before-commit" | "after-commit",
         failureKey: string,
+        disposition: "COMPLETED" | "UNKNOWN" = "COMPLETED",
     ): Promise<void> {
         const { client: failureClient } = fakeDatabase(mode);
         const ownerStore = new PrismaActuationIdempotencyStore(failureClient);
@@ -183,7 +184,7 @@ async function main(): Promise<void> {
 
         let completionRejected = false;
         try {
-            await ownerStore.complete(failureKey, successful, "COMPLETED");
+            await ownerStore.complete(failureKey, successful, disposition);
         } catch {
             completionRejected = true;
         }
@@ -198,7 +199,7 @@ async function main(): Promise<void> {
 
         const restarted = new PrismaActuationIdempotencyStore(failureClient);
         const recovered = await restarted.claim(failureKey, step);
-        if (mode === "after-commit") {
+        if (mode === "after-commit" && disposition === "COMPLETED") {
             if (recovered.status !== "COMPLETED" ||
                 recovered.result.result?.evidence?.externalId !== "durable-external-001") {
                 throw new Error("Commit-then-throw must preserve the durable completed result and provider evidence.");
@@ -210,6 +211,11 @@ async function main(): Promise<void> {
 
     await verifyPersistenceFailure("before-commit", "v1/COMPANY:company-a/phase5-ledger-failure/before");
     await verifyPersistenceFailure("after-commit", "v1/COMPANY:company-a/phase5-ledger-failure/after");
+    await verifyPersistenceFailure(
+        "before-commit",
+        "v1/COMPANY:company-a/phase5-ledger-failure/unknown",
+        "UNKNOWN",
+    );
 
     console.log("");
     console.log("PHASE 5.4-F — DURABLE IDEMPOTENCY / PROCESS RESTART");
