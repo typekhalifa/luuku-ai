@@ -34,7 +34,7 @@ function makeStep(): WorkflowStep {
     };
 }
 
-function fakeDatabase() {
+function fakeDatabase(updateFailure: "none" | "before-commit" | "after-commit" = "none") {
     const rows = new Map<string, StoredRow>();
     let nextId = 0;
 
@@ -64,8 +64,14 @@ function fakeDatabase() {
         async update(args: { where: { idempotencyKey: string }; data: Partial<StoredRow> }) {
             const row = rows.get(args.where.idempotencyKey);
             if (!row) throw new Error("Durable claim not found.");
+            if (updateFailure === "before-commit") {
+                throw new Error("Injected database failure before commit.");
+            }
             const updated = { ...row, ...args.data, updatedAt: new Date() };
             rows.set(args.where.idempotencyKey, updated);
+            if (updateFailure === "after-commit") {
+                throw new Error("Injected lost response after database commit.");
+            }
             return updated;
         },
         async deleteMany(args: { where: { idempotencyKey: string; status: string } }) {
@@ -157,6 +163,54 @@ async function main(): Promise<void> {
         throw new Error(`Durable replay caused an extra provider call: ${providerCalls}.`);
     }
 
+    // Failure injection: a DB write may fail before commit or commit but lose
+    // its response. In both cases local waiters must settle UNKNOWN, never hang.
+    async function verifyPersistenceFailure(
+        mode: "before-commit" | "after-commit",
+        failureKey: string,
+    ): Promise<void> {
+        const { client: failureClient } = fakeDatabase(mode);
+        const ownerStore = new PrismaActuationIdempotencyStore(failureClient);
+        const owner = await ownerStore.claim(failureKey, step);
+        if (owner.status !== "ACQUIRED") {
+            throw new Error(`Failure test ${mode}: expected ACQUIRED, got ${owner.status}.`);
+        }
+
+        const concurrent = await ownerStore.claim(failureKey, step);
+        if (concurrent.status !== "IN_FLIGHT") {
+            throw new Error(`Failure test ${mode}: expected concurrent IN_FLIGHT waiter, got ${concurrent.status}.`);
+        }
+
+        let completionRejected = false;
+        try {
+            await ownerStore.complete(failureKey, successful, "COMPLETED");
+        } catch {
+            completionRejected = true;
+        }
+        if (!completionRejected) {
+            throw new Error(`Failure test ${mode}: injected persistence error was not surfaced.`);
+        }
+
+        const waiterResult = await concurrent.completion;
+        if (waiterResult.result || !waiterResult.reason?.includes("reconciliation")) {
+            throw new Error(`Failure test ${mode}: waiter was not resolved with fail-closed UNKNOWN.`);
+        }
+
+        const restarted = new PrismaActuationIdempotencyStore(failureClient);
+        const recovered = await restarted.claim(failureKey, step);
+        if (mode === "after-commit") {
+            if (recovered.status !== "COMPLETED" ||
+                recovered.result.result?.evidence?.externalId !== "durable-external-001") {
+                throw new Error("Commit-then-throw must preserve the durable completed result and provider evidence.");
+            }
+        } else if (recovered.status !== "UNKNOWN") {
+            throw new Error(`Pre-commit failure must leave an interrupted claim blocked as UNKNOWN, got ${recovered.status}.`);
+        }
+    }
+
+    await verifyPersistenceFailure("before-commit", "v1/COMPANY:company-a/phase5-ledger-failure/before");
+    await verifyPersistenceFailure("after-commit", "v1/COMPANY:company-a/phase5-ledger-failure/after");
+
     console.log("");
     console.log("PHASE 5.4-F — DURABLE IDEMPOTENCY / PROCESS RESTART");
     console.log("Completed result survives fresh store : PASS");
@@ -164,7 +218,10 @@ async function main(): Promise<void> {
     console.log("Interrupted claim after restart       : UNKNOWN / BLOCKED");
     console.log("Provider calls in successful replay   :", providerCalls);
     console.log("Automatic replay after interrupted claim: BLOCKED");
-    console.log("PHASE 5.4-F DURABLE RESTART SAFETY: PASS");
+    console.log("Waiters settle after persistence failures: PASS");
+    console.log("Commit-then-throw preserves durable result: PASS");
+    console.log("Pre-commit failure remains blocked as UNKNOWN: PASS");
+    console.log("PHASE 5.4-F DURABLE RESTART / LEDGER FAILURE SAFETY: PASS");
 }
 
 main().catch(error => {
