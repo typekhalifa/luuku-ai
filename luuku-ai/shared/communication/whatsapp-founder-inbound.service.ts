@@ -74,7 +74,7 @@ export function extractWhatsAppFounderTextMessages(
 }
 
 export interface WhatsAppFounderInboundResult {
-    receivedTextMessages: number;
+    receivedMessages: number;
     authorizedMessages: number;
     repliesSent: number;
     skipped: number;
@@ -103,7 +103,7 @@ export class WhatsAppFounderInboundService {
             this.runtimeConfig.whatsappLiveConfirmation !== "SEND_TO_CONTROLLED_TEST_CONTACT"
         ) {
             return {
-                receivedTextMessages: textMessages,
+                receivedMessages: textMessages,
                 authorizedMessages: 0,
                 repliesSent: 0,
                 skipped: textMessages,
@@ -145,7 +145,7 @@ export class WhatsAppFounderInboundService {
         }
 
         return {
-            receivedTextMessages: textMessages,
+            receivedMessages: textMessages,
             authorizedMessages: messages.length,
             repliesSent,
             skipped: textMessages - messages.length,
