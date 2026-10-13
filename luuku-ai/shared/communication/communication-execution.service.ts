@@ -143,14 +143,16 @@ export class CommunicationExecutionService {
             }
 
             if (existing && isSafeToRetry(existing)) {
-                if (!companyId) {
-                    throw new Error("TENANT_CONTEXT_REQUIRED");
-                }
+                // The ownership check above has already established that a
+                // request without companyId can only retry a SYSTEM-scoped row.
+                // Preserve that scope; do not force system actions to acquire a
+                // tenant merely because an explicit provider rejection is safe
+                // to retry.
                 await this.db.communicationExecution.update({
                     where: { id: existing.id },
                     data: {
-                        ownershipScope: "COMPANY",
-                        companyId,
+                        ownershipScope: companyId ? "COMPANY" : "SYSTEM",
+                        companyId: companyId ?? null,
                         spaceId: null,
                         policyDecision: policy.decision,
                         policyReason: policy.reason,
