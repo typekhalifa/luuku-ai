@@ -60,6 +60,22 @@ async function main(): Promise<void> {
             },
         },
         {
+            providerEventId: "synthetic:wrong-business-number",
+            type: "message.received",
+            externalId: "wamid.synthetic-wrong-business-number",
+            messageId: "wamid.synthetic-wrong-business-number",
+            sender: "250788123456",
+            payload: {
+                phoneNumberId: "different-business-phone-number-id",
+                message: {
+                    id: "wamid.synthetic-wrong-business-number",
+                    from: "250788123456",
+                    type: "text",
+                    text: { body: "This came through a different business number." },
+                },
+            },
+        },
+        {
             providerEventId: "synthetic:delivery-status",
             type: "message.status.delivered",
             externalId: "wamid.synthetic-outbound",
@@ -126,10 +142,10 @@ async function main(): Promise<void> {
     );
 
     const result = await service.processEvents(inbound);
-    assert(result.receivedMessages === 3, "Expected three inbound message events.");
+    assert(result.receivedMessages === 4, "Expected four inbound message events.");
     assert(result.authorizedMessages === 1, "Only the configured founder number may invoke Lex.");
     assert(result.repliesSent === 1, "Expected one synthetic reply path.");
-    assert(result.skipped === 2, "Untrusted sender and non-text message must be skipped.");
+    assert(result.skipped === 3, "Untrusted sender, non-text message, and unconfigured business number must be skipped.");
     assert(received.length === 1, "Only one authorized message may enter the conversation service.");
     assert(received[0].channel === "whatsapp", "Inbound message must use the WhatsApp channel.");
     assert(received[0].content === "Lex, give me a short status update.", "Inbound text was not preserved.");
@@ -156,7 +172,7 @@ async function main(): Promise<void> {
 
     console.log("PHASE 5.6 — WHATSAPP FOUNDER ROUND TRIP");
     console.log("Allowlisted founder text routing: PASS");
-    console.log("Untrusted sender and non-text message suppression: PASS");
+    console.log("Untrusted sender, non-text, and unconfigured business-number suppression: PASS");
     console.log("WhatsApp channel and controlled-recipient selection: PASS");
     console.log("Test mode blocks all reply execution: PASS");
     console.log("Real network requests made: 0");
