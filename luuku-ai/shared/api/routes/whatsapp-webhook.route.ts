@@ -166,7 +166,7 @@ export async function persistWhatsAppWebhookPayload(payload: unknown): Promise<{
                     messageId: event.messageId,
                     sender: event.sender,
                     recipient: event.recipient,
-                    payload: event.payload as Prisma.InputJsonValue,
+                    payload: event.payload as unknown as Prisma.InputJsonValue,
                 },
             });
             inserted += 1;
