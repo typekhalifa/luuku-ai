@@ -107,6 +107,9 @@ jobs:
       - name: Phase 5.5 governed WhatsApp router path (fake transport only)
         run: npm run dev:v8.27:whatsapp-governed-path
 
+      - name: Phase 5.5 WhatsApp inbound webhook verification and deduplication
+        run: npm run dev:v8.28:whatsapp-webhook
+
       - name: V8-K validation
         run: npx tsx luuku-ai/os/executive/demo/v8-k-long-horizon-planning-demo.ts
 
