@@ -51,6 +51,7 @@ function makeRouter(fetchImpl: WhatsAppFetch) {
     }, fetchImpl);
     const whatsapp = new WhatsAppRouterAdapter(runtimeConfig, cloudAdapter);
     const router = new CommunicationRouter(communicationExecutionService);
+    router.register(whatsapp);
     return { router };
 }
 
