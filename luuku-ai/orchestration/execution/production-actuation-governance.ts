@@ -4,6 +4,7 @@ import {
     ProductionActuatorComposition,
     type ProductionActuationResult,
 } from "./production-actuator.js";
+import { PrismaActuationIdempotencyStore } from "./prisma-actuation-idempotency-store.js";
 
 export type ProductionActuationOutcome =
     | "BLOCKED"
@@ -26,9 +27,30 @@ export interface ActuationControl {
     reason?: string;
 }
 
+export type ActuationIdempotencyClaim =
+    | {
+        readonly status: "ACQUIRED";
+      }
+    | {
+        readonly status: "COMPLETED";
+        readonly result: ProductionActuationResult;
+      }
+    | {
+        readonly status: "IN_FLIGHT";
+        readonly completion: Promise<ProductionActuationResult>;
+      }
+    | {
+        readonly status: "UNKNOWN";
+        readonly result: ProductionActuationResult;
+      };
+
 export interface ActuationIdempotencyStore {
-    get(key: string): Promise<ProductionActuationResult | undefined> | ProductionActuationResult | undefined;
-    put(key: string, result: ProductionActuationResult): Promise<void> | void;
+    claim(key: string, step?: WorkflowStep): Promise<ActuationIdempotencyClaim> | ActuationIdempotencyClaim;
+    complete(
+        key: string,
+        result: ProductionActuationResult,
+        disposition: "COMPLETED" | "UNKNOWN" | "RELEASED",
+    ): Promise<void> | void;
 }
 
 export interface GuardedProductionActuationResult extends ProductionActuationResult {
@@ -39,13 +61,76 @@ export interface GuardedProductionActuationResult extends ProductionActuationRes
 
 export class InMemoryActuationIdempotencyStore implements ActuationIdempotencyStore {
     private readonly results = new Map<string, ProductionActuationResult>();
+    private readonly unknowns = new Map<string, ProductionActuationResult>();
+    private readonly inFlight = new Map<
+        string,
+        {
+            readonly completion: Promise<ProductionActuationResult>;
+            readonly resolve: (result: ProductionActuationResult) => void;
+        }
+    >();
 
-    get(key: string): ProductionActuationResult | undefined {
-        return this.results.get(key);
+    claim(key: string): ActuationIdempotencyClaim {
+        const unknown = this.unknowns.get(key);
+
+        if (unknown) {
+            return { status: "UNKNOWN", result: unknown };
+        }
+
+        const recovered = this.results.get(key);
+
+        if (recovered) {
+            return {
+                status: "COMPLETED",
+                result: recovered,
+            };
+        }
+
+        const existing = this.inFlight.get(key);
+
+        if (existing) {
+            return {
+                status: "IN_FLIGHT",
+                completion: existing.completion,
+            };
+        }
+
+        let resolve!: (result: ProductionActuationResult) => void;
+
+        const completion = new Promise<ProductionActuationResult>(resolver => {
+            resolve = resolver;
+        });
+
+        this.inFlight.set(key, {
+            completion,
+            resolve,
+        });
+
+        return { status: "ACQUIRED" };
     }
 
-    put(key: string, result: ProductionActuationResult): void {
-        this.results.set(key, result);
+    complete(
+        key: string,
+        result: ProductionActuationResult,
+        disposition: "COMPLETED" | "UNKNOWN" | "RELEASED",
+    ): void {
+        if (disposition === "COMPLETED") {
+            this.results.set(key, result);
+        } else if (disposition === "UNKNOWN") {
+            this.unknowns.set(key, result);
+        } else {
+            this.results.delete(key);
+            this.unknowns.delete(key);
+        }
+
+        const existing = this.inFlight.get(key);
+
+        if (!existing) {
+            return;
+        }
+
+        this.inFlight.delete(key);
+        existing.resolve(result);
     }
 }
 
@@ -128,7 +213,7 @@ export class GuardedProductionActuation {
         private readonly composition: ProductionActuatorComposition,
         private readonly authorization: ActuationAuthorizationPolicy,
         private readonly control: ActuationControl,
-        private readonly idempotency: ActuationIdempotencyStore = new InMemoryActuationIdempotencyStore(),
+        private readonly idempotency: ActuationIdempotencyStore = new PrismaActuationIdempotencyStore(),
     ) {}
 
     async dispatch(step: WorkflowStep): Promise<GuardedProductionActuationResult> {
@@ -144,6 +229,28 @@ export class GuardedProductionActuation {
                     capability: step.capability,
                 },
                 reason: this.control.reason,
+                outcome: "BLOCKED",
+                idempotencyKey,
+            };
+        }
+
+        const authorizedCapability = step.capability?.trim();
+        // Recipient and other actuator parameters live inside WorkflowStep.input.
+        // Snapshot the complete JSON payload before the asynchronous policy seam
+        // so a policy/extension cannot swap the destination after authorization.
+        let authorizedInputSnapshot: string;
+        try {
+            authorizedInputSnapshot = JSON.stringify(step.input ?? null);
+        } catch {
+            return {
+                allowed: false,
+                boundary: "V6_EXECUTION_AUTHORITY",
+                context: {
+                    workflowId: step.workflowId ?? "",
+                    stepId: step.id,
+                    capability: step.capability,
+                },
+                reason: "Production actuation input must be serializable before authorization.",
                 outcome: "BLOCKED",
                 idempotencyKey,
             };
@@ -166,12 +273,44 @@ export class GuardedProductionActuation {
             };
         }
 
-        const recovered = await this.idempotency.get(idempotencyKey);
-
-        if (recovered) {
+        // Authorization applies to the exact capability observed before the
+        // asynchronous policy call. Reject mutation before selecting an actuator.
+        if (step.capability?.trim() !== authorizedCapability) {
             return {
-                ...recovered,
-                outcome: recovered.result?.verified
+                allowed: false,
+                boundary: "V6_EXECUTION_AUTHORITY",
+                context: {
+                    workflowId: step.workflowId ?? "",
+                    stepId: step.id,
+                    capability: step.capability,
+                },
+                reason: "Production actuation capability changed during authorization.",
+                outcome: "BLOCKED",
+                idempotencyKey,
+            };
+        }
+
+        if (JSON.stringify(step.input ?? null) !== authorizedInputSnapshot) {
+            return {
+                allowed: false,
+                boundary: "V6_EXECUTION_AUTHORITY",
+                context: {
+                    workflowId: step.workflowId ?? "",
+                    stepId: step.id,
+                    capability: step.capability,
+                },
+                reason: "Production actuation input changed during authorization.",
+                outcome: "BLOCKED",
+                idempotencyKey,
+            };
+        }
+
+        const claim = await this.idempotency.claim(idempotencyKey, step);
+
+        if (claim.status === "COMPLETED") {
+            return {
+                ...claim.result,
+                outcome: claim.result.result?.verified
                     ? "VERIFIED"
                     : "EXECUTED",
                 idempotencyKey,
@@ -179,34 +318,40 @@ export class GuardedProductionActuation {
             };
         }
 
-        try {
-            const result = await this.composition.dispatch(step);
-            const outcome = result.result?.verified
-                ? "VERIFIED"
-                : result.result?.executed
-                    ? "EXECUTED"
-                    : result.allowed
-                        ? "FAILED"
-                        : "BLOCKED";
-
-            const guarded: GuardedProductionActuationResult = {
-                ...result,
-                outcome,
-                idempotencyKey,
-            };
-
-            // Only an action that crossed into execution is replay-safe.
-            // Blocked/failed results remain retryable by a future V6 run.
-            if (result.result?.executed) {
-                await this.idempotency.put(idempotencyKey, result);
-            }
-
-            return guarded;
-        } catch (error) {
-            // An exception after entering the actuator is an UNKNOWN outcome:
-            // the provider may have accepted the action before the process
-            // observed the failure. Automatic replay is therefore forbidden.
+        if (claim.status === "UNKNOWN") {
             return {
+                ...claim.result,
+                outcome: "UNKNOWN",
+                idempotencyKey,
+                // UNKNOWN is a fail-closed refusal to replay, not a replayed result.
+                replayed: false,
+            };
+        }
+
+        if (claim.status === "IN_FLIGHT") {
+            const recovered = await claim.completion;
+
+            return {
+                ...recovered,
+                outcome: recovered.result?.verified
+                    ? "VERIFIED"
+                    : recovered.result?.executed
+                        ? "EXECUTED"
+                        : recovered.allowed && !recovered.result && recovered.reason
+                            ? "UNKNOWN"
+                            : "FAILED",
+                idempotencyKey,
+                replayed: true,
+            };
+        }
+
+        let result: ProductionActuationResult;
+        try {
+            result = await this.composition.dispatch(step);
+        } catch (error) {
+            // An exception while dispatching may happen after external acceptance.
+            // Classify it as UNKNOWN and never automatically execute it again.
+            const unknown: ProductionActuationResult = {
                 allowed: true,
                 boundary: "V6_EXECUTION_AUTHORITY",
                 context: {
@@ -215,9 +360,65 @@ export class GuardedProductionActuation {
                     capability: step.capability,
                 },
                 reason: error instanceof Error ? error.message : String(error),
+            };
+
+            try {
+                await this.idempotency.complete(idempotencyKey, unknown, "UNKNOWN");
+            } catch (persistenceError) {
+                // The store fails closed for local waiters. Do not make a second
+                // write attempt: the first write may have committed ambiguously.
+                return {
+                    ...unknown,
+                    reason:
+                        `Actuation outcome is UNKNOWN and recording that state also failed: ${persistenceError instanceof Error ? persistenceError.message : String(persistenceError)}. Reconciliation is required; automatic retry is blocked.`,
+                    outcome: "UNKNOWN",
+                    idempotencyKey,
+                    replayed: false,
+                };
+            }
+
+            return {
+                ...unknown,
                 outcome: "UNKNOWN",
                 idempotencyKey,
+                replayed: false,
             };
         }
+
+        const outcome = result.result?.verified
+            ? "VERIFIED"
+            : result.result?.executed
+                ? "EXECUTED"
+                : result.allowed
+                    ? "FAILED"
+                    : "BLOCKED";
+
+        // Persisting the result is a separate failure domain from execution.
+        // If this write throws, it may still have committed; preserve provider
+        // evidence in the returned value, but report UNKNOWN and never overwrite
+        // the possibly committed row with a second best-effort write.
+        try {
+            await this.idempotency.complete(
+                idempotencyKey,
+                result,
+                result.result?.executed ? "COMPLETED" : "RELEASED",
+            );
+        } catch (error) {
+            return {
+                ...result,
+                allowed: true,
+                reason:
+                    `Actuator returned a result, but durable idempotency persistence failed or was ambiguous: ${error instanceof Error ? error.message : String(error)}. Preserve external evidence and reconcile before any retry.`,
+                outcome: "UNKNOWN",
+                idempotencyKey,
+                replayed: false,
+            };
+        }
+
+        return {
+            ...result,
+            outcome,
+            idempotencyKey,
+        };
     }
 }

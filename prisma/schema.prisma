@@ -201,6 +201,23 @@ model CommunicationEvent {
   @@index([type])
 }
 
+model ProductionActuationIdempotency {
+  id             String   @id @default(uuid())
+  idempotencyKey String   @unique
+  ownershipScope String
+  companyId      String?
+  workflowId     String
+  stepId         String
+  status         String   @default("IN_FLIGHT")
+  result         Json?
+  lastError      String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  @@index([companyId, status])
+  @@index([ownershipScope, status])
+  @@index([workflowId, stepId])
+}
+
 model CommunicationExecution {
   id                String                     @id @default(uuid())
   ownershipScope   String?
