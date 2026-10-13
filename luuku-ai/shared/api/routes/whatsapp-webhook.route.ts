@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import { Router, Request, Response } from "express";
 
 import { prisma } from "../../database/client";
+import { whatsappFounderInboundService } from "../../communication/whatsapp-founder-inbound.service";
 
 const router = Router();
 
@@ -235,8 +236,22 @@ router.post("/", async (request: Request, response: Response) => {
     }
 
     try {
+        const events = extractWhatsAppWebhookEvents(payload);
         const result = await persistWhatsAppWebhookPayload(payload);
-        return response.status(200).json({ accepted: true, ...result });
+
+        let processing;
+        try {
+            processing = await whatsappFounderInboundService.processEvents(events);
+        } catch (error) {
+            console.error("Failed to process authorized WhatsApp founder message:", error);
+            return response.status(500).json({ error: "WHATSAPP_WEBHOOK_PROCESSING_FAILED" });
+        }
+
+        return response.status(200).json({
+            accepted: true,
+            ...result,
+            processing,
+        });
     } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         if (message.startsWith("INVALID_WHATSAPP_WEBHOOK_PAYLOAD") ||
