@@ -1,56 +1,190 @@
 import "dotenv/config";
 import { randomUUID } from "node:crypto";
+import { spawn } from "node:child_process";
+import { resolve } from "node:path";
 import { PrismaClient } from "@prisma/client";
-import { PrismaActuationIdempotencyStore } from "../prisma-actuation-idempotency-store.js";
+import {
+    PrismaActuationIdempotencyStore,
+} from "../prisma-actuation-idempotency-store.js";
+import {
+    buildActuationIdempotencyKey,
+} from "../production-actuation-governance.js";
+import type { WorkflowStep } from "../../workflow/workflow-step.js";
+import { Priority } from "../../task/priority.js";
 import type { ProductionActuationResult } from "../production-actuator.js";
+
+const WORKER_RESULT_PREFIX = "PHASE5_WORKER_RESULT=";
 
 function assert(condition: unknown, message: string): asserts condition {
     if (!condition) throw new Error(message);
 }
 
+function testStep(
+    workflowId: string,
+    id: string,
+    companyId = "company-a",
+): WorkflowStep {
+    return {
+        id,
+        workflowId,
+        ownership: { scope: "COMPANY", companyId },
+        title: "Database-only idempotency integration step",
+        description: "Synthetic Phase 5 integration test; no provider is called.",
+        agentId: "phase5-test",
+        capability: "email.send",
+        dependsOn: [],
+        priority: Priority.MEDIUM,
+        requiresApproval: false,
+        status: "READY",
+    };
+}
+
+interface WorkerResult {
+    mode: string;
+    status: string;
+    externalId?: string;
+    companyId?: string;
+    error?: string;
+}
+
+async function runWorker(
+    mode: "--claim-worker" | "--recover-worker",
+    key: string,
+    step: WorkflowStep,
+): Promise<WorkerResult> {
+    const scriptPath = resolve(process.argv[1] ?? "");
+    assert(scriptPath.length > 1, "Could not resolve integration demo script path.");
+
+    return await new Promise((resolvePromise, rejectPromise) => {
+        const child = spawn(
+            process.execPath,
+            ["--import", "tsx", scriptPath, mode, key, JSON.stringify(step)],
+            { cwd: process.cwd(), env: process.env },
+        );
+
+        let stdout = "";
+        let stderr = "";
+        child.stdout.setEncoding("utf8");
+        child.stderr.setEncoding("utf8");
+        child.stdout.on("data", chunk => { stdout += chunk; });
+        child.stderr.on("data", chunk => { stderr += chunk; });
+        child.on("error", rejectPromise);
+        child.on("close", code => {
+            const marker = stdout
+                .split(/\r?\n/)
+                .find(line => line.startsWith(WORKER_RESULT_PREFIX));
+
+            if (code !== 0 || !marker) {
+                rejectPromise(new Error(
+                    `Worker ${mode} failed (exit ${code}).\nstdout:\n${stdout}\nstderr:\n${stderr}`,
+                ));
+                return;
+            }
+
+            try {
+                resolvePromise(JSON.parse(marker.slice(WORKER_RESULT_PREFIX.length)) as WorkerResult);
+            } catch (error) {
+                rejectPromise(new Error(`Could not parse worker output: ${String(error)}\n${stdout}`));
+            }
+        });
+    });
+}
+
+async function runWorkerMode(args: string[]): Promise<boolean> {
+    const mode = args[0];
+    if (mode !== "--claim-worker" && mode !== "--recover-worker") return false;
+
+    const key = args[1];
+    const serializedStep = args[2];
+    if (!key || !serializedStep) {
+        throw new Error(`Worker mode ${mode} requires an idempotency key and serialized WorkflowStep.`);
+    }
+
+    const step = JSON.parse(serializedStep) as WorkflowStep;
+    const db = new PrismaClient();
+
+    try {
+        await db.$connect();
+        const store = new PrismaActuationIdempotencyStore(db);
+        const claim = await store.claim(key, step);
+        const result: WorkerResult = {
+            mode,
+            status: claim.status,
+            companyId: step.ownership?.scope === "COMPANY"
+                ? step.ownership.companyId
+                : undefined,
+            externalId: claim.status === "COMPLETED"
+                ? claim.result.result?.evidence?.externalId
+                : undefined,
+        };
+        console.log(`${WORKER_RESULT_PREFIX}${JSON.stringify(result)}`);
+    } catch (error) {
+        console.error(error);
+        process.exitCode = 1;
+        throw error;
+    } finally {
+        await db.$disconnect();
+    }
+
+    return true;
+}
+
 async function main(): Promise<void> {
+    if (await runWorkerMode(process.argv.slice(2))) return;
+
     if (process.env.LUUKU_RUN_REAL_DB_IDEMPOTENCY_TEST !== "YES") {
         throw new Error(
             "Refusing database integration test. Set LUUKU_RUN_REAL_DB_IDEMPOTENCY_TEST=YES only after verifying DATABASE_URL points to a disposable development/test database.",
         );
     }
-
     if (!process.env.DATABASE_URL?.trim()) {
         throw new Error("DATABASE_URL is required for the real PostgreSQL idempotency test.");
     }
 
     const db = new PrismaClient();
     const prefix = `phase5-real-db-test/${randomUUID()}`;
-    const concurrentKey = `${prefix}/concurrent`;
-    const crashKey = `${prefix}/interrupted`;
-    const tenantAKey = `${prefix}/COMPANY:tenant-a/workflow/step`;
-    const tenantBKey = `${prefix}/COMPANY:tenant-b/workflow/step`;
+    const concurrentStep = testStep(prefix, "concurrent-step");
+    const concurrentKey = buildActuationIdempotencyKey(concurrentStep);
+    const interruptedStep = testStep(prefix, "interrupted-step");
+    const interruptedKey = buildActuationIdempotencyKey(interruptedStep);
+    const tenantAStep = testStep(prefix, "shared-step", "tenant-a");
+    const tenantBStep = testStep(prefix, "shared-step", "tenant-b");
+    const tenantAKey = buildActuationIdempotencyKey(tenantAStep);
+    const tenantBKey = buildActuationIdempotencyKey(tenantBStep);
 
     try {
         await db.$connect();
+        console.log("PHASE 5.4-H — CROSS-PROCESS & TENANT OWNERSHIP");
+        console.log("Database connection                    : CONNECTED");
+        console.log("External provider calls                 : 0 (database-only test)");
 
-        console.log("PHASE 5.4-G — REAL DATABASE IDEMPOTENCY INTEGRATION");
-        console.log("Database connection                 : CONNECTED");
-        console.log("External provider calls              : 0 (database-only test)");
-
-        // Separate store instances model independent application processes.
-        const processA = new PrismaActuationIdempotencyStore(db);
-        const processB = new PrismaActuationIdempotencyStore(db);
-        const claims = await Promise.all([
-            processA.claim(concurrentKey),
-            processB.claim(concurrentKey),
+        // These are separate Node.js OS processes, each with its own Prisma client and store.
+        const crossProcessClaims = await Promise.all([
+            runWorker("--claim-worker", concurrentKey, concurrentStep),
+            runWorker("--claim-worker", concurrentKey, concurrentStep),
         ]);
+        const acquired = crossProcessClaims.filter(result => result.status === "ACQUIRED");
+        const refused = crossProcessClaims.filter(result => result.status === "UNKNOWN");
+        assert(acquired.length === 1,
+            `Cross-process race must produce exactly one owner; got ${acquired.length}.`);
+        assert(refused.length === 1,
+            `Cross-process race must fail closed for the other process; got ${refused.length} UNKNOWN claims.`);
 
-        const acquired = claims.filter(claim => claim.status === "ACQUIRED");
-        const refused = claims.filter(claim => claim.status === "UNKNOWN");
-        assert(acquired.length === 1, `Expected exactly one durable claim owner; got ${acquired.length}.`);
-        assert(refused.length === 1, `Expected the competing process to fail closed as UNKNOWN; got ${refused.length}.`);
-        console.log("Concurrent independent-process claim : PASS (one owner)");
+        const concurrentRow = await db.productionActuationIdempotency.findUnique({
+            where: { idempotencyKey: concurrentKey },
+        });
+        assert(concurrentRow?.ownershipScope === "COMPANY",
+            "Cross-process claim did not persist COMPANY ownership scope.");
+        assert(concurrentRow.companyId === "company-a",
+            `Cross-process claim persisted wrong companyId: ${concurrentRow.companyId}.`);
+        console.log("Separate OS processes; one durable owner : PASS");
+        console.log("Persisted owner metadata               : PASS");
 
+        const syntheticExternalId = `synthetic-${randomUUID()}`;
         const providerResult: ProductionActuationResult = {
             allowed: true,
             boundary: "V6_EXECUTION_AUTHORITY",
-            context: { workflowId: "phase5-real-db-test", stepId: "concurrent" },
+            context: { workflowId: prefix, stepId: concurrentStep.id },
             result: {
                 success: true,
                 summary: "Synthetic result; no provider was called.",
@@ -60,63 +194,95 @@ async function main(): Promise<void> {
                 verified: true,
                 evidence: {
                     provider: "database-only-integration-test",
-                    externalId: `synthetic-${randomUUID()}`,
+                    externalId: syntheticExternalId,
                 },
             },
         };
 
-        // Persist a synthetic terminal result; never call email, SMS, or another provider.
-        const winningStore = claims[0].status === "ACQUIRED" ? processA : processB;
-        await winningStore.complete(concurrentKey, providerResult, "COMPLETED");
-
-        const restartedProcess = new PrismaActuationIdempotencyStore(db);
-        const recovered = await restartedProcess.claim(concurrentKey);
-        assert(recovered.status === "COMPLETED", `Expected completed result after fresh store; got ${recovered.status}.`);
-        assert(
-            recovered.result.result?.evidence?.externalId === providerResult.result?.evidence?.externalId,
-            "Fresh store did not recover the original synthetic external ID.",
+        // Complete only the synthetic database record; no external actuator is invoked.
+        await new PrismaActuationIdempotencyStore(db).complete(
+            concurrentKey, providerResult, "COMPLETED",
         );
-        console.log("Completed result recovered from DB  : PASS");
+        const recovery = await runWorker("--recover-worker", concurrentKey, concurrentStep);
+        assert(recovery.status === "COMPLETED",
+            `Separate recovery process expected COMPLETED; got ${recovery.status}.`);
+        assert(recovery.externalId === syntheticExternalId,
+            "Separate recovery process did not recover the exact persisted synthetic result.");
+        console.log("Completed result recovered in new OS process : PASS");
 
-        // Leave an IN_FLIGHT row as if the prior process died, then use a new store.
-        const crashOwner = new PrismaActuationIdempotencyStore(db);
-        const beforeCrash = await crashOwner.claim(crashKey);
-        assert(beforeCrash.status === "ACQUIRED", `Expected crash-test claim ACQUIRED; got ${beforeCrash.status}.`);
-        const afterRestart = new PrismaActuationIdempotencyStore(db);
-        const afterCrash = await afterRestart.claim(crashKey);
-        assert(afterCrash.status === "UNKNOWN", `Interrupted claim must fail closed as UNKNOWN; got ${afterCrash.status}.`);
-        console.log("Interrupted claim after fresh store   : PASS (UNKNOWN / blocked)");
+        // A child claims this key and exits. A second, newly launched process must fail closed.
+        const interruptedOwner = await runWorker("--claim-worker", interruptedKey, interruptedStep);
+        assert(interruptedOwner.status === "ACQUIRED",
+            `Interrupted-claim setup expected ACQUIRED; got ${interruptedOwner.status}.`);
+        const interruptedRecovery = await runWorker(
+            "--recover-worker", interruptedKey, interruptedStep,
+        );
+        assert(interruptedRecovery.status === "UNKNOWN",
+            `Fresh process must block interrupted IN_FLIGHT claim; got ${interruptedRecovery.status}.`);
+        console.log("Interrupted claim after process exit       : PASS (UNKNOWN / blocked)");
 
-        // Identical workflow/step identity under different tenant scopes must not collide.
+        // Same workflow and step IDs, but different ownership: keys and persisted metadata must differ.
+        assert(tenantAKey !== tenantBKey,
+            "Tenant ownership did not affect the generated idempotency key.");
         const tenantStoreA = new PrismaActuationIdempotencyStore(db);
         const tenantStoreB = new PrismaActuationIdempotencyStore(db);
-        const [tenantA, tenantB] = await Promise.all([
-            tenantStoreA.claim(tenantAKey),
-            tenantStoreB.claim(tenantBKey),
+        const [tenantAClaim, tenantBClaim] = await Promise.all([
+            tenantStoreA.claim(tenantAKey, tenantAStep),
+            tenantStoreB.claim(tenantBKey, tenantBStep),
         ]);
-        assert(tenantA.status === "ACQUIRED", `Tenant A claim failed: ${tenantA.status}.`);
-        assert(tenantB.status === "ACQUIRED", `Tenant B claim failed: ${tenantB.status}.`);
-        console.log("Distinct tenant scopes remain isolated : PASS");
+        assert(tenantAClaim.status === "ACQUIRED",
+            `Tenant A claim failed: ${tenantAClaim.status}.`);
+        assert(tenantBClaim.status === "ACQUIRED",
+            `Tenant B claim failed: ${tenantBClaim.status}.`);
 
-        await tenantStoreA.complete(tenantAKey, {
-            allowed: false,
-            boundary: "V6_EXECUTION_AUTHORITY",
-            context: { workflowId: "workflow", stepId: "step" },
-            reason: "Integration-test cleanup release.",
-        }, "RELEASED");
-        await tenantStoreB.complete(tenantBKey, {
-            allowed: false,
-            boundary: "V6_EXECUTION_AUTHORITY",
-            context: { workflowId: "workflow", stepId: "step" },
-            reason: "Integration-test cleanup release.",
-        }, "RELEASED");
+        const [tenantARow, tenantBRow] = await Promise.all([
+            db.productionActuationIdempotency.findUnique({ where: { idempotencyKey: tenantAKey } }),
+            db.productionActuationIdempotency.findUnique({ where: { idempotencyKey: tenantBKey } }),
+        ]);
+        assert(tenantARow?.ownershipScope === "COMPANY" && tenantARow.companyId === "tenant-a",
+            "Tenant A ownership metadata was not persisted correctly.");
+        assert(tenantBRow?.ownershipScope === "COMPANY" && tenantBRow.companyId === "tenant-b",
+            "Tenant B ownership metadata was not persisted correctly.");
+        assert(tenantARow.workflowId === tenantBRow.workflowId && tenantARow.stepId === tenantBRow.stepId,
+            "Tenant isolation test did not use identical workflow/step identities.");
 
-        console.log("PHASE 5.4-G REAL DATABASE INTEGRATION: PASS");
-        console.log("Note: tests durable claim semantics only; no external actuator was invoked.");
+        const tenantAResult: ProductionActuationResult = {
+            allowed: true,
+            boundary: "V6_EXECUTION_AUTHORITY",
+            context: { workflowId: prefix, stepId: tenantAStep.id },
+            result: { success: true, summary: "Tenant A synthetic result.", completedAt: new Date().toISOString(),
+                executionStatus: "verified", executed: true, verified: true,
+                evidence: { provider: "database-only-integration-test", externalId: "tenant-a-result" } },
+        };
+        const tenantBResult: ProductionActuationResult = {
+            allowed: true,
+            boundary: "V6_EXECUTION_AUTHORITY",
+            context: { workflowId: prefix, stepId: tenantBStep.id },
+            result: { success: true, summary: "Tenant B synthetic result.", completedAt: new Date().toISOString(),
+                executionStatus: "verified", executed: true, verified: true,
+                evidence: { provider: "database-only-integration-test", externalId: "tenant-b-result" } },
+        };
+        await Promise.all([
+            tenantStoreA.complete(tenantAKey, tenantAResult, "COMPLETED"),
+            tenantStoreB.complete(tenantBKey, tenantBResult, "COMPLETED"),
+        ]);
+        const [tenantAReplay, tenantBReplay] = await Promise.all([
+            runWorker("--recover-worker", tenantAKey, tenantAStep),
+            runWorker("--recover-worker", tenantBKey, tenantBStep),
+        ]);
+        assert(tenantAReplay.status === "COMPLETED" && tenantAReplay.externalId === "tenant-a-result",
+            "Tenant A recovery did not return only Tenant A's stored result.");
+        assert(tenantBReplay.status === "COMPLETED" && tenantBReplay.externalId === "tenant-b-result",
+            "Tenant B recovery did not return only Tenant B's stored result.");
+        console.log("Tenant ownership metadata persisted correctly : PASS");
+        console.log("Tenant-local results recovered independently  : PASS");
+
+        console.log("PHASE 5.4-H CROSS-PROCESS & OWNERSHIP: PASS");
+        console.log("Note: real PostgreSQL persistence was exercised; all action results were synthetic and no provider was called.");
     } finally {
-        // Delete only rows created by this invocation's random, namespaced test prefix.
+        // Every test row records this unique workflow prefix; cleanup is scoped to this invocation.
         await db.productionActuationIdempotency.deleteMany({
-            where: { idempotencyKey: { startsWith: prefix } },
+            where: { workflowId: { startsWith: prefix } },
         }).catch(() => undefined);
         await db.$disconnect();
     }
