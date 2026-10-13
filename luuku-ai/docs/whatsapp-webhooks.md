@@ -41,3 +41,11 @@ npm run dev:v8.28:whatsapp-webhook
 ```
 
 It verifies signature acceptance/rejection, stable event identities, durable persistence, and duplicate delivery handling. It makes no network requests and sends no WhatsApp messages.
+
+The controlled founder-routing contract test is separate:
+
+```powershell
+npm run dev:v8.29:whatsapp-founder-roundtrip
+```
+
+It validates allowlisted sender matching, text-only routing, the WhatsApp reply target, and the test-mode kill gate with fake dependencies. It makes no network requests and sends no WhatsApp messages.
