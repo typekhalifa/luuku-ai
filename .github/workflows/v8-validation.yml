@@ -93,6 +93,14 @@ jobs:
       - name: Phase 5 communication unknown-outcome attack
         run: npm run dev:v8.17:communication-unknown
 
+      - name: Phase 5 durable idempotency and ledger failure attacks
+        run: npm run dev:v8.24:durable-restart
+
+      - name: Phase 5 real PostgreSQL cross-process idempotency
+        run: npm run dev:v8.25:real-db-idempotency
+        env:
+          LUUKU_RUN_REAL_DB_IDEMPOTENCY_TEST: YES
+
       - name: V8-K validation
         run: npx tsx luuku-ai/os/executive/demo/v8-k-long-horizon-planning-demo.ts
 
