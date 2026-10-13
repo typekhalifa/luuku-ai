@@ -101,6 +101,12 @@ jobs:
         env:
           LUUKU_RUN_REAL_DB_IDEMPOTENCY_TEST: YES
 
+      - name: Phase 5.5 WhatsApp actuator contract (fake transport only)
+        run: npm run dev:v8.26:whatsapp-actuator
+
+      - name: Phase 5.5 governed WhatsApp router path (fake transport only)
+        run: npm run dev:v8.27:whatsapp-governed-path
+
       - name: V8-K validation
         run: npx tsx luuku-ai/os/executive/demo/v8-k-long-horizon-planning-demo.ts
 
