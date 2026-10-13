@@ -236,7 +236,7 @@ router.post("/", async (request: Request, response: Response) => {
 
     try {
         const result = await persistWhatsAppWebhookPayload(payload);
-        return response.status(200).json({ received: true, ...result });
+        return response.status(200).json({ accepted: true, ...result });
     } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         if (message.startsWith("INVALID_WHATSAPP_WEBHOOK_PAYLOAD") ||
