@@ -1,5 +1,5 @@
 import { communicationExecutionService } from "../communication-execution.service";
-import { prisma } from "../database/client";
+import { prisma } from "../../database/client";
 import { CommunicationRouter } from "../router";
 import { WhatsAppCloudApiAdapter, type WhatsAppFetch } from "../whatsapp-cloud-api-adapter";
 import { WhatsAppRouterAdapter } from "../whatsapp-router-adapter";
@@ -70,25 +70,25 @@ async function main(): Promise<void> {
     const testMode = await router.execute(request(key("test-mode"), "internal", "test"));
     assert(testMode.status === "blocked", "Request executionMode=test must be blocked.");
     assert(testMode.error === "WHATSAPP_REQUEST_LIVE_CONSENT_REQUIRED", "Unexpected test-mode block reason.");
-    assert(providerCalls === 0, "Request executionMode=test must not reach the provider.");
+    assert(Number(providerCalls) === 0, "Request executionMode=test must not reach the provider.");
 
     const missingMode = await router.execute(request(key("missing-mode"), "internal", undefined));
     assert(missingMode.status === "blocked", "Missing request executionMode must be blocked.");
     assert(missingMode.error === "WHATSAPP_REQUEST_LIVE_CONSENT_REQUIRED", "Unexpected missing-mode block reason.");
-    assert(providerCalls === 0, "Missing request executionMode must not reach the provider.");
+    assert(Number(providerCalls) === 0, "Missing request executionMode must not reach the provider.");
 
     const first = await router.execute(request(key("success")));
     assert(first.status === "verified" && first.executed && first.verified, "Expected governed success result.");
     assert(first.evidence?.provider === "whatsapp-cloud-api", "Provider evidence was not attached.");
     assert(first.evidence?.externalId === "wamid.synthetic-governed-001", "Provider message ID missing from evidence.");
-    assert(providerCalls === 1, "Expected one fake provider call.");
+    assert(Number(providerCalls) === 1, "Expected one fake provider call.");
     const persistedSuccess = await prisma.communicationExecution.findUnique({ where: { idempotencyKey: key("success") } });
     assert(persistedSuccess?.status === "verified", "Successful WhatsApp result was not persisted by the real execution ledger.");
     assert(persistedSuccess?.externalId === "wamid.synthetic-governed-001", "Provider evidence was not persisted by the real execution ledger.");
 
     const replay = await router.execute(request(key("success")));
     assert(replay.status === "verified", "Idempotent replay should return the stored result.");
-    assert(providerCalls === 1, "Idempotent replay dispatched the provider again.");
+    assert(Number(providerCalls) === 1, "Idempotent replay dispatched the provider again.");
     const persistedReplay = await prisma.communicationExecution.findUnique({ where: { idempotencyKey: key("success") } });
     assert(persistedReplay?.status === "verified", "Replay changed the persisted terminal success state.");
 
