@@ -92,6 +92,8 @@ export class WhatsAppFounderInboundService {
         const messages = extractWhatsAppFounderTextMessages(
             events,
             this.runtimeConfig.whatsappTestRecipient,
+        ).filter(
+            (message) => message.phoneNumberId === this.runtimeConfig.whatsappPhoneNumberId,
         );
 
         if (
