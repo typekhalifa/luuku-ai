@@ -98,8 +98,9 @@ async function main(): Promise<void> {
     const responder = {
         respond: async (
             _message: CommunicationMessage,
-            delivery: { channel: "discord" | "whatsapp"; recipientExternalId?: string },
+            delivery?: { channel: "discord" | "whatsapp"; recipientExternalId?: string },
         ) => {
+            if (!delivery) throw new Error("Expected an explicit delivery channel in this test.");
             deliveries.push(delivery);
             return {
                 response: "Synthetic Lex response. No WhatsApp message sent.",
