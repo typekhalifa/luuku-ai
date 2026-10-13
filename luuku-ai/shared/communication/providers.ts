@@ -18,6 +18,10 @@ import {
     discordRouterAdapter
 } from "./discord-router-adapter";
 
+import {
+    whatsappRouterAdapter
+} from "./whatsapp-router-adapter";
+
 let registered = false;
 
 export function registerCommunicationProviders(): void {
@@ -44,6 +48,12 @@ export function registerCommunicationProviders(): void {
         );
     }
 
+    if (whatsappRouterAdapter.isAvailable()) {
+        communicationRouter.register(
+            whatsappRouterAdapter
+        );
+    }
+
     registered = true;
 }
 
@@ -59,6 +69,9 @@ export function getCommunicationProviderStatus() {
             ? "available"
             : "unavailable",
         discord: discordRouterAdapter.isAvailable()
+            ? "available"
+            : "unavailable",
+        whatsapp: whatsappRouterAdapter.isAvailable()
             ? "available"
             : "unavailable"
     } as const;
