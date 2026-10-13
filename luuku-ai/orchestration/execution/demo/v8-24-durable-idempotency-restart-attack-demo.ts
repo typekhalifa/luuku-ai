@@ -1,5 +1,15 @@
 import type { PrismaClient } from "@prisma/client";
 import { PrismaActuationIdempotencyStore } from "../prisma-actuation-idempotency-store.js";
+import {
+    CapabilityAgentAuthorizationPolicy,
+    GuardedProductionActuation,
+    StaticActuationControl,
+    type ActuationIdempotencyStore,
+} from "../production-actuation-governance.js";
+import {
+    InMemoryProductionActuatorRegistry,
+    ProductionActuatorComposition,
+} from "../production-actuator.js";
 import type { WorkflowStep } from "../../workflow/workflow-step.js";
 import { Priority } from "../../task/priority.js";
 import type { ProductionActuationResult } from "../production-actuator.js";
@@ -217,6 +227,61 @@ async function main(): Promise<void> {
         "UNKNOWN",
     );
 
+    // Governance regression: provider returned success but the ledger write
+    // failed. The caller must see UNKNOWN with evidence and the gate must not
+    // issue a second write that could overwrite an ambiguously committed row.
+    const registry = new InMemoryProductionActuatorRegistry();
+    let actuatorCalls = 0;
+    registry.register({
+        id: "phase5-ledger-failure-test-actuator",
+        capabilities: ["email.send"],
+        async execute() {
+            actuatorCalls += 1;
+            return {
+                success: true,
+                summary: "Synthetic provider success; no external provider was called.",
+                completedAt: new Date().toISOString(),
+                executionStatus: "verified" as const,
+                executed: true,
+                verified: true,
+                evidence: {
+                    provider: "phase5-ledger-failure-test",
+                    externalId: "provider-accepted-before-ledger-failure",
+                },
+            };
+        },
+    });
+
+    let completeCalls = 0;
+    const failingLedger: ActuationIdempotencyStore = {
+        async claim() {
+            return { status: "ACQUIRED" };
+        },
+        async complete() {
+            completeCalls += 1;
+            throw new Error("Injected ledger outage after provider result.");
+        },
+    };
+    const governance = new GuardedProductionActuation(
+        new ProductionActuatorComposition(registry),
+        new CapabilityAgentAuthorizationPolicy(new Map([
+            ["email.send", new Set(["sales"])],
+        ])),
+        new StaticActuationControl(true),
+        failingLedger,
+    );
+    const governedStep = { ...step, workflowId: "phase5-governance-ledger-failure" };
+    const governedResult = await governance.dispatch(governedStep);
+    if (governedResult.outcome !== "UNKNOWN") {
+        throw new Error(`Provider success with ledger failure must return UNKNOWN, got ${governedResult.outcome}.`);
+    }
+    if (governedResult.result?.evidence?.externalId !== "provider-accepted-before-ledger-failure") {
+        throw new Error("Governance failure path discarded provider evidence.");
+    }
+    if (actuatorCalls !== 1 || completeCalls !== 1) {
+        throw new Error(`Unsafe governance retry detected: actuatorCalls=${actuatorCalls}, completeCalls=${completeCalls}.`);
+    }
+
     console.log("");
     console.log("PHASE 5.4-F — DURABLE IDEMPOTENCY / PROCESS RESTART");
     console.log("Completed result survives fresh store : PASS");
@@ -227,6 +292,8 @@ async function main(): Promise<void> {
     console.log("Waiters settle after persistence failures: PASS");
     console.log("Commit-then-throw preserves durable result: PASS");
     console.log("Pre-commit failure remains blocked as UNKNOWN: PASS");
+    console.log("Governance preserves provider evidence on ledger failure: PASS");
+    console.log("Governance does not retry ambiguous persistence: PASS");
     console.log("PHASE 5.4-F DURABLE RESTART / LEDGER FAILURE SAFETY: PASS");
 }
 
