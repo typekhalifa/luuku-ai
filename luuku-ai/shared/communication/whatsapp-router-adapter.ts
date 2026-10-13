@@ -1,6 +1,7 @@
 import { config } from "../config/env";
 import {
     normalizeWhatsAppPhoneNumber,
+    WhatsAppApiRejectionError,
     WhatsAppCloudApiAdapter,
 } from "./whatsapp-cloud-api-adapter";
 import {
@@ -142,20 +143,36 @@ export class WhatsAppRouterAdapter implements CommunicationAdapter {
             );
         }
 
-        // Provider/network errors deliberately propagate to CommunicationRouter,
-        // which records UNKNOWN and blocks automatic replay when acceptance is ambiguous.
-        const externalId = await this.adapter.sendAndGetMessageId({
-            conversationId:
-                typeof request.metadata?.conversationId === "string"
-                    ? request.metadata.conversationId
-                    : `whatsapp:${recipient}`,
-            recipient: {
-                channel: "whatsapp",
-                externalId: recipient,
-            },
-            content: request.body,
-            metadata: request.metadata,
-        });
+        let externalId: string;
+        try {
+            externalId = await this.adapter.sendAndGetMessageId({
+                conversationId:
+                    typeof request.metadata?.conversationId === "string"
+                        ? request.metadata.conversationId
+                        : "whatsapp:" + recipient,
+                recipient: {
+                    channel: "whatsapp",
+                    externalId: recipient,
+                },
+                content: request.body,
+                metadata: request.metadata,
+            });
+        } catch (error) {
+            if (error instanceof WhatsAppApiRejectionError) {
+                return {
+                    capability: this.capability,
+                    channel: this.channel,
+                    status: "failed",
+                    executed: false,
+                    verified: false,
+                    summary: "WhatsApp Cloud API explicitly rejected the outbound request; no message was accepted.",
+                    error: "WHATSAPP_PROVIDER_REJECTED_" + error.statusCode,
+                };
+            }
+            // Transport/network failures and ambiguous success responses must
+            // propagate so CommunicationRouter records UNKNOWN and blocks replay.
+            throw error;
+        }
 
         return {
             capability: this.capability,
@@ -166,14 +183,14 @@ export class WhatsAppRouterAdapter implements CommunicationAdapter {
             evidence: {
                 provider: "whatsapp-cloud-api",
                 externalId,
-                reference: `whatsapp:message:${externalId}`,
+                reference: "whatsapp:message:" + externalId,
                 details: {
                     phoneNumberId: this.runtimeConfig.whatsappPhoneNumberId,
                     acceptance: "provider-message-id-returned",
                 },
             },
             summary: "WhatsApp Cloud API accepted the outbound message and returned a provider message ID.",
-        };
+        };;
     }
 }
 
