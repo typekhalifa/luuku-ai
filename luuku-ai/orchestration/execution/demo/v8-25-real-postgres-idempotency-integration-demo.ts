@@ -226,7 +226,7 @@ async function main(): Promise<void> {
         const concurrentRow = await db.productionActuationIdempotency.findUnique({
             where: { idempotencyKey: concurrentKey },
         });
-        assert(concurrentRow?.ownershipScope === "COMPANY",
+        assert(concurrentRow?.ownershipScope === "COMPANY:company-a",
             "Cross-process claim did not persist COMPANY ownership scope.");
         assert(concurrentRow.companyId === "company-a",
             `Cross-process claim persisted wrong companyId: ${concurrentRow.companyId}.`);
@@ -292,9 +292,9 @@ async function main(): Promise<void> {
             db.productionActuationIdempotency.findUnique({ where: { idempotencyKey: tenantAKey } }),
             db.productionActuationIdempotency.findUnique({ where: { idempotencyKey: tenantBKey } }),
         ]);
-        assert(tenantARow?.ownershipScope === "COMPANY" && tenantARow.companyId === "tenant-a",
+        assert(tenantARow?.ownershipScope === "COMPANY:tenant-a" && tenantARow.companyId === "tenant-a",
             "Tenant A ownership metadata was not persisted correctly.");
-        assert(tenantBRow?.ownershipScope === "COMPANY" && tenantBRow.companyId === "tenant-b",
+        assert(tenantBRow?.ownershipScope === "COMPANY:tenant-b" && tenantBRow.companyId === "tenant-b",
             "Tenant B ownership metadata was not persisted correctly.");
         assert(tenantARow.workflowId === tenantBRow.workflowId && tenantARow.stepId === tenantBRow.stepId,
             "Tenant isolation test did not use identical workflow/step identities.");
