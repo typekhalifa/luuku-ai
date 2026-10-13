@@ -24,7 +24,7 @@ const runtimeConfig = {
 function request(
     idempotencyKey: string,
     audience: "internal" | "external" = "internal",
-    executionMode: string | undefined = "live",
+    executionMode: string | null = "live",
 ): CommunicationRequest {
     return {
         capability: "whatsapp.send",
@@ -33,7 +33,7 @@ function request(
         body: "Governed-path synthetic test; no real message.",
         metadata: {
             audience,
-            executionMode,
+            executionMode: executionMode === null ? undefined : executionMode,
             companyId: audience === "external" ? undefined : undefined,
             idempotencyKey,
         },
@@ -68,10 +68,10 @@ async function main(): Promise<void> {
 
     const testMode = await router.execute(request(key("test-mode"), "internal", "test"));
     assert(testMode.status === "blocked", "Request executionMode=test must be blocked.");
-    assert(testMode.error === "WHATSAPP_REQUEST_LIVE_CONSENT_REQUIRED", "Unexpected test-mode block reason.");
+    assert(testMode.error === "WHATSAPP_REQUEST_LIVE_CONSENT_REQUIRED", "Unexpected test-mode block reason: " + String(testMode.error) + " / " + testMode.summary);
     assert(Number(providerCalls) === 0, "Request executionMode=test must not reach the provider.");
 
-    const missingMode = await router.execute(request(key("missing-mode"), "internal", undefined));
+    const missingMode = await router.execute(request(key("missing-mode"), "internal", null));
     assert(missingMode.status === "blocked", "Missing request executionMode must be blocked.");
     assert(missingMode.error === "WHATSAPP_REQUEST_LIVE_CONSENT_REQUIRED", "Unexpected missing-mode block reason.");
     assert(Number(providerCalls) === 0, "Missing request executionMode must not reach the provider.");
