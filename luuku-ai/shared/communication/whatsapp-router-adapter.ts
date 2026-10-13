@@ -25,24 +25,40 @@ function blockedResult(
     };
 }
 
+type WhatsAppRouterAdapterConfig = Pick<
+    typeof config,
+    | "whatsappAccessToken"
+    | "whatsappPhoneNumberId"
+    | "whatsappGraphApiVersion"
+    | "whatsappMode"
+    | "whatsappTestRecipient"
+    | "whatsappLiveConfirmation"
+>;
+
 export class WhatsAppRouterAdapter implements CommunicationAdapter {
     readonly capability = "whatsapp.send" as const;
     readonly channel = "whatsapp" as const;
 
     private readonly adapter: WhatsAppCloudApiAdapter | null;
+    private readonly runtimeConfig: WhatsAppRouterAdapterConfig;
 
-    constructor() {
-        this.adapter =
-            config.whatsappAccessToken.trim() &&
-            config.whatsappPhoneNumberId.trim() &&
-            config.whatsappGraphApiVersion.trim()
+    constructor(
+        runtimeConfig: WhatsAppRouterAdapterConfig = config,
+        adapterOverride?: WhatsAppCloudApiAdapter | null,
+    ) {
+        this.runtimeConfig = runtimeConfig;
+        this.adapter = adapterOverride !== undefined
+            ? adapterOverride
+            : runtimeConfig.whatsappAccessToken.trim() &&
+                runtimeConfig.whatsappPhoneNumberId.trim() &&
+                runtimeConfig.whatsappGraphApiVersion.trim()
                 ? new WhatsAppCloudApiAdapter({
-                      accessToken: config.whatsappAccessToken,
-                      phoneNumberId: config.whatsappPhoneNumberId,
-                      graphApiVersion: config.whatsappGraphApiVersion,
-                      mode: config.whatsappMode,
-                      testRecipient: config.whatsappTestRecipient,
-                      liveConfirmation: config.whatsappLiveConfirmation,
+                      accessToken: runtimeConfig.whatsappAccessToken,
+                      phoneNumberId: runtimeConfig.whatsappPhoneNumberId,
+                      graphApiVersion: runtimeConfig.whatsappGraphApiVersion,
+                      mode: runtimeConfig.whatsappMode,
+                      testRecipient: runtimeConfig.whatsappTestRecipient,
+                      liveConfirmation: runtimeConfig.whatsappLiveConfirmation,
                   })
                 : null;
     }
@@ -79,21 +95,21 @@ export class WhatsAppRouterAdapter implements CommunicationAdapter {
                 "WHATSAPP_MESSAGE_BODY_MISSING",
             );
         }
-        if (config.whatsappMode !== "live") {
+        if (this.runtimeConfig.whatsappMode !== "live") {
             return blockedResult(
                 request,
                 "WhatsApp external delivery is disabled unless WHATSAPP_MODE=live.",
                 "WHATSAPP_EXTERNAL_EXECUTION_DISABLED",
             );
         }
-        if (config.whatsappLiveConfirmation !== "SEND_TO_CONTROLLED_TEST_CONTACT") {
+        if (this.runtimeConfig.whatsappLiveConfirmation !== "SEND_TO_CONTROLLED_TEST_CONTACT") {
             return blockedResult(
                 request,
                 "Live WhatsApp delivery requires explicit controlled-test confirmation.",
                 "WHATSAPP_LIVE_CONFIRMATION_REQUIRED",
             );
         }
-        if (!config.whatsappTestRecipient.trim()) {
+        if (!this.runtimeConfig.whatsappTestRecipient.trim()) {
             return blockedResult(
                 request,
                 "WhatsApp live delivery requires WHATSAPP_TEST_RECIPIENT.",
@@ -103,7 +119,7 @@ export class WhatsAppRouterAdapter implements CommunicationAdapter {
         try {
             if (
                 normalizeWhatsAppPhoneNumber(recipient) !==
-                normalizeWhatsAppPhoneNumber(config.whatsappTestRecipient)
+                normalizeWhatsAppPhoneNumber(this.runtimeConfig.whatsappTestRecipient)
             ) {
                 return blockedResult(
                     request,
@@ -145,7 +161,7 @@ export class WhatsAppRouterAdapter implements CommunicationAdapter {
                 externalId,
                 reference: `whatsapp:message:${externalId}`,
                 details: {
-                    phoneNumberId: config.whatsappPhoneNumberId,
+                    phoneNumberId: this.runtimeConfig.whatsappPhoneNumberId,
                     acceptance: "provider-message-id-returned",
                 },
             },
