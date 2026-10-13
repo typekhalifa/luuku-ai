@@ -36,7 +36,6 @@ function request(
             executionMode,
             companyId: audience === "external" ? undefined : undefined,
             idempotencyKey,
-            conversationId: "phase5.5-governed-path",
         },
     };
 }
