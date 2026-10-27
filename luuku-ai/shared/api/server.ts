@@ -256,26 +256,30 @@ async function shutdown(signal: string): Promise<void> {
 
     shutdownPromise = (async () => {
         logStructured("INFO", "api.shutdown.started", { signal });
-        const results = await Promise.allSettled([
-            closeHttpServer(),
-            productionExecutiveHost.stop(),
-            prisma.$disconnect(),
-        ]);
+        const cleanupSteps: Array<readonly [string, () => Promise<unknown>]> = [
+            ["http_server", closeHttpServer],
+            ["executive_host", () => productionExecutiveHost.stop()],
+            ["database", () => prisma.$disconnect()],
+        ];
+        let cleanupFailures = 0;
 
-        const failures = results.filter((result) => result.status === "rejected");
-        for (const failure of failures) {
-            if (failure.status === "rejected") {
+        for (const [resource, cleanup] of cleanupSteps) {
+            try {
+                await cleanup();
+            } catch (error) {
+                cleanupFailures += 1;
                 logStructured("ERROR", "api.shutdown.cleanup_failed", {
                     signal,
-                    error: failure.reason instanceof Error ? failure.reason.message : String(failure.reason),
+                    resource,
+                    error: error instanceof Error ? error.message : String(error),
                 });
             }
         }
 
-        if (failures.length > 0) process.exitCode = 1;
+        if (cleanupFailures > 0) process.exitCode = 1;
         logStructured("INFO", "api.shutdown.completed", {
             signal,
-            cleanupFailures: failures.length,
+            cleanupFailures,
         });
     })();
 
