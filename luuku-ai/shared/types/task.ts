@@ -12,6 +12,10 @@ export interface Task {
 
     assignedBy: string;
 
+    /** Legacy persisted assignment field used by existing task JSON records. */
+    assignedTo?: string;
+
+    /** Agent currently assigned to execute the task. */
     assignedAgent?: string;
 
     dueDate: string;
@@ -23,6 +27,7 @@ export interface Task {
 
     status:
         | "created"
+        | "pending"
         | "assigned"
         | "in-progress"
         | "completed"
