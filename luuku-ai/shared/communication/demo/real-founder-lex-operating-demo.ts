@@ -66,21 +66,13 @@ async function runDemo() {
                 founderAllowlist,
                 async (message) => {
                     messageCount += 1;
-
-            try {
+                    try {
                 const result = await bridge.handleMessage(message);
-
                 if (!result.accepted || !result.message) {
-                    console.warn(
-                        `Founder message was not accepted: ${result.reason}`,
-                    );
+                    console.warn(`Founder message was not accepted: ${result.reason}`);
                     return;
                 }
-
-                const response = await founderLexOperatingResponder.respond(
-                    result.message,
-                );
-
+                const response = await founderLexOperatingResponder.respond(result.message);
                 console.log("");
                 console.log("========================================");
                 console.log(`   FOUNDER → LEX → COMPANY TURN #${messageCount}`);
@@ -93,13 +85,16 @@ async function runDemo() {
                 console.log(`Verified        : ${response.verified}`);
                 console.log(`LEX response    : ${response.response}`);
                 console.log("");
-                console.log(
-                    "✓ Turn completed. LEX remains online and ready for the next founder message.",
-                );
-            } catch (error) {
-                console.error("Founder → LEX company turn failed:", error);
-                console.log("LEX remains online. You can send another message.");
-            }
+                console.log("✓ Turn completed. LEX remains online and ready for the next founder message.");
+                    } catch (error) {
+                        console.error("Founder → LEX company turn failed:", error);
+                        console.log("LEX remains online. You can send another founder message.");
+                    }
+                },
+                (reason, authorId) => {
+                    console.warn(`Rejected Discord message from user ${authorId}: ${reason}`);
+                },
+            );
         },
     });
 
