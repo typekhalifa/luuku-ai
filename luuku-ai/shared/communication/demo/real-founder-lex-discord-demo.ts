@@ -8,7 +8,7 @@ import { prismaCommunicationService } from "../prisma-communication-service";
 import { registerCommunicationProviders } from "../providers";
 import { founderLexResponder } from "../founder-lex-responder";
 import { CommunicationSpace } from "../department-space";
-import { authorizeDiscordFounder, parseDiscordFounderAllowlist } from "../discord-founder-authorization";
+import { handleAuthorizedDiscordMessage, parseDiscordFounderAllowlist } from "../discord-founder-authorization";
 
 async function runDemo() {
     await bootstrap();
@@ -47,13 +47,11 @@ async function runDemo() {
         botToken: discord.botToken,
         channelId: discord.channelId,
         onMessage: async (message) => {
-            const authorization = authorizeDiscordFounder(message.authorId, founderAllowlist);
-            if (!authorization.allowed) {
-                console.warn(`Rejected Discord message from user ${message.authorId || "(missing ID)"}: ${authorization.reason}`);
-                return;
-            }
-
-            messageCount += 1;
+            await handleAuthorizedDiscordMessage(
+                message,
+                founderAllowlist,
+                async (message) => {
+                    messageCount += 1;
 
             try {
                 const result = await bridge.handleMessage(message);
