@@ -1,5 +1,6 @@
 import {
     authorizeDiscordFounder,
+    handleAuthorizedDiscordMessage,
     parseDiscordFounderAllowlist,
 } from "../discord-founder-authorization";
 import { InMemoryCommunicationService } from "../in-memory-communication-service";
@@ -50,11 +51,17 @@ async function main(): Promise<void> {
         content: "Please execute an operational action.",
         timestamp: "2026-10-27T10:00:00.000Z",
     };
-    const authorization = authorizeDiscordFounder(unauthorizedMessage.authorId, allowlist);
-    if (authorization.allowed) {
-        await bridge.handleMessage(unauthorizedMessage);
-    }
-    assert(!authorization.allowed, "Unauthorized message must not be forwarded.");
+    let unauthorizedForwardCount = 0;
+    const unauthorizedForwarded = await handleAuthorizedDiscordMessage(
+        unauthorizedMessage,
+        allowlist,
+        async (message) => {
+            unauthorizedForwardCount += 1;
+            await bridge.handleMessage(message);
+        },
+    );
+    assert(!unauthorizedForwarded, "Unauthorized message must not be forwarded.");
+    assert(unauthorizedForwardCount === 0, "Unauthorized messages must not invoke the real ingress callback.");
 
     // Confirm the rejected message never reached the in-memory communication service.
     const unauthorizedConversation = await communicationService.getConversation(
@@ -63,14 +70,22 @@ async function main(): Promise<void> {
     );
     assert(!unauthorizedConversation, "Unauthorized message must not create or persist a conversation.");
 
-    const accepted = await bridge.handleMessage({
-        ...unauthorizedMessage,
-        id: "message-founder",
-        authorId: "12345",
-        authorName: "Display names are not the identity proof",
-        content: "Give me a read-only status update.",
-    });
-    assert(accepted.accepted && accepted.message, "Allowlisted founder message should enter the communication bridge.");
+    let acceptedMessage: Awaited<ReturnType<typeof bridge.handleMessage>> | undefined;
+    const authorizedForwarded = await handleAuthorizedDiscordMessage(
+        {
+            ...unauthorizedMessage,
+            id: "message-founder",
+            authorId: "12345",
+            authorName: "Display names are not the identity proof",
+            content: "Give me a read-only status update.",
+        },
+        allowlist,
+        async (message) => {
+            acceptedMessage = await bridge.handleMessage(message);
+        },
+    );
+    const accepted = acceptedMessage;
+    assert(authorizedForwarded && accepted?.accepted && accepted.message, "Allowlisted founder message should enter the communication bridge.");
     assert(accepted.message.sender.externalId === "12345", "Bridge must preserve immutable sender ID.");
 
     const conversation = await communicationService.getConversation(
