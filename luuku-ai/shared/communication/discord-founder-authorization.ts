@@ -1,7 +1,7 @@
 /**
  * Fail-closed authorization for founder-facing Discord ingress.
  *
- * Configure LUUKU_DISCORD_FOUNDER_USER_IDS as a comma-separated list of
+ * Configure LUUKU_DISCORD_FOUNDER_IDS as a comma-separated list of
  * immutable Discord user IDs. Display names are deliberately never accepted
  * as identity evidence.
  */
@@ -36,4 +36,25 @@ export function authorizeDiscordFounder(
     }
 
     return { allowed: true, reason: "founder-allowlisted" };
+}
+
+
+export interface DiscordFounderMessageIdentity {
+    authorId: string;
+}
+
+export async function handleAuthorizedDiscordMessage<T extends DiscordFounderMessageIdentity>(
+    message: T,
+    allowlist: ReadonlySet<string>,
+    onAuthorized: (message: T) => Promise<void> | void,
+    onRejected?: (reason: Extract<DiscordFounderAuthorization, { allowed: false }>["reason"], authorId: string) => void,
+): Promise<boolean> {
+    const authorization = authorizeDiscordFounder(message.authorId, allowlist);
+    if (!authorization.allowed) {
+        onRejected?.(authorization.reason, message.authorId || "(missing ID)");
+        return false;
+    }
+
+    await onAuthorized(message);
+    return true;
 }
