@@ -209,7 +209,7 @@ export class ProductionExecutiveHost {
             capabilities: {},
             policyRules,
             executeRuntime: false,
-            intervalMs: EXECUTIVE_INTERVAL_MS,
+            intervalMs: getExecutiveIntervalMs(),
             runImmediately: true,
             onError: (error) => {
                 logStructured("ERROR", "executive.cycle.failed", {
