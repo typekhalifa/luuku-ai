@@ -56,6 +56,13 @@ async function main(): Promise<void> {
     }
     assert(!authorization.allowed, "Unauthorized message must not be forwarded.");
 
+    // Confirm the rejected message never reached the in-memory communication service.
+    const unauthorizedConversation = await communicationService.getConversation(
+        `discord:${unauthorizedMessage.channelId}`,
+        { ownership: { scope: "SYSTEM" } },
+    );
+    assert(!unauthorizedConversation, "Unauthorized message must not create or persist a conversation.");
+
     const accepted = await bridge.handleMessage({
         ...unauthorizedMessage,
         id: "message-founder",
