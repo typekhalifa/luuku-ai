@@ -23,6 +23,7 @@ import { recordObservabilityEvent } from "../observability/durable-events.js";
 import { productionExecutiveHost } from "../../os/executive/production-executive-host.js";
 import { registerCommunicationProviders } from "../communication/providers";
 import { ApiLifecycleGate } from "./api-lifecycle-gate";
+import { runCleanupSequence } from "./cleanup-sequence";
 
 const app = express();
 
@@ -266,25 +267,20 @@ async function shutdown(signal: string): Promise<void> {
             ["executive_host", () => productionExecutiveHost.stop()],
             ["database", () => prisma.$disconnect()],
         ];
-        let cleanupFailures = 0;
+        const failures = await runCleanupSequence(cleanupSteps);
 
-        for (const [resource, cleanup] of cleanupSteps) {
-            try {
-                await cleanup();
-            } catch (error) {
-                cleanupFailures += 1;
-                logStructured("ERROR", "api.shutdown.cleanup_failed", {
-                    signal,
-                    resource,
-                    error: error instanceof Error ? error.message : String(error),
-                });
-            }
+        for (const failure of failures) {
+            logStructured("ERROR", "api.shutdown.cleanup_failed", {
+                signal,
+                resource: failure.resource,
+                error: failure.error instanceof Error ? failure.error.message : String(failure.error),
+            });
         }
 
-        if (cleanupFailures > 0) process.exitCode = 1;
+        if (failures.length > 0) process.exitCode = 1;
         logStructured("INFO", "api.shutdown.completed", {
             signal,
-            cleanupFailures,
+            cleanupFailures: failures.length,
         });
     })();
 
