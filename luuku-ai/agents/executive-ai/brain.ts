@@ -8,6 +8,8 @@ import { buildExecutiveSchedule } from "../../shared/executive/scheduler";
 import { buildExecutiveCRM } from "../../shared/executive/crm";
 import { buildExecutiveCapabilities } from "../../shared/executive/capabilities";
 import { AgentResult } from "../../shared/agents/interface";
+import { getTasks } from "../../shared/services/task";
+import type { Task } from "../../shared/types/task";
 
 export interface ExecutiveContext {
     generatedAt: string;
@@ -15,6 +17,7 @@ export interface ExecutiveContext {
     currentTimeLocal: string;
     timeZone: string;
     intelligence: Awaited<ReturnType<typeof buildExecutiveIntelligence>>;
+    tasks: Task[];
     memory: ReturnType<typeof buildExecutiveMemory>;
     agentHealth: ReturnType<typeof buildAgentHealth>;
     objectives: ReturnType<typeof buildExecutiveObjectives>;
@@ -47,6 +50,7 @@ export async function buildExecutiveContext(
     const agentHealth = buildAgentHealth();
     const intelligence = await buildExecutiveIntelligence();
     const memory = buildExecutiveMemory();
+    const tasks = getTasks();
 
     let systemHealth: ExecutiveContext["systemHealth"] = "excellent";
     if (intelligence.analytics.overdueTasks > 0) systemHealth = "good";
@@ -65,6 +69,7 @@ export async function buildExecutiveContext(
         currentTimeLocal: getKigaliTime(now),
         timeZone: "Africa/Kigali (CAT, UTC+02:00)",
         intelligence,
+        tasks,
         memory,
         objectives,
         agentHealth,
