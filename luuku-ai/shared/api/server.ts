@@ -23,6 +23,7 @@ import { recordObservabilityEvent } from "../observability/durable-events.js";
 import { productionExecutiveHost } from "../../os/executive/production-executive-host.js";
 import { registerCommunicationProviders } from "../communication/providers";
 import { ApiLifecycleGate } from "./api-lifecycle-gate";
+import { startApiListener } from "./api-server-lifecycle";
 import { runCleanupSequence } from "./cleanup-sequence";
 
 const app = express();
@@ -289,21 +290,27 @@ async function shutdown(signal: string): Promise<void> {
 
 async function startServer(): Promise<void> {
     try {
-        // Do not accept traffic until executive tenant initialization succeeds.
-        await productionExecutiveHost.start();
-
-        // A signal may have initiated shutdown while executive startup was pending.
-        if (!lifecycleGate.canStartListener()) return;
-
-        httpServer = await new Promise<ReturnType<typeof app.listen>>((resolve, reject) => {
-            const server = app.listen(port, () => resolve(server));
-            server.once("error", reject);
+        const started = await startApiListener({
+            initialize: () => productionExecutiveHost.start(),
+            canStartListener: () => lifecycleGate.canStartListener(),
+            listen: () => new Promise<ReturnType<typeof app.listen>>((resolve, reject) => {
+                const server = app.listen(port, () => { httpServer = server; resolve(server); });
+                server.once("error", reject);
+            }),
+            onStarted: () => {
+                logStructured("INFO", "api.started", {
+                    environment,
+                    port,
+                });
+            },
         });
 
-        logStructured("INFO", "api.started", {
-            environment,
-            port,
-        });
+        // Shutdown may have started while app.listen() was binding the socket.
+        // The lifecycle helper closes that listener before returning false.
+        if (started) {
+            // The listener handle is returned by the helper only as a boolean;
+            // keep the actual server reference captured by the listen callback.
+        }
     } catch (error) {
         logStructured("ERROR", "api.start_failed", {
             error: error instanceof Error ? error.message : String(error),
