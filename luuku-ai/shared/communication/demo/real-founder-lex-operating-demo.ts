@@ -8,6 +8,7 @@ import { prismaCommunicationService } from "../prisma-communication-service";
 import { registerCommunicationProviders } from "../providers";
 import { founderLexOperatingResponder } from "../founder-lex-operating-responder";
 import { CommunicationSpace } from "../department-space";
+import { authorizeDiscordFounder, parseDiscordFounderAllowlist } from "../discord-founder-authorization";
 
 // Integration demo. Default is test mode. Sandbox and the deliberately
 // restricted live controlled-email mode require explicit opt-in.
@@ -44,6 +45,11 @@ async function runDemo() {
         ],
     };
 
+    const founderAllowlist = parseDiscordFounderAllowlist(process.env.LUUKU_DISCORD_FOUNDER_IDS);
+    if (founderAllowlist.size === 0) {
+        throw new Error("Discord founder authorization is not configured. Set LUUKU_DISCORD_FOUNDER_IDS to the comma-separated immutable Discord user ID(s).");
+    }
+
     const bridge = new DiscordInboundCommunicationBridge(
         prismaCommunicationService,
         [space],
@@ -55,6 +61,12 @@ async function runDemo() {
         botToken: discord.botToken,
         channelId: discord.channelId,
         onMessage: async (message) => {
+            const authorization = authorizeDiscordFounder(message.authorId, founderAllowlist);
+            if (!authorization.allowed) {
+                console.warn(`Rejected Discord message from user ${message.authorId || "(missing ID)"}: ${authorization.reason}`);
+                return;
+            }
+
             messageCount += 1;
 
             try {
