@@ -98,10 +98,17 @@ export class FounderLexResponder {
         message: CommunicationMessage,
         delivery: FounderLexDelivery = { channel: "discord" },
     ): Promise<FounderLexResponseResult> {
+        const spaceId = typeof message.metadata?.spaceId === "string"
+            ? message.metadata.spaceId.trim()
+            : "";
+        const communicationContext: CommunicationContext = spaceId
+            ? { ownership: { scope: "SPACE", spaceId } }
+            : SYSTEM_COMMUNICATION_CONTEXT;
+
         const conversation =
             await prismaCommunicationService.getConversation(
                 message.conversationId,
-                SYSTEM_COMMUNICATION_CONTEXT,
+                communicationContext,
             );
 
         if (!conversation) {
@@ -178,7 +185,7 @@ export class FounderLexResponder {
                     displayName: "Founder",
                 },
                 content: response,
-                context: SYSTEM_COMMUNICATION_CONTEXT,
+                context: communicationContext,
                 metadata: {
                     source: "founder-lex-responder",
                     executionStatus: execution.status,
