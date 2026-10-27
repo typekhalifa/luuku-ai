@@ -293,10 +293,24 @@ async function startServer(): Promise<void> {
         const started = await startApiListener({
             initialize: () => productionExecutiveHost.start(),
             canStartListener: () => lifecycleGate.canStartListener(),
-            listen: () => new Promise<ReturnType<typeof app.listen>>((resolve, reject) => {
-                const server = app.listen(port, () => { httpServer = server; resolve(server); });
-                server.once("error", reject);
-            }),
+            listen: async () => {
+                const server = await new Promise<ReturnType<typeof app.listen>>((resolve, reject) => {
+                    const listeningServer = app.listen(port, () => {
+                        httpServer = listeningServer;
+                        resolve(listeningServer);
+                    });
+                    listeningServer.once("error", reject);
+                });
+                return {
+                    close: () => new Promise<void>((resolve, reject) => {
+                        if (!server.listening) {
+                            resolve();
+                            return;
+                        }
+                        server.close((error) => error ? reject(error) : resolve());
+                    }),
+                };
+            },
             onStarted: () => {
                 logStructured("INFO", "api.started", {
                     environment,
