@@ -1,6 +1,7 @@
 import type { Request, Response } from "express";
 import { prisma } from "../../database/client";
 import { productionExecutiveHost } from "../../../os/executive/production-executive-host.js";
+import { getApiReadiness } from "../readiness-status";
 
 export async function healthzController(
     _request: Request,
@@ -25,12 +26,12 @@ export async function readyzController(
     }
 
     const executive = productionExecutiveHost.isStarted() ? "ready" : "not_ready";
-    const ready = database === "ok" && executive === "ready";
+    const readiness = getApiReadiness(database, executive);
 
-    response.status(ready ? 200 : 503).json({
-        status: ready ? "ready" : "not_ready",
+    response.status(readiness.httpStatus).json({
+        status: readiness.status,
         service: "luuku-api",
-        database,
-        executive,
+        database: readiness.database,
+        executive: readiness.executive,
     });
 }
