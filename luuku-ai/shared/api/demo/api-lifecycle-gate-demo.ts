@@ -1,5 +1,6 @@
 import { ApiLifecycleGate } from "../api-lifecycle-gate";
 import { getApiReadiness } from "../readiness-status";
+import { runCleanupSequence } from "../cleanup-sequence";
 
 function assert(condition: unknown, message: string): asserts condition {
     if (!condition) throw new Error(message);
@@ -48,11 +49,28 @@ async function main(): Promise<void> {
         );
     }
 
+    const cleanupOrder: string[] = [];
+    const cleanupFailures = await runCleanupSequence([
+        ["http_server", async () => { cleanupOrder.push("http_server"); }],
+        ["executive_host", async () => {
+            cleanupOrder.push("executive_host");
+            throw new Error("synthetic host cleanup failure");
+        }],
+        ["database", async () => { cleanupOrder.push("database"); }],
+    ]);
+    assert(
+        cleanupOrder.join(",") === "http_server,executive_host,database",
+        "Cleanup must remain sequential and continue after a failure.",
+    );
+    assert(cleanupFailures.length === 1, "Cleanup failure should be recorded exactly once.");
+    assert(cleanupFailures[0].resource === "executive_host", "Cleanup failure must identify the resource.");
+
     console.log("API readiness: only database=ok and executive=ready returns HTTP 200: PASS");
     console.log("API readiness: all unavailable/not-ready combinations return HTTP 503: PASS");
     console.log("API lifecycle gate: normal startup remains allowed before shutdown: PASS");
     console.log("API lifecycle gate: shutdown during pending initialization blocks listener: PASS");
     console.log("API lifecycle gate: repeated shutdown request remains fail-closed: PASS");
+    console.log("API shutdown: cleanup remains ordered and continues after a failed step: PASS");
     console.log("API lifecycle gate: PASS");
 }
 
