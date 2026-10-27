@@ -59,7 +59,7 @@ async function main(): Promise<void> {
     // Confirm the rejected message never reached the in-memory communication service.
     const unauthorizedConversation = await communicationService.getConversation(
         `discord:${unauthorizedMessage.channelId}`,
-        { ownership: { scope: "SYSTEM" } },
+        { ownership: { scope: "SPACE", spaceId: "founder-discord" } },
     );
     assert(!unauthorizedConversation, "Unauthorized message must not create or persist a conversation.");
 
@@ -75,7 +75,7 @@ async function main(): Promise<void> {
 
     const conversation = await communicationService.getConversation(
         accepted.message.conversationId,
-        { ownership: { scope: "SYSTEM" } },
+        { ownership: { scope: "SPACE", spaceId: "founder-discord" } },
     );
     assert(conversation?.messages.length === 1, "Only the authorized message should be persisted.");
     assert(conversation.messages[0].id === accepted.message.id, "Persisted message must match the authorized inbound message.");
