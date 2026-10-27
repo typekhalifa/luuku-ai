@@ -78,13 +78,14 @@ async function main(): Promise<void> {
     const bindRaceStartup = startApiListener({
         initialize: async () => undefined,
         canStartListener: () => bindRaceGate.canStartListener(),
-        listen: () => pendingListen,
+        listen: () => {
+            // The lifecycle helper has passed its pre-bind check; simulate a
+            // signal arriving while the operating system is binding the socket.
+            bindRaceGate.requestShutdown();
+            return pendingListen;
+        },
         onStarted: () => { startupLogged = true; },
     });
-    // Allow initialize() and the pre-bind gate check to complete.
-    await Promise.resolve();
-    await Promise.resolve();
-    bindRaceGate.requestShutdown();
     releaseListen({
         close: async () => { fakeListenerClosed = true; },
     });
