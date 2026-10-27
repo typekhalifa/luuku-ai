@@ -22,6 +22,7 @@ import { logStructured, recordHttpRequest } from "../observability";
 import { recordObservabilityEvent } from "../observability/durable-events.js";
 import { productionExecutiveHost } from "../../os/executive/production-executive-host.js";
 import { registerCommunicationProviders } from "../communication/providers";
+import { ApiLifecycleGate } from "./api-lifecycle-gate";
 
 const app = express();
 
@@ -240,7 +241,7 @@ app.use("/api/v1/runtime", runtimeRouter);
 registerCommunicationProviders();
 
 let httpServer: ReturnType<typeof app.listen> | undefined;
-let shutdownRequested = false;
+const lifecycleGate = new ApiLifecycleGate();
 let shutdownPromise: Promise<void> | undefined;
 
 async function closeHttpServer(): Promise<void> {
@@ -255,7 +256,7 @@ async function closeHttpServer(): Promise<void> {
 async function shutdown(signal: string): Promise<void> {
     // Close the startup race: a signal during host initialization must prevent
     // startServer() from opening a listener after cleanup has begun.
-    shutdownRequested = true;
+    lifecycleGate.requestShutdown();
     if (shutdownPromise) return shutdownPromise;
 
     shutdownPromise = (async () => {
@@ -296,7 +297,7 @@ async function startServer(): Promise<void> {
         await productionExecutiveHost.start();
 
         // A signal may have initiated shutdown while executive startup was pending.
-        if (shutdownRequested) return;
+        if (!lifecycleGate.canStartListener()) return;
 
         httpServer = await new Promise<ReturnType<typeof app.listen>>((resolve, reject) => {
             const server = app.listen(port, () => resolve(server));
