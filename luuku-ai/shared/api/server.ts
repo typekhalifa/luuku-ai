@@ -239,36 +239,88 @@ app.use("/api/v1/runtime", runtimeRouter);
 // Register governed communication adapters before webhook requests can reach Lex.
 registerCommunicationProviders();
 
-const httpServer = app.listen(port, () => {
-    logStructured("INFO", "api.started", {
-        environment,
-        port,
-    });
-});
+let httpServer: ReturnType<typeof app.listen> | undefined;
+let shutdownPromise: Promise<void> | undefined;
 
-void productionExecutiveHost.start().catch((error) => {
-    logStructured("ERROR", "executive.production.start_failed", {
-        error: error instanceof Error ? error.message : String(error),
+async function closeHttpServer(): Promise<void> {
+    const server = httpServer;
+    if (!server || !server.listening) return;
+
+    await new Promise<void>((resolve, reject) => {
+        server.close((error) => error ? reject(error) : resolve());
     });
-    process.exitCode = 1;
-});
+}
 
 async function shutdown(signal: string): Promise<void> {
-    logStructured("INFO", "api.shutdown.started", { signal });
-    await productionExecutiveHost.stop();
-    await prisma.$disconnect();
+    if (shutdownPromise) return shutdownPromise;
 
-    await new Promise<void>((resolve) => {
-        httpServer.close(() => resolve());
-    });
+    shutdownPromise = (async () => {
+        logStructured("INFO", "api.shutdown.started", { signal });
+        const results = await Promise.allSettled([
+            closeHttpServer(),
+            productionExecutiveHost.stop(),
+            prisma.$disconnect(),
+        ]);
 
-    logStructured("INFO", "api.shutdown.completed", { signal });
+        const failures = results.filter((result) => result.status === "rejected");
+        for (const failure of failures) {
+            if (failure.status === "rejected") {
+                logStructured("ERROR", "api.shutdown.cleanup_failed", {
+                    signal,
+                    error: failure.reason instanceof Error ? failure.reason.message : String(failure.reason),
+                });
+            }
+        }
+
+        if (failures.length > 0) process.exitCode = 1;
+        logStructured("INFO", "api.shutdown.completed", {
+            signal,
+            cleanupFailures: failures.length,
+        });
+    })();
+
+    return shutdownPromise;
+}
+
+async function startServer(): Promise<void> {
+    try {
+        // Do not accept traffic until executive tenant initialization succeeds.
+        await productionExecutiveHost.start();
+
+        httpServer = await new Promise<ReturnType<typeof app.listen>>((resolve, reject) => {
+            const server = app.listen(port, () => resolve(server));
+            server.once("error", reject);
+        });
+
+        logStructured("INFO", "api.started", {
+            environment,
+            port,
+        });
+    } catch (error) {
+        logStructured("ERROR", "api.start_failed", {
+            error: error instanceof Error ? error.message : String(error),
+        });
+        process.exitCode = 1;
+        await shutdown("STARTUP_FAILURE");
+    }
 }
 
 process.once("SIGTERM", () => {
-    void shutdown("SIGTERM");
+    void shutdown("SIGTERM").catch((error) => {
+        logStructured("ERROR", "api.shutdown.unhandled_failure", {
+            error: error instanceof Error ? error.message : String(error),
+        });
+        process.exitCode = 1;
+    });
 });
 
 process.once("SIGINT", () => {
-    void shutdown("SIGINT");
+    void shutdown("SIGINT").catch((error) => {
+        logStructured("ERROR", "api.shutdown.unhandled_failure", {
+            error: error instanceof Error ? error.message : String(error),
+        });
+        process.exitCode = 1;
+    });
 });
+
+void startServer();
