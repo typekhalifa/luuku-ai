@@ -3,37 +3,30 @@ import { Task } from "../types/task";
 
 export function createFollowUpTask(
     business: string,
-    days: number
+    days: number,
+    relatedProspectId?: string,
+    idempotencyKey?: string
 ): Task {
-
     const due = new Date();
+    due.setDate(due.getDate() + days);
 
-    due.setDate(
-        due.getDate() + days
-    );
+    const stableSuffix = idempotencyKey
+        ? idempotencyKey.replace(/[^a-zA-Z0-9_-]/g, "-")
+        : undefined;
 
     return {
-
-        id: crypto.randomUUID(),
-
+        id: relatedProspectId && stableSuffix
+            ? `follow-up-${relatedProspectId}-${stableSuffix}`
+            : crypto.randomUUID(),
+        relatedProspectId,
         business,
-
         title: "Follow-up",
-
         description: `Follow up with ${business}`,
-
         assignedBy: "Sales Agent",
-
         assignedAgent: "Executive AI",
-
         dueDate: due.toISOString(),
-
         priority: "medium",
-
         status: "created",
-
         createdAt: new Date().toISOString()
-
     };
-
 }
