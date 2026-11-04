@@ -20,6 +20,7 @@ import { requireAuthentication } from "../auth/auth.middleware";
 import { prisma } from "../database/client";
 import { logStructured, recordHttpRequest } from "../observability";
 import { recordObservabilityEvent } from "../observability/durable-events.js";
+import "../../agents/register";
 import { productionExecutiveHost } from "../../os/executive/production-executive-host.js";
 import { registerCommunicationProviders } from "../communication/providers";
 

@@ -11,6 +11,8 @@ import { createExecutiveComposition, type ExecutiveComposition } from "./executi
 import type { ExecutiveIntent } from "./executive-intent.js";
 import type { AutonomyPolicyRule } from "./autonomy-policy.js";
 import type { Agent } from "../../shared/agents/interface.js";
+import { SalesAgent } from "../../agents/business/sales/sales-agent.js";
+import { createTenantScopedAgentAdapter } from "../agents/tenant-scoped-agent.js";
 import { logStructured } from "../../shared/observability/index.js";
 
 interface TenantExecutiveHost {
@@ -105,16 +107,10 @@ export class ProductionExecutiveHost {
         const ownership = { scope: "COMPANY" as const, companyId };
 
         const agentRegistry = new AgentRegistry();
-        const salesAgent: Agent = {
-            id: "sales",
-            name: "Sales Agent",
-            role: "Sales",
-            async execute() {
-                throw new Error(
-                    "Production executive capability bridge is not directly executable; V6 production actuators remain the execution boundary.",
-                );
-            },
-        };
+        const salesAgent = createTenantScopedAgentAdapter(
+            new SalesAgent(),
+            companyId,
+        );
 
         // Capability discovery is explicit. The real production email side
         // effect remains behind the existing V6 production actuator.
