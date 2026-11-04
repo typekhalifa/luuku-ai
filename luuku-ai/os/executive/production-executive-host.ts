@@ -12,6 +12,7 @@ import type { ExecutiveIntent } from "./executive-intent.js";
 import type { AutonomyPolicyRule } from "./autonomy-policy.js";
 import type { Agent } from "../../shared/agents/interface.js";
 import { SalesAgent } from "../../agents/business/sales/sales-agent.js";
+import { createTenantScopedAgentAdapter } from "../agents/tenant-scoped-agent.js";
 import { logStructured } from "../../shared/observability/index.js";
 
 interface TenantExecutiveHost {
@@ -106,27 +107,10 @@ export class ProductionExecutiveHost {
         const ownership = { scope: "COMPANY" as const, companyId };
 
         const agentRegistry = new AgentRegistry();
-        const canonicalSalesAgent = new SalesAgent();
-        const salesAgent: Agent = {
-            id: canonicalSalesAgent.id,
-            name: canonicalSalesAgent.name,
-            role: canonicalSalesAgent.role,
-            async execute(task) {
-                if (task.metadata?.companyId !== companyId) {
-                    return {
-                        success: false,
-                        summary: "Sales Agent discovery adapter rejected a task outside its tenant ownership.",
-                        completedAt: new Date().toISOString(),
-                        executionStatus: "blocked",
-                        executed: false,
-                        verified: false,
-                        blockers: ["TENANT_OWNERSHIP_MISMATCH"],
-                    };
-                }
-
-                return canonicalSalesAgent.execute(task);
-            },
-        };
+        const salesAgent = createTenantScopedAgentAdapter(
+            new SalesAgent(),
+            companyId,
+        );
 
         // Capability discovery is explicit. The real production email side
         // effect remains behind the existing V6 production actuator.
