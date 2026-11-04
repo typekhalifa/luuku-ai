@@ -11,6 +11,7 @@ import { createExecutiveComposition, type ExecutiveComposition } from "./executi
 import type { ExecutiveIntent } from "./executive-intent.js";
 import type { AutonomyPolicyRule } from "./autonomy-policy.js";
 import type { Agent } from "../../shared/agents/interface.js";
+import { SalesAgent } from "../../agents/business/sales/sales-agent.js";
 import { logStructured } from "../../shared/observability/index.js";
 
 interface TenantExecutiveHost {
@@ -105,14 +106,25 @@ export class ProductionExecutiveHost {
         const ownership = { scope: "COMPANY" as const, companyId };
 
         const agentRegistry = new AgentRegistry();
+        const canonicalSalesAgent = new SalesAgent();
         const salesAgent: Agent = {
-            id: "sales",
-            name: "Sales Agent",
-            role: "Sales",
-            async execute() {
-                throw new Error(
-                    "Production executive capability bridge is not directly executable; V6 production actuators remain the execution boundary.",
-                );
+            id: canonicalSalesAgent.id,
+            name: canonicalSalesAgent.name,
+            role: canonicalSalesAgent.role,
+            async execute(task) {
+                if (task.metadata?.companyId !== companyId) {
+                    return {
+                        success: false,
+                        summary: "Sales Agent discovery adapter rejected a task outside its tenant ownership.",
+                        completedAt: new Date().toISOString(),
+                        executionStatus: "blocked",
+                        executed: false,
+                        verified: false,
+                        blockers: ["TENANT_OWNERSHIP_MISMATCH"],
+                    };
+                }
+
+                return canonicalSalesAgent.execute(task);
             },
         };
 
