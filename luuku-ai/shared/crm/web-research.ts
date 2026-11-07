@@ -45,9 +45,15 @@ interface TavilyResponse {
     results?: TavilyResult[];
 }
 
-const client = new OpenAI({
-    apiKey: config.openaiApiKey,
-});
+function getOpenAIClient(): OpenAI {
+    if (!config.openaiApiKey) {
+        throw new Error("OPENAI_API_KEY is missing");
+    }
+
+    return new OpenAI({
+        apiKey: config.openaiApiKey,
+    });
+}
 
 async function tavilySearch(query: string): Promise<TavilyResult[]> {
     const apiKey = config.tavilyApiKey;
@@ -258,6 +264,8 @@ CRITICAL DATA RULES:
 
 For contact.name, use a verified person's name when available. If no named person can be verified, use the verified department or office name instead.
 `;
+
+    const client = getOpenAIClient();
 
     const response = await client.responses.create({
         model,
