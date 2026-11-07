@@ -122,8 +122,8 @@ async function main(): Promise<void> {
         assert.equal(researchCalls, 1);
         assert.ok(result.evidence?.reference);
 
-        const artifactPath = result.evidence.reference;
-        assert.equal(typeof artifactPath, "string");
+        const artifactPath = result.evidence?.reference;
+        assert.ok(artifactPath);
         const artifact = JSON.parse(fs.readFileSync(artifactPath, "utf8"));
 
         assert.equal(artifact.taskId, task.id);
