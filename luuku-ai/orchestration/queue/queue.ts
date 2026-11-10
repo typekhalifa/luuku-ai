@@ -27,7 +27,7 @@ export interface QueueItem {
 
 export interface QueueStore {
     enqueue(item: QueueItem): Promise<void>;
-    claimNext(now?: Date): Promise<QueueItem | null>;
+    claimNext(now?: Date, workflowId?: string): Promise<QueueItem | null>;
     complete(id: string, updatedAt?: Date): Promise<void>;
     fail(id: string, updatedAt?: Date): Promise<void>;
     retry(id: string, availableAt: Date): Promise<void>;
@@ -54,9 +54,13 @@ export class InMemoryQueueStore implements QueueStore {
         this.items.set(item.id, { ...item, ownership: normalizeExecutionOwnership(item.ownership) });
     }
 
-    async claimNext(now = new Date()): Promise<QueueItem | null> {
+    async claimNext(
+        now = new Date(),
+        workflowId?: string,
+    ): Promise<QueueItem | null> {
         const candidates = [...this.items.values()]
             .filter((item) => ownershipMatches(this.ownership, item.ownership))
+            .filter((item) => !workflowId || item.workflowId === workflowId)
             .filter((item) => item.status === QueueItemStatus.QUEUED && item.availableAt <= now)
             .sort((a, b) => {
                 const priorityRank: Record<Priority, number> = {
