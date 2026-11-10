@@ -36,10 +36,14 @@ export class PrismaQueueStore implements QueueStore {
         await prisma.queueItem.create({ data: toCreateData(item) });
     }
 
-    async claimNext(now = new Date()): Promise<QueueItem | null> {
+    async claimNext(
+      now = new Date(),
+      workflowId?: string,
+    ): Promise<QueueItem | null> {
         const candidates = await prisma.queueItem.findMany({
             where: {
                 ...this.queueOwnershipWhere(),
+		...(workflowId ? { workflowId } : {}),
                 status: QueueItemStatus.QUEUED,
                 availableAt: { lte: now },
             },
@@ -58,6 +62,7 @@ export class PrismaQueueStore implements QueueStore {
             where: {
                 id: candidate.id,
                 ...this.queueOwnershipWhere(),
+		...(workflowId ? { workflowId } : {}),
                 status: QueueItemStatus.QUEUED,
                 availableAt: { lte: now },
             },

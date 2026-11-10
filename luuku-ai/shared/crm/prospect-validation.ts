@@ -1,6 +1,6 @@
-import OpenAI from "openai";
+﻿import OpenAI from "openai";
 import { config } from "../config/env";
-import { ProspectResearchResult } from "./web-research";
+import type { ProspectResearchResult } from "./web-research";
 
 export interface ProspectValidation {
     opportunityConfidence: "HIGH" | "MEDIUM" | "LOW";
@@ -10,9 +10,13 @@ export interface ProspectValidation {
     recommendedValidation: string;
 }
 
-const client = config.openaiApiKey
-    ? new OpenAI({ apiKey: config.openaiApiKey })
-    : null;
+function getOpenAIClient(): OpenAI | null {
+    if (!config.openaiApiKey) {
+        return null;
+    }
+
+    return new OpenAI({ apiKey: config.openaiApiKey });
+}
 
 export async function validateProspectOpportunity(
     result: ProspectResearchResult,
@@ -25,14 +29,18 @@ export async function validateProspectOpportunity(
         `"${result.company.name}" technology transformation project workflow`,
     ];
 
+    const fallback: ProspectValidation = {
+        opportunityConfidence: "LOW",
+        concreteSignals: [],
+        unknowns: ["OpenAI is unavailable for targeted opportunity validation."],
+        validationQueries: queries,
+        recommendedValidation: `Research ${result.company.name}'s public operational and digital-transformation initiatives before outreach.`,
+    };
+
+    const client = getOpenAIClient();
+
     if (!client) {
-        return {
-            opportunityConfidence: "LOW",
-            concreteSignals: [],
-            unknowns: ["OpenAI is unavailable for targeted opportunity validation."],
-            validationQueries: queries,
-            recommendedValidation: `Research ${result.company.name}'s public operational and digital-transformation initiatives before outreach.`,
-        };
+        return fallback;
     }
 
     const response = await client.responses.create({
@@ -73,20 +81,33 @@ Rules:
 
     try {
         const parsed = JSON.parse(raw) as ProspectValidation;
+
+        if (
+            !["HIGH", "MEDIUM", "LOW"].includes(parsed.opportunityConfidence) ||
+            !Array.isArray(parsed.concreteSignals) ||
+            !Array.isArray(parsed.unknowns)
+        ) {
+            return {
+                ...fallback,
+                unknowns: ["The opportunity-validation response had an invalid structure."],
+            };
+        }
+
         return {
             opportunityConfidence: parsed.opportunityConfidence,
-            concreteSignals: Array.isArray(parsed.concreteSignals) ? parsed.concreteSignals : [],
-            unknowns: Array.isArray(parsed.unknowns) ? parsed.unknowns : [],
+            concreteSignals: parsed.concreteSignals,
+            unknowns: parsed.unknowns,
             validationQueries: queries,
-            recommendedValidation: parsed.recommendedValidation || `Research ${result.company.name}'s public operational and digital-transformation initiatives before outreach.`,
+            recommendedValidation:
+                typeof parsed.recommendedValidation === "string" &&
+                parsed.recommendedValidation.trim()
+                    ? parsed.recommendedValidation
+                    : fallback.recommendedValidation,
         };
     } catch {
         return {
-            opportunityConfidence: "LOW",
-            concreteSignals: [],
+            ...fallback,
             unknowns: ["The opportunity-validation response was not valid JSON."],
-            validationQueries: queries,
-            recommendedValidation: `Research ${result.company.name}'s public operational and digital-transformation initiatives before outreach.`,
         };
     }
 }

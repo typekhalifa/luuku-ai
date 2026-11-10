@@ -31,7 +31,7 @@ export class AutonomousRuntime {
     async runCycle(workflow: Workflow, now = new Date()): Promise<AutonomousRuntimeCycleResult> {
         const recovered = await this.queue.recoverStaleClaims(now, this.queueClaimStaleAfterMs); let scheduled = await this.scheduleRunnableSteps(workflow, now);
         const claimed: string[] = [], completed: string[] = [], retried: string[] = [], failed: string[] = [], blocked: string[] = [], reconciled: string[] = [], escalated: string[] = [];
-        const next = await this.queue.claimNext(now); if (!next) { if (this.workflowStore) await this.workflowStore.save(workflow); return { scheduled: scheduled.map(x => x.id), recovered, claimed, executed: [], completed, retried, failed, blocked, reconciled, escalated }; }
+        const next = await this.queue.claimNext(now, workflow.id); if (!next) { if (this.workflowStore) await this.workflowStore.save(workflow); return { scheduled: scheduled.map(x => x.id), recovered, claimed, executed: [], completed, retried, failed, blocked, reconciled, escalated }; }
         claimed.push(next.id); const orchestration = await this.orchestrator.runReadySteps(workflow, next.stepId); const executed = orchestration.executedStepIds; const result = orchestration.results[next.stepId]; const step = workflow.steps.find(x => x.id === next.stepId);
         if (executed.includes(next.stepId)) {
             if (this.workflowStore && WorkflowEngine.allStepsCompleted(workflow.steps)) {
