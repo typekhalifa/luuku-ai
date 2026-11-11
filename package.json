@@ -39,6 +39,7 @@
     "dev:tenant-isolation": "tsx luuku-ai/shared/api/demo/v8-tenant-isolation-demo.ts",
     "dev:phase4:tenant-sales-bridge": "tsx luuku-ai/os/agents/demo/tenant-scoped-agent-bridge-demo.ts",
     "dev:phase4:research-agent-demo": "tsx luuku-ai/agents/business/research/demo/research-agent-execution-demo.ts",
+    "dev:phase4:research-crm-integration": "tsx luuku-ai/agents/business/research/demo/research-crm-integration-demo.ts",
     "dev:v8.11:observability": "tsx luuku-ai/shared/observability/demo/v8-11-durable-observability-demo.ts",
     "dev:v8.11:alerts": "tsx luuku-ai/shared/observability/demo/v8-11-alert-evaluation-demo.ts",
     "dev:v8.11:dashboard": "tsx luuku-ai/shared/observability/demo/v8-11-operational-dashboard-demo.ts",
