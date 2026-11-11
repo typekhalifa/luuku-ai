@@ -274,10 +274,13 @@ export async function executeResearchTask(
 
             // Reuse the existing Sales application to consume the durable
             // tenant prospect and prepare (but never dispatch) outreach.
-            await salesApplication.prepareTenantOutreach(
-                research.company.name,
+            const preparedOutreach = await salesApplication.prepareTenantOutreachById(
+                persistedProspect.id,
                 metadata.companyId,
             );
+            if (preparedOutreach.prospectId !== persistedProspect.id) {
+                throw new Error("RESEARCH_SALES_PROSPECT_HANDOFF_MISMATCH");
+            }
             salesHandoffPrepared = true;
         }
 
@@ -313,6 +316,7 @@ export async function executeResearchTask(
                     crmDealId,
                     crmActivityId,
                     salesHandoffPrepared,
+                    salesHandoffProspectId: salesHandoffPrepared ? durableProspectId : undefined,
                     externalOutreachDispatched: false,
                     opportunityConfidence: validation.opportunityConfidence,
                     prospectScore: intelligence.score.overall,
@@ -352,7 +356,8 @@ export async function executeResearchTask(
                 researchCompleted
                     ? "Public research completed, but a later assessment or artifact-persistence step failed."
                     : "Research did not complete successfully.",
-                "No CRM registration or external outreach was performed.",
+                "The workflow failed after research; tenant Prospect or CRM writes may have partially completed and must be reconciled using the tenant and research-task identity.",
+                "This execution path does not dispatch external outreach.",
             ],
         };
     }
