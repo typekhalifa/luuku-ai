@@ -19,8 +19,12 @@ import {
 import { eventBus } from "../../events/core/event-bus";
 
 import { ProspectRegisteredEvent } from "../../events/events/prospect-registered.event";
+import { researchedProspectService } from "../../database/services/researched-prospect.service";
+import type { ResearchedProspect } from "../../domain/prospect";
 
 export interface RegisterProspectRequest {
+
+    prospectId?: string;
 
     company: Omit<
         Company,
@@ -49,6 +53,13 @@ export class RegisterProspectWorkflow {
         const context =
             createWorkflowContext();
 
+        const prospect = request.prospectId
+            ? await researchedProspectService.getById(request.prospectId, companyId)
+            : null;
+        if (request.prospectId && !prospect) {
+            throw new Error("PROSPECT_NOT_FOUND_OR_UNAUTHORIZED");
+        }
+
         const companyCreated =
             await this.ensureCompany(
                 context,
@@ -59,12 +70,14 @@ export class RegisterProspectWorkflow {
         await this.ensurePrimaryContact(
             context,
             request.contact,
-            companyId
+            companyId,
+            prospect?.id
         );
 
         await this.ensureInitialDeal(
             context,
-            companyId
+            companyId,
+            prospect ?? undefined
         );
 
         await this.logInitialActivity(
@@ -138,7 +151,9 @@ export class RegisterProspectWorkflow {
                 context.deal!,
 
             activity:
-                context.activity!
+                context.activity!,
+
+            prospect: prospect ?? undefined
 
         };
 
@@ -174,7 +189,8 @@ export class RegisterProspectWorkflow {
         context: WorkflowContext,
 
         contact: RegisterProspectRequest["contact"],
-        companyId: string
+        companyId: string,
+        prospectId?: string
 
     ): Promise<void> {
 
@@ -192,16 +208,13 @@ export class RegisterProspectWorkflow {
 
         const existing =
             existingContacts.find(
-                candidate =>
-                    (
-                        !!normalizedEmail &&
-                        candidate.email?.trim().toLowerCase() ===
-                            normalizedEmail
-                    ) ||
-                    (
-                        !!normalizedPhone &&
-                        candidate.phoneNumber?.trim() ===
-                            normalizedPhone
+                candidate => prospectId
+                    ? candidate.prospectId === prospectId
+                    : !candidate.prospectId && (
+                        (!!normalizedEmail &&
+                            candidate.email?.trim().toLowerCase() === normalizedEmail) ||
+                        (!!normalizedPhone &&
+                            candidate.phoneNumber?.trim() === normalizedPhone)
                     )
             );
 
@@ -242,6 +255,8 @@ export class RegisterProspectWorkflow {
                     source:
                         contact.source,
 
+                    prospectId,
+
                     lastVerifiedAt:
                         contact.lastVerifiedAt,
 
@@ -265,6 +280,8 @@ export class RegisterProspectWorkflow {
                 companyId:
                     context.company!.id,
 
+                prospectId,
+
                 createdAt:
                     now,
 
@@ -278,7 +295,8 @@ export class RegisterProspectWorkflow {
     private async ensureInitialDeal(
 
         context: WorkflowContext,
-        companyId: string
+        companyId: string,
+        prospect?: ResearchedProspect
 
     ): Promise<void> {
 
@@ -288,13 +306,13 @@ export class RegisterProspectWorkflow {
                 companyId
             );
 
-        if (existingDeals.length > 0) {
+        const existing = prospect
+            ? existingDeals.find(candidate => candidate.prospectId === prospect.id)
+            : existingDeals.find(candidate => !candidate.prospectId);
 
-            context.deal =
-                existingDeals[0];
-
+        if (existing) {
+            context.deal = existing;
             return;
-
         }
 
         const now =
@@ -309,8 +327,12 @@ export class RegisterProspectWorkflow {
                 companyId:
                     context.company!.id,
 
+                prospectId: prospect?.id,
+
                 title:
-                    "Initial Opportunity",
+                    prospect
+                        ? `${prospect.business} — ${prospect.recommendedOffer}`
+                        : "Initial Opportunity",
 
                 value:
                     0,
@@ -396,10 +418,10 @@ export class RegisterProspectWorkflow {
                     "Prospect Registered",
 
                 description:
-                    "Prospect registered by Research Agent.",
+                    "Researched prospect linked to the tenant CRM.",
 
                 outcome:
-                    "Company added to CRM.",
+                    "Prospect, primary contact, and opportunity associated with the tenant CRM.",
 
                 createdBy:
                     "research-agent",

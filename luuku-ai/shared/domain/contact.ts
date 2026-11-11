@@ -4,6 +4,8 @@ export interface Contact {
 
     companyId: string;
 
+    prospectId?: string;
+
     name: string;
 
     email?: string;

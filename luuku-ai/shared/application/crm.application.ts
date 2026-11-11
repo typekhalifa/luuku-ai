@@ -4,6 +4,7 @@ import { dealService } from "../database/services/deal.service";
 import { activityService } from "../database/services/activity.service";
 import { registerProspectWorkflow } from "./workflows/register-prospect.workflow";
 import type { ApiRequestContext } from "../api/request-context";
+import type { ResearchedProspect } from "../domain/prospect";
 
 export interface CRMOverview {
     companies: number;
@@ -13,6 +14,7 @@ export interface CRMOverview {
 }
 
 export interface RegisterProspectRequest {
+    prospectId?: string;
     company: {
         name: string;
         industry: string;
@@ -35,12 +37,13 @@ export interface RegisterProspectRequest {
         verified: boolean;
         confidence: number;
         source: string;
-        lastVerifiedAt: string;
+        lastVerifiedAt?: string;
     };
 }
 
 export interface RegisterProspectResult {
     success: boolean;
+    prospect?: ResearchedProspect;
     message: string;
     workflowId: string;
     durationMs: number;
@@ -57,6 +60,12 @@ export interface RegisterProspectResult {
         verified: boolean;
         source: string;
     };
+    deal: {
+        id: string;
+        title: string;
+        stage: string;
+    };
+    activityId: string;
     contact: {
         id: string;
         name: string;
@@ -99,6 +108,7 @@ export class CRMApplication {
         }
 
         const result = await registerProspectWorkflow.execute({
+            prospectId: request.prospectId,
             company: {
                 name: request.company.name,
                 industry: request.company.industry,
@@ -127,10 +137,17 @@ export class CRMApplication {
 
         return {
             success: result.success,
+            prospect: result.prospect,
             message: result.message,
             workflowId: result.workflowId,
             durationMs: result.durationMs,
             company: result.company,
+            deal: {
+                id: result.deal.id,
+                title: result.deal.title,
+                stage: result.deal.stage,
+            },
+            activityId: result.activity.id,
             contact: {
                 id: result.contact.id,
                 name: result.contact.name,

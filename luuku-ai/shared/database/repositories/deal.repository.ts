@@ -43,6 +43,14 @@ export class DealRepository {
             throw new Error("DEAL_TENANT_MISMATCH");
         }
 
+        if (deal.prospectId) {
+            const prospect = await prisma.prospect.findFirst({
+                where: { id: deal.prospectId, tenantCompanyId: companyId },
+                select: { id: true },
+            });
+            if (!prospect) throw new Error("PROSPECT_TENANT_MISMATCH");
+        }
+
         const created = await prisma.deal.create({
             data: DealMapper.toPersistence(deal)
         });
@@ -57,11 +65,23 @@ export class DealRepository {
     }
 
     async update(deal: Deal, companyId: string): Promise<Deal> {
+        if (deal.companyId !== companyId) {
+            throw new Error("DEAL_TENANT_MISMATCH");
+        }
+
         const owned = await prisma.deal.findFirst({
             where: { id: deal.id, companyId },
             select: { id: true }
         });
         if (!owned) throw new Error("DEAL_NOT_FOUND_OR_UNAUTHORIZED");
+
+        if (deal.prospectId) {
+            const prospect = await prisma.prospect.findFirst({
+                where: { id: deal.prospectId, tenantCompanyId: companyId },
+                select: { id: true },
+            });
+            if (!prospect) throw new Error("PROSPECT_TENANT_MISMATCH");
+        }
 
         const updated = await prisma.deal.update({
             where: { id: deal.id },

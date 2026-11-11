@@ -13,6 +13,8 @@ export interface Deal {
 
     companyId: string;
 
+    prospectId?: string;
+
     title: string;
 
     value: number;

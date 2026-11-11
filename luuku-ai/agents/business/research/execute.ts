@@ -2,6 +2,10 @@ import fs from "node:fs";
 import path from "node:path";
 
 import type { AgentTask, AgentResult } from "../../../shared/agents/interface";
+import type { Prisma } from "@prisma/client";
+import { researchedProspectService } from "../../../shared/database/services/researched-prospect.service";
+import { crmApplication } from "../../../shared/application/crm.application";
+import { salesApplication } from "../../../shared/application/sales.application";
 import {
     researchProspect,
     type ProspectResearchResult,
@@ -192,6 +196,90 @@ export async function executeResearchTask(
             completedAt,
         );
         const artifactBytes = fs.statSync(artifactPath).size;
+        const metadata = task.metadata ?? {};
+        let durableProspectId: string | undefined;
+        let crmWorkflowId: string | undefined;
+        let crmContactId: string | undefined;
+        let crmDealId: string | undefined;
+        let crmActivityId: string | undefined;
+        let salesHandoffPrepared = false;
+
+        // Workflow executions carry tenant ownership from the existing V6
+        // orchestrator. Standalone research demos remain artifact-only.
+        if (typeof metadata.companyId === "string" && metadata.companyId.trim()) {
+            if (metadata.ownershipScope !== "COMPANY") {
+                throw new Error("RESEARCH_PROSPECT_TENANT_SCOPE_INVALID");
+            }
+
+            const persistedProspect = await researchedProspectService.persist({
+                tenantCompanyId: metadata.companyId,
+                researchTaskId: task.id,
+                workflowId: typeof metadata.workflowId === "string" ? metadata.workflowId : undefined,
+                business: research.company.name,
+                industry: research.company.industry,
+                website: research.company.website,
+                country: research.company.country,
+                city: research.company.city,
+                size: research.company.size,
+                fitScore: intelligence.score.overall,
+                recommendedOffer: intelligence.recommendedOffer,
+                owner: "research-agent",
+                researchEvidence: JSON.parse(JSON.stringify({
+                    sources: research.sources,
+                    evidence: research.evidence,
+                    summary: research.summary,
+                    artifactPath,
+                })) as Prisma.InputJsonValue,
+                qualification: JSON.parse(JSON.stringify({
+                    validation,
+                    intelligence,
+                })) as Prisma.InputJsonValue,
+            });
+            durableProspectId = persistedProspect.id;
+
+            const crmResult = await crmApplication.registerProspect({
+                prospectId: persistedProspect.id,
+                company: {
+                    name: research.company.name,
+                    industry: research.company.industry,
+                    website: research.company.website,
+                    country: research.company.country,
+                    city: research.company.city,
+                    size: research.company.size,
+                    status: "prospect",
+                    confidence: research.company.confidence,
+                    verified: false,
+                    source: research.company.source,
+                },
+                contact: {
+                    name: research.contact.name,
+                    email: research.contact.email,
+                    phoneNumber: research.contact.phoneNumber,
+                    preferredLanguage: research.contact.preferredLanguage,
+                    department: research.contact.department,
+                    position: research.contact.position,
+                    verified: false,
+                    confidence: Math.round(research.contact.confidence),
+                    source: research.contact.source,
+                },
+            }, {
+                companyId: metadata.companyId,
+                authMethod: "api-key",
+                role: "SERVICE",
+            });
+            crmWorkflowId = crmResult.workflowId;
+            crmContactId = crmResult.contact.id;
+            crmDealId = crmResult.deal.id;
+            crmActivityId = crmResult.activityId;
+
+            // Reuse the existing Sales application to consume the durable
+            // tenant prospect and prepare (but never dispatch) outreach.
+            await salesApplication.prepareTenantOutreach(
+                research.company.name,
+                metadata.companyId,
+            );
+            salesHandoffPrepared = true;
+        }
 
         return {
             success: true,
@@ -200,7 +288,9 @@ export async function executeResearchTask(
                 `Luuku fit: ${intelligence.score.overall}/10; ` +
                 `readiness: ${intelligence.readiness}; ` +
                 `opportunity confidence: ${validation.opportunityConfidence}. ` +
-                "The research artifact was persisted; business claims remain unverified.",
+                (durableProspectId
+                    ? "Research, tenant CRM registration, and Sales preparation completed; business claims remain unverified."
+                    : "The local research artifact was persisted; no tenant CRM handoff was requested, and business claims remain unverified."),
             completedAt,
             executionStatus: "completed",
             executed: true,
@@ -215,6 +305,15 @@ export async function executeResearchTask(
                     sourceCount: research.sources.length,
                     artifactPersisted: true,
                     artifactBytes,
+                    durableProspectPersisted: !!durableProspectId,
+                    durableProspectId,
+                    crmRegistered: !!durableProspectId,
+                    crmWorkflowId,
+                    crmContactId,
+                    crmDealId,
+                    crmActivityId,
+                    salesHandoffPrepared,
+                    externalOutreachDispatched: false,
                     opportunityConfidence: validation.opportunityConfidence,
                     prospectScore: intelligence.score.overall,
                     prospectReadiness: intelligence.readiness,
@@ -227,7 +326,14 @@ export async function executeResearchTask(
                 "Opportunity validation and prospect-fit assessment completed.",
                 "The local research artifact was written and read back for structural verification.",
                 "The prospect-fit and contact-quality labels are heuristic assessments, not independent verification.",
-                "No CRM registration, Sales handoff, or external outreach was performed.",
+                ...(durableProspectId
+                    ? [
+                        "The tenant-owned prospect, source-backed qualification, primary CRM contact, opportunity, and activity were persisted and linked.",
+                        "The existing Sales application successfully prepared outreach; no message was dispatched.",
+                    ]
+                    : [
+                        "No tenant-scoped database prospect or CRM records were created because this task had no company ownership context.",
+                    ]),
             ],
         };
     } catch (error) {

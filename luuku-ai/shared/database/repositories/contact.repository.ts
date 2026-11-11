@@ -46,6 +46,14 @@ export class ContactRepository {
             throw new Error("CONTACT_TENANT_MISMATCH");
         }
 
+        if (contact.prospectId) {
+            const prospect = await prisma.prospect.findFirst({
+                where: { id: contact.prospectId, tenantCompanyId: companyId },
+                select: { id: true },
+            });
+            if (!prospect) throw new Error("PROSPECT_TENANT_MISMATCH");
+        }
+
         const created = await prisma.contact.create({
             data: ContactMapper.toPersistence(contact)
         });
@@ -60,11 +68,23 @@ export class ContactRepository {
     }
 
     async update(contact: Contact, companyId: string): Promise<Contact> {
+        if (contact.companyId !== companyId) {
+            throw new Error("CONTACT_TENANT_MISMATCH");
+        }
+
         const owned = await prisma.contact.findFirst({
             where: { id: contact.id, companyId },
             select: { id: true }
         });
         if (!owned) throw new Error("CONTACT_NOT_FOUND_OR_UNAUTHORIZED");
+
+        if (contact.prospectId) {
+            const prospect = await prisma.prospect.findFirst({
+                where: { id: contact.prospectId, tenantCompanyId: companyId },
+                select: { id: true },
+            });
+            if (!prospect) throw new Error("PROSPECT_TENANT_MISMATCH");
+        }
 
         const updated = await prisma.contact.update({
             where: { id: contact.id },
