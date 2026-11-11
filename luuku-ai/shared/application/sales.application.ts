@@ -79,6 +79,54 @@ export class SalesApplication {
         };
     }
 
+    async getTenantProspectById(
+        prospectId: string,
+        tenantCompanyId: string,
+    ): Promise<ProspectMemory> {
+        if (!prospectId.trim()) throw new Error("PROSPECT_ID_REQUIRED");
+
+        const prospect = await researchedProspectService.getById(prospectId, tenantCompanyId);
+        if (!prospect) throw new Error("PROSPECT_NOT_FOUND_OR_UNAUTHORIZED");
+
+        return {
+            id: prospect.id,
+            business: prospect.business,
+            sector: prospect.industry,
+            region: [prospect.city, prospect.country].filter(Boolean).join(", "),
+            fitScore: prospect.fitScore,
+            recommendedOffer: prospect.recommendedOffer,
+            owner: prospect.owner,
+            status: prospect.status,
+            archived: prospect.archived,
+            createdAt: prospect.createdAt,
+            updatedAt: prospect.updatedAt,
+        };
+    }
+
+    async prepareTenantOutreachById(
+        prospectId: string,
+        tenantCompanyId: string,
+    ): Promise<PreparedSalesOutreach> {
+        const prospect = await this.getTenantProspectById(prospectId, tenantCompanyId);
+        return {
+            prospectId: prospect.id,
+            business: prospect.business,
+            status: prospect.status,
+            fitScore: prospect.fitScore,
+            recommendedOffer: prospect.recommendedOffer,
+            messages: {
+                email: generateColdEmail(prospect),
+                linkedin: generateLinkedIn(prospect),
+                whatsapp: generateWhatsApp(prospect),
+                call: generateCallScript(prospect),
+            },
+            dispatch: {
+                executed: false,
+                reason: "Prepared only. Sending requires an approved V6 communication workflow.",
+            },
+        };
+    }
+
     async prepareTenantOutreach(
         business: string,
         tenantCompanyId: string,
